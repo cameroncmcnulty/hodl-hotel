@@ -1,7 +1,8 @@
 "use client";
 
 import { CharacterPreview, FigureEditor } from "@/components/CharacterPreview";
-import { Logo } from "@/components/Logo";
+import { HotelBackdrop } from "@/components/HotelBackdrop";
+import { Wordmark } from "@/components/Wordmark";
 import { STARTER_COINS } from "@/lib/constants";
 import { DEFAULT_FIGURE } from "@/lib/game/avatar";
 import { USER_LAYOUTS } from "@/lib/layouts";
@@ -51,13 +52,14 @@ export default function JoinPage() {
   }
 
   return (
-    <main className="mx-auto max-w-3xl px-4 py-10">
-      <Logo />
-      <p className="mt-6 text-xs uppercase tracking-[0.2em] text-mint">Check-in {step + 1} / 4</p>
-      <h1 className="font-display text-3xl">Create your guest</h1>
+    <HotelBackdrop>
+      <Wordmark />
+      <main className="relative z-20 mx-auto max-w-3xl px-4 py-28 pb-16 md:ml-auto md:mr-8">
+      <p className="text-xs uppercase tracking-[0.2em] text-[#24143d]">Check-in {step + 1} / 4</p>
+      <h1 className="font-display text-3xl text-[#24143d] drop-shadow">Create your guest</h1>
 
       {step === 0 && (
-        <div className="panel mt-6 grid gap-3 p-5">
+        <div className="panel mt-6 grid gap-3 bg-[#24143d]/85 p-5">
           <input className="field" type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} />
           <input className="field" type="password" placeholder="Password (8+)" value={password} onChange={(e) => setPassword(e.target.value)} />
           <label className="text-sm text-white/70">
@@ -85,7 +87,7 @@ export default function JoinPage() {
       )}
 
       {step === 1 && (
-        <div className="panel mt-6 grid gap-3 p-5">
+        <div className="panel mt-6 grid gap-3 bg-[#24143d]/85 p-5">
           <input className="field" placeholder="Username (3–16)" value={username} onChange={(e) => setUsername(e.target.value)} />
           <p className="text-xs text-white/50">Letters, numbers, underscore. This is how people find you.</p>
           <div className="flex gap-2">
@@ -100,7 +102,7 @@ export default function JoinPage() {
       )}
 
       {step === 2 && (
-        <div className="panel mt-6 grid gap-6 p-5 md:grid-cols-2">
+        <div className="panel mt-6 grid gap-6 bg-[#24143d]/85 p-5 md:grid-cols-2">
           <CharacterPreview figure={figure} />
           <FigureEditor figure={figure} onChange={setFigure} />
           <div className="md:col-span-2 flex gap-2">
@@ -115,7 +117,7 @@ export default function JoinPage() {
       )}
 
       {step === 3 && (
-        <div className="panel mt-6 grid gap-4 p-5">
+        <div className="panel mt-6 grid gap-4 bg-[#24143d]/85 p-5">
           <p className="text-sm text-white/70">
             You start with <b className="text-gold">{STARTER_COINS} coins</b> — enough for a bed, seating, a lamp, and a plant.
             Shop after you land.
@@ -156,5 +158,6 @@ export default function JoinPage() {
         </div>
       )}
     </main>
+    </HotelBackdrop>
   );
 }
