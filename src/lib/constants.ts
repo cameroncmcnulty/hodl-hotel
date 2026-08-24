@@ -1,3 +1,8 @@
+export const TREASURY_WALLET =
+  process.env.NEXT_PUBLIC_TREASURY_WALLET ||
+  process.env.TREASURY_WALLET ||
+  "DFpam8jgBo1gqJ2aoUs3n7SVaptDEHSBxiZKFg3Fz3JN";
+
 export const STARTER_COINS = 400;
 export const BACKPACK_SLOTS = 30;
 export const HISTORY_LIMIT = 10;

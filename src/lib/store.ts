@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
 import { join } from "path";
 import bcrypt from "bcryptjs";
-import { BACKPACK_SLOTS, STARTER_COINS } from "./constants";
+import { BACKPACK_SLOTS, STARTER_COINS, TREASURY_WALLET } from "./constants";
 import type { DB, Occupant, ChatLine, Room, User } from "./types";
 import { seedPublicRooms } from "./seed";
 
@@ -18,7 +18,7 @@ function empty(): DB {
     receipts: [],
     events: [],
     settings: {
-      treasuryWallet: process.env.TREASURY_WALLET || process.env.NEXT_PUBLIC_TREASURY_WALLET || "",
+      treasuryWallet: TREASURY_WALLET,
       chatEnabled: true,
       signupEnabled: true,
       maintenance: false,
@@ -64,7 +64,7 @@ export function loadDB(): DB {
 function bootstrap(db: DB) {
   if (!db.settings) db.settings = empty().settings;
   if (!db.settings.treasuryWallet) {
-    db.settings.treasuryWallet = process.env.TREASURY_WALLET || process.env.NEXT_PUBLIC_TREASURY_WALLET || "";
+    db.settings.treasuryWallet = TREASURY_WALLET;
   }
   seedPublicRooms(db);
   const email = (process.env.ADMIN_EMAIL || "admin@hodlhotel.local").toLowerCase();

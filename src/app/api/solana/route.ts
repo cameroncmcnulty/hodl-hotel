@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { COIN_PACKS, PURCHASE_AGE } from "@/lib/constants";
+import { COIN_PACKS, PURCHASE_AGE, TREASURY_WALLET } from "@/lib/constants";
 import { ageYears } from "@/lib/moderate";
 import { sessionUserId } from "@/lib/session";
 import { findUser, loadDB, log, publicUser, saveDB } from "@/lib/store";
@@ -8,7 +8,7 @@ export async function GET() {
   const db = loadDB();
   return NextResponse.json({
     packs: COIN_PACKS,
-    treasury: db.settings.treasuryWallet || process.env.NEXT_PUBLIC_TREASURY_WALLET || "",
+    treasury: db.settings.treasuryWallet || TREASURY_WALLET,
     network: process.env.NEXT_PUBLIC_SOLANA_NETWORK || "mainnet-beta",
   });
 }
@@ -39,7 +39,7 @@ export async function POST(req: Request) {
 
   const pack = COIN_PACKS.find((p) => p.id === body.packId);
   const sig = String(body.sig || "");
-  const treasury = db.settings.treasuryWallet || process.env.TREASURY_WALLET || "";
+  const treasury = db.settings.treasuryWallet || TREASURY_WALLET;
   if (!pack) return NextResponse.json({ error: "Unknown pack" }, { status: 400 });
   if (!treasury) return NextResponse.json({ error: "Treasury wallet not configured yet" }, { status: 503 });
   if (!sig || sig.length < 32) return NextResponse.json({ error: "Missing transaction" }, { status: 400 });
