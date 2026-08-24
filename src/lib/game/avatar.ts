@@ -42,14 +42,21 @@ export function drawAvatarFront(ctx: CanvasRenderingContext2D, fig: Figure, cx: 
   const bot = BOTTOMS[f.bottom];
   const shoe = SHOES[f.shoes];
 
-  round(ctx, -10, 18, 8, 6, 2, shoe);
-  round(ctx, 2, 18, 8, 6, 2, shoe);
-  round(ctx, -9, 6, 8, 14, 3, bot);
-  round(ctx, 1, 6, 8, 14, 3, bot);
-  round(ctx, -13, -2, 26, 16, 6, top);
-  round(ctx, -16, 0, 7, 12, 3, skin);
-  round(ctx, 9, 0, 7, 12, 3, skin);
-  round(ctx, -12, -22, 24, 24, 12, skin);
+  ctx.imageSmoothingEnabled = false;
+  const block = (x: number, y: number, w: number, h: number, fill: string) => {
+    ctx.fillStyle = fill;
+    ctx.fillRect(x, y, w, h);
+    ctx.strokeStyle = "#1a1020";
+    ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
+  };
+  block(-10, 18, 8, 6, shoe);
+  block(2, 18, 8, 6, shoe);
+  block(-9, 6, 8, 14, bot);
+  block(1, 6, 8, 14, bot);
+  block(-13, -2, 26, 16, top);
+  block(-16, 0, 7, 12, skin);
+  block(9, 0, 7, 12, skin);
+  block(-12, -22, 24, 24, skin);
   drawHair(ctx, f.hair, hair, 0);
   if (f.acc === 1) {
     ctx.strokeStyle = "#222";
@@ -133,34 +140,44 @@ export function drawAvatarIso(
   dance?: boolean
 ) {
   const f = clampFigure(fig);
-  const bob = dance ? Math.sin(t * 8) * 4 : Math.sin(t * 6) * 2;
-  ctx.save();
-  ctx.translate(sx, sy - 8 - bob);
+  const bob = Math.round(dance ? Math.sin(t * 10) * 3 : Math.sin(t * 7) * 1);
   const flip = dir === 2 || dir === 3 ? -1 : 1;
-  ctx.scale(flip, 1);
   const skin = SKIN[f.skin];
   const hair = HAIR_C[f.hairColor];
   const top = TOPS[f.top];
   const bot = BOTTOMS[f.bottom];
   const shoe = SHOES[f.shoes];
-  const step = dance ? Math.sin(t * 8) * 4 : Math.sin(t * 6) * 3;
-
-  isoBox(ctx, -10, 10 + step, 8, 5, 4, shoe, shade(shoe, -20), shade(shoe, 10));
-  isoBox(ctx, 2, 10 - step, 8, 5, 4, shoe, shade(shoe, -20), shade(shoe, 10));
-  isoBox(ctx, -8, 0, 7, 6, 12, bot, shade(bot, -25), shade(bot, 10));
-  isoBox(ctx, 1, 0, 7, 6, 12, bot, shade(bot, -25), shade(bot, 10));
-  isoBox(ctx, -12, -8, 24, 10, 14, top, shade(top, -25), shade(top, 15));
-  isoBox(ctx, -6, -28, 16, 12, 16, skin, shade(skin, -20), shade(skin, 12));
+  const step = Math.round((dance ? Math.sin(t * 10) : Math.sin(t * 7)) * 2);
+  ctx.save();
+  ctx.translate(Math.round(sx), Math.round(sy - 6 - bob));
+  ctx.scale(flip, 1);
+  ctx.imageSmoothingEnabled = false;
+  const px = (x: number, y: number, w: number, h: number, fill: string) => {
+    ctx.fillStyle = fill;
+    ctx.fillRect(x, y, w, h);
+    ctx.strokeStyle = "#1a1020";
+    ctx.lineWidth = 1;
+    ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
+  };
+  px(-7, 14 + step, 7, 5, shoe);
+  px(1, 14 - step, 7, 5, shoe);
+  px(-6, 4, 6, 12, bot);
+  px(0, 4, 6, 12, bot);
+  px(-10, -6, 20, 14, top);
+  px(-9, -26, 18, 18, skin);
   ctx.fillStyle = hair;
-  ctx.beginPath();
-  ctx.ellipse(2, -34, 11, 8, 0, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.strokeStyle = "#111";
-  ctx.stroke();
-  ctx.fillStyle = "#111";
-  ctx.beginPath();
-  ctx.arc(6, -26, 1.6, 0, Math.PI * 2);
-  ctx.fill();
+  ctx.fillRect(-10, -32, 20, 10);
+  ctx.fillRect(-6, -36, 12, 6);
+  ctx.strokeStyle = "#1a1020";
+  ctx.strokeRect(-10.5, -32.5, 21, 11);
+  ctx.fillStyle = "#1a1020";
+  ctx.fillRect(flip > 0 ? 2 : -6, -20, 3, 3);
+  if (f.acc === 2) px(-10, -22, 20, 4, "#111");
+  if (f.acc === 1) {
+    ctx.strokeStyle = "#111";
+    ctx.strokeRect(-8, -21, 7, 5);
+    ctx.strokeRect(1, -21, 7, 5);
+  }
   ctx.restore();
 }
 

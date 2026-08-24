@@ -15,7 +15,9 @@ function put(room: Room, catalogId: string, x: number, y: number, rot: 0 | 1 | 2
 function ensure(db: DB, room: Room) {
   const i = db.rooms.findIndex((r) => r.id === room.id);
   if (i >= 0) {
-    if (db.rooms[i].furniture.length === 0) db.rooms[i].furniture = room.furniture;
+    for (const f of room.furniture) {
+      if (!db.rooms[i].furniture.some((x) => x.uid === f.uid)) db.rooms[i].furniture.push(f);
+    }
     return;
   }
   db.rooms.push(room);
@@ -48,6 +50,11 @@ export function seedPublicRooms(db: DB) {
   put(lobby, "table_coffee", 5, 11);
   put(lobby, "table_coffee", 11, 11);
   put(lobby, "clock_block", 1, 8);
+  put(lobby, "plant_palm", 5, 2);
+  put(lobby, "plant_palm", 10, 2);
+  put(lobby, "armchair_teal", 3, 12);
+  put(lobby, "armchair_teal", 12, 12);
+  put(lobby, "table_coffee", 8, 12);
   ensure(db, lobby);
 
   const pool: Room = {
@@ -70,6 +77,11 @@ export function seedPublicRooms(db: DB) {
   put(pool, "plant_palm", 0, 0);
   put(pool, "plant_palm", 17, 0);
   put(pool, "minibar", 8, 12);
+  put(pool, "lounger_pool", 16, 6, 0);
+  put(pool, "plant_palm", 8, 1);
+  put(pool, "plant_palm", 10, 1);
+  put(pool, "bean_gold", 6, 12);
+  put(pool, "fountain", 9, 8);
   ensure(db, pool);
 
   const shill: Room = {
@@ -98,6 +110,13 @@ export function seedPublicRooms(db: DB) {
   put(shill, "ad_board", 13, 0, 0, { adSlot: "shill-d" });
   put(shill, "jukebox", 0, 6);
   put(shill, "rug_neon", 7, 8);
+  put(shill, "sofa_sunset", 4, 10, 0);
+  put(shill, "loveseat_violet", 8, 11, 2);
+  put(shill, "bean_gold", 10, 8);
+  put(shill, "plant_palm", 15, 13);
+  put(shill, "disco_ball", 5, 4);
+  put(shill, "lamp_floor", 3, 13);
+  put(shill, "armchair_teal", 12, 12);
   ensure(db, shill);
 
   const cook: Room = {

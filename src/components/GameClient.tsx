@@ -5,10 +5,10 @@ import { CATS } from "@/lib/catalog";
 import { COIN_PACKS } from "@/lib/constants";
 import { drawRoom, tileAt } from "@/lib/game/draw";
 import { iso } from "@/lib/game/iso";
+import { loadSprites } from "@/lib/game/sprites";
 import type { Ad, ChatLine, Occupant, Placed, Room } from "@/lib/types";
 import {
   Backpack,
-  Coins,
   Flag,
   Handshake,
   Map,
@@ -61,6 +61,13 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
   const [trade, setTrade] = useState<any>(null);
   const tRef = useRef(0);
   const cam = useRef({ x: 400, y: 200 });
+  const spritesRef = useRef<Record<string, HTMLCanvasElement>>({});
+
+  useEffect(() => {
+    loadSprites().then((s) => {
+      spritesRef.current = s;
+    });
+  }, []);
 
   const act = useCallback(async (body: object) => {
     const res = await fetch("/api/game", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
@@ -120,7 +127,9 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
             c.height = h * dpr;
             ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
           }
-          ctx.clearRect(0, 0, w, h);
+          ctx.imageSmoothingEnabled = false;
+          ctx.fillStyle = "#7ec8ea";
+          ctx.fillRect(0, 0, w, h);
           const you = s.occupants.find((o) => o.userId === meState.id);
           if (you) {
             const p = iso(you.x + 0.5, you.y + 0.5);
@@ -136,6 +145,7 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
             t: tRef.current,
             hover: hover || undefined,
             ghost: gdef && hover ? { def: gdef, x: hover.x, y: hover.y, rot: place!.rot, ok: true } : undefined,
+            sprites: spritesRef.current,
           });
           if (s.room.id === "public-shill-zone") {
             const g = ctx.createRadialGradient(w * 0.5, h * 0.4, 20, w * 0.5, h * 0.4, 400);
@@ -250,10 +260,42 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
   const you = snap?.occupants.find((o) => o.userId === meState.id);
 
   return (
-    <div className="relative h-screen overflow-hidden bg-[#1a1230]">
+    <div
+      className="relative flex h-screen flex-col overflow-hidden"
+      style={{
+        background:
+          "repeating-linear-gradient(45deg,#1c4a5c 0 10px,#163e4e 10px 20px)",
+      }}
+    >
+      <div className="z-10 flex items-center justify-between border-b-4 border-[#c48a1a] bg-gradient-to-r from-[#f0b429] to-[#e08932] px-3 py-1 text-sm font-bold text-[#2a1a08]">
+        <span className="font-display text-lg">HODL Hotel</span>
+        <span>
+          {snap?.room.name} · {snap?.occupants.length || 0} in room
+        </span>
+        <span className="flex items-center gap-2">
+          <button className="rounded bg-[#24143d] px-2 py-0.5 text-white" onClick={() => setPanel(panel === "coins" ? null : "coins")}>
+            {meState.coins}c
+          </button>
+          {meState.role === "admin" && (
+            <a className="underline" href="/admin">
+              Desk
+            </a>
+          )}
+          <button
+            onClick={async () => {
+              await fetch("/api/auth/logout", { method: "POST" });
+              location.href = "/";
+            }}
+          >
+            Logout
+          </button>
+        </span>
+      </div>
+      <div className="relative min-h-0 flex-1 border-x-8 border-[#f0b429] bg-[#7ec8ea]">
       <canvas
         ref={canvasRef}
         className="h-full w-full cursor-pointer"
+        style={{ imageRendering: "pixelated" }}
         onMouseMove={(e) => setHover(localTile(e))}
         onContextMenu={(e) => {
           e.preventDefault();
@@ -277,29 +319,10 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
           act({ type: "walk", x: t.x, y: t.y });
         }}
       />
-
-      <div className="pointer-events-none absolute left-4 top-4 flex items-center gap-3">
-        <div className="pointer-events-auto rounded-2xl bg-night/80 px-3 py-2 font-display text-lg shadow-glow">
-          HODL Hotel
-        </div>
-        <div className="pointer-events-auto rounded-2xl bg-black/50 px-3 py-2 text-sm">
-          {snap?.room.name} · {snap?.occupants.length || 0} here
-        </div>
       </div>
 
-      <div className="absolute right-4 top-4 flex items-center gap-2">
-        <button className="btn-sol" onClick={() => setPanel(panel === "coins" ? null : "coins")}>
-          <Coins size={16} /> {meState.coins}
-        </button>
-        <a className="btn-ink text-xs" href="/admin" hidden={meState.role !== "admin"}>
-          Desk
-        </a>
-        <form action="/api/auth/logout" method="post" onSubmit={async (e) => { e.preventDefault(); await fetch("/api/auth/logout", { method: "POST" }); location.href = "/"; }}>
-          <button className="btn-ink text-xs">Leave</button>
-        </form>
-      </div>
-
-      <div className="absolute bottom-24 left-1/2 flex -translate-x-1/2 gap-2">
+      <div className="z-10 flex items-center gap-2 border-t-4 border-[#c48a1a] bg-[#2a2218] px-3 py-2">
+      <div className="flex gap-1">
         {(
           [
             { id: "nav", Icon: Map, fn: openNav },
@@ -311,23 +334,34 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
             { id: "ads", Icon: Flag, fn: openAds },
           ] as const
         ).map(({ id, Icon, fn }) => (
-          <button key={id} className={`btn-ink h-12 w-12 ${panel === id ? "ring-2 ring-mint" : ""}`} onClick={fn} title={id}>
-            <Icon size={20} />
+          <button
+            key={id}
+            className={`grid h-11 w-11 place-items-center rounded-md border-2 border-[#7a5a20] bg-[#f0b429] text-[#24143d] ${panel === id ? "ring-2 ring-mint" : ""}`}
+            onClick={fn}
+            title={id}
+          >
+            <Icon size={18} />
           </button>
         ))}
       </div>
-
       <form
-        className="absolute bottom-6 left-1/2 flex w-[min(640px,92vw)] -translate-x-1/2 gap-2"
+        className="flex min-w-0 flex-1 gap-2"
         onSubmit={(e) => {
           e.preventDefault();
           if (chat.trim()) act({ type: "chat", text: chat });
           setChat("");
         }}
       >
-        <input className="field" placeholder={`Say something, ${meState.username}…`} value={chat} onChange={(e) => setChat(e.target.value)} maxLength={80} />
-        <button className="btn-sol">Send</button>
+        <input
+          className="min-w-0 flex-1 rounded-md border-2 border-[#7a5a20] bg-[#f7efe2] px-3 py-2 text-sm text-[#24143d] outline-none"
+          placeholder={`Say something, ${meState.username}…`}
+          value={chat}
+          onChange={(e) => setChat(e.target.value)}
+          maxLength={80}
+        />
+        <button className="rounded-md bg-[#14F195] px-4 font-bold text-[#24143d]">Send</button>
       </form>
+      </div>
 
       {status && (
         <div className="absolute left-1/2 top-20 -translate-x-1/2 rounded-xl bg-black/70 px-4 py-2 text-sm" onClick={() => setStatus("")}>

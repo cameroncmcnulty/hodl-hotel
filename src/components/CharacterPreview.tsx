@@ -11,8 +11,9 @@ export function CharacterPreview({ figure, size = 220 }: { figure: Figure; size?
     if (!c) return;
     const ctx = c.getContext("2d");
     if (!ctx) return;
+    ctx.imageSmoothingEnabled = false;
     ctx.clearRect(0, 0, size, size);
-    ctx.fillStyle = "rgba(255,255,255,0.04)";
+    ctx.fillStyle = "rgba(255,255,255,0.08)";
     ctx.fillRect(0, 0, size, size);
     drawAvatarFront(ctx, clampFigure(figure), size / 2, size * 0.58, size / 140);
   }, [figure, size]);

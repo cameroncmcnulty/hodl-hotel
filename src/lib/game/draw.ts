@@ -5,6 +5,10 @@ import { layoutById, isDance, isOutdoor, isWater, walkable } from "../layouts";
 import { iso, TW, TH } from "./iso";
 import { drawAvatarIso, shade } from "./avatar";
 
+function snap(n: number) {
+  return Math.round(n);
+}
+
 export type Cam = { x: number; y: number };
 
 export function tileAt(cam: Cam, mx: number, my: number) {
@@ -15,17 +19,18 @@ export function tileAt(cam: Cam, mx: number, my: number) {
   return { x: Math.floor(x), y: Math.floor(y) };
 }
 
-function diamond(ctx: CanvasRenderingContext2D, x: number, y: number, fill: string, stroke = "rgba(0,0,0,0.18)") {
+function diamond(ctx: CanvasRenderingContext2D, x: number, y: number, fill: string, stroke = "#3a2a20") {
   const p = iso(x, y);
   ctx.beginPath();
-  ctx.moveTo(p.sx, p.sy);
-  ctx.lineTo(p.sx + TW / 2, p.sy + TH / 2);
-  ctx.lineTo(p.sx, p.sy + TH);
-  ctx.lineTo(p.sx - TW / 2, p.sy + TH / 2);
+  ctx.moveTo(snap(p.sx), snap(p.sy));
+  ctx.lineTo(snap(p.sx + TW / 2), snap(p.sy + TH / 2));
+  ctx.lineTo(snap(p.sx), snap(p.sy + TH));
+  ctx.lineTo(snap(p.sx - TW / 2), snap(p.sy + TH / 2));
   ctx.closePath();
   ctx.fillStyle = fill;
   ctx.fill();
   ctx.strokeStyle = stroke;
+  ctx.lineWidth = 1;
   ctx.stroke();
 }
 
@@ -66,26 +71,64 @@ function poly(ctx: CanvasRenderingContext2D, pts: { sx: number; sy: number }[], 
   ctx.stroke();
 }
 
-function wallN(ctx: CanvasRenderingContext2D, x: number, y: number, color: string) {
-  const h = 3.4;
+function wallN(ctx: CanvasRenderingContext2D, x: number, y: number, color: string, paper: string) {
+  const h = 3.6;
   const a = iso(x, y, h);
   const b = iso(x + 1, y, h);
   const c = iso(x + 1, y, 0);
   const d = iso(x, y, 0);
-  poly(ctx, [a, b, c, d], color);
+  poly(ctx, [a, b, c, d], paper);
+  const trim = iso(x, y, h);
+  const trim2 = iso(x + 1, y, h);
+  const trim3 = iso(x + 1, y, h - 0.22);
+  const trim4 = iso(x, y, h - 0.22);
+  poly(ctx, [trim, trim2, trim3, trim4], "#e0b14a");
+  void color;
 }
 
-function wallW(ctx: CanvasRenderingContext2D, x: number, y: number, color: string) {
-  const h = 3.4;
+function wallW(ctx: CanvasRenderingContext2D, x: number, y: number, color: string, paper: string) {
+  const h = 3.6;
   const a = iso(x, y, h);
   const b = iso(x, y + 1, h);
   const c = iso(x, y + 1, 0);
   const d = iso(x, y, 0);
-  poly(ctx, [a, b, c, d], shade(color, -18));
+  poly(ctx, [a, b, c, d], shade(paper, -22));
+  const trim = iso(x, y, h);
+  const trim2 = iso(x, y + 1, h);
+  const trim3 = iso(x, y + 1, h - 0.22);
+  const trim4 = iso(x, y, h - 0.22);
+  poly(ctx, [trim, trim2, trim3, trim4], "#c4922e");
+  void color;
 }
 
-export function drawFurniture(ctx: CanvasRenderingContext2D, def: FurnDef, p: Placed, t: number) {
+function drawSprite(
+  ctx: CanvasRenderingContext2D,
+  spr: HTMLCanvasElement,
+  x: number,
+  y: number,
+  w: number,
+  d: number
+) {
+  const p = iso(x + w / 2, y + d / 2);
+  const tw = Math.max(TW * 0.95 * w, 36);
+  const th = tw * (spr.height / spr.width);
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(spr, snap(p.sx - tw / 2), snap(p.sy - th + TH * 0.35), tw, th);
+}
+
+export function drawFurniture(
+  ctx: CanvasRenderingContext2D,
+  def: FurnDef,
+  p: Placed,
+  t: number,
+  sprites?: Record<string, HTMLCanvasElement>
+) {
   const { w, d } = footprint(def, p.rot);
+  const spr = sprites?.[def.id];
+  if (spr && spr.width > 4) {
+    drawSprite(ctx, spr, p.x, p.y, w, d);
+    return;
+  }
   const c = def.colors;
   const x = p.x;
   const y = p.y;
@@ -187,6 +230,7 @@ type DrawOpts = {
   hover?: { x: number; y: number };
   ghost?: { def: FurnDef; x: number; y: number; rot: 0 | 1 | 2 | 3; ok: boolean };
   images?: Record<string, HTMLImageElement>;
+  sprites?: Record<string, HTMLCanvasElement>;
 };
 
 export function drawRoom(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
@@ -194,10 +238,15 @@ export function drawRoom(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
   const layout = layoutById(room.layoutId);
   ctx.save();
   ctx.translate(cam.x, cam.y);
+  ctx.imageSmoothingEnabled = false;
 
-  const wall = layout.indoor ? "#e8b8a4" : "#f3d2c2";
-  const floorA = layout.id === "shill_club" ? "#2a1848" : layout.id.includes("pool") ? "#f4a98a" : "#f3d7c2";
-  const floorB = layout.id === "shill_club" ? "#1b0f33" : "#ecd0b8";
+  const paper =
+    layout.id === "shill_club" ? "#6b3fa0" : layout.id.includes("pool") ? "#87d0ea" : layout.id === "cook_lab" ? "#e8c07a" : "#e6c39a";
+  const wall = paper;
+  const floorA =
+    layout.id === "shill_club" ? "#3b1d5c" : layout.id.includes("pool") ? "#f2b090" : layout.id === "cook_lab" ? "#d7b48a" : "#f0d2b0";
+  const floorB =
+    layout.id === "shill_club" ? "#2a1444" : layout.id.includes("pool") ? "#e49a78" : layout.id === "cook_lab" ? "#c9a06e" : "#e4c29a";
 
   for (let y = 0; y < layout.h; y++) {
     for (let x = 0; x < layout.w; x++) {
@@ -207,10 +256,10 @@ export function drawRoom(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
         const flash = Math.floor(t * 2 + x + y) % 3;
         fill = flash === 0 ? "#ff4fd8" : flash === 1 ? "#45f0ff" : "#9945FF";
       } else if (isWater(layout, x, y)) fill = (x + y) % 2 === 0 ? "#3ec6e0" : "#2aa8c8";
-      else if (isOutdoor(layout, x, y)) fill = (x + y) % 2 === 0 ? "#e8c9a0" : "#d9b48a";
-      diamond(ctx, x, y, fill);
-      if (!walkable(layout, x, y - 1) && !isWater(layout, x, y - 1)) wallN(ctx, x, y, wall);
-      if (!walkable(layout, x - 1, y) && !isWater(layout, x - 1, y)) wallW(ctx, x, y, wall);
+      else if (isOutdoor(layout, x, y)) fill = (x + y) % 2 === 0 ? "#cfe88a" : "#b5d46a";
+      diamond(ctx, x, y, fill, "#5a4030");
+      if (!walkable(layout, x, y - 1) && !isWater(layout, x, y - 1)) wallN(ctx, x, y, wall, paper);
+      if (!walkable(layout, x - 1, y) && !isWater(layout, x - 1, y)) wallW(ctx, x, y, wall, paper);
     }
   }
 
@@ -228,7 +277,7 @@ export function drawRoom(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
     spr.push({
       depth: (p.x + w / 2 + p.y + d / 2) * 1000 + def.h,
       draw: () => {
-        drawFurniture(ctx, def, p, t);
+        drawFurniture(ctx, def, p, t, opts.sprites);
         if (def.use === "ad" || def.use === "frame") {
           const imgKey =
             def.use === "ad"
@@ -260,23 +309,36 @@ export function drawRoom(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
       draw: () => {
         const p = iso(o.x + 0.5, o.y + 0.5, 0);
         drawAvatarIso(ctx, o.figure, p.sx, p.sy, o.dir, t + o.userId.length, o.dance);
-        ctx.fillStyle = "rgba(10,8,20,0.7)";
-        ctx.font = "600 11px Nunito, sans-serif";
-        const tw = ctx.measureText(o.username).width;
-        ctx.fillRect(p.sx - tw / 2 - 4, p.sy - 58, tw + 8, 14);
+        ctx.font = "bold 11px Tahoma, sans-serif";
+        const name = o.username;
+        const nw = ctx.measureText(name).width;
         ctx.fillStyle = "#fff";
-        ctx.fillText(o.username, p.sx - tw / 2, p.sy - 47);
-        if (o.chat && Date.now() - o.chat.at < 5000) {
+        ctx.strokeStyle = "#111";
+        ctx.lineWidth = 3;
+        ctx.strokeText(name, p.sx - nw / 2, p.sy - 52);
+        ctx.fillStyle = "#2a7dff";
+        ctx.fillText(name, p.sx - nw / 2, p.sy - 52);
+        if (o.chat && Date.now() - o.chat.at < 6000) {
           const msg = o.chat.text;
-          const mw = Math.min(180, ctx.measureText(msg).width + 12);
+          ctx.font = "12px Tahoma, sans-serif";
+          const mw = Math.min(200, ctx.measureText(msg).width + 16);
+          const bx = snap(p.sx - mw / 2);
+          const by = snap(p.sy - 86);
           ctx.fillStyle = "#fff";
-          ctx.strokeStyle = "#24143d";
+          ctx.strokeStyle = "#222";
+          ctx.lineWidth = 2;
           ctx.beginPath();
-          ctx.roundRect(p.sx - mw / 2, p.sy - 84, mw, 22, 8);
+          ctx.roundRect(bx, by, mw, 22, 10);
           ctx.fill();
           ctx.stroke();
-          ctx.fillStyle = "#24143d";
-          ctx.fillText(msg.slice(0, 28), p.sx - mw / 2 + 6, p.sy - 69);
+          ctx.beginPath();
+          ctx.moveTo(p.sx - 6, by + 22);
+          ctx.lineTo(p.sx, by + 30);
+          ctx.lineTo(p.sx + 6, by + 22);
+          ctx.fill();
+          ctx.stroke();
+          ctx.fillStyle = "#111";
+          ctx.fillText(msg.slice(0, 32), bx + 8, by + 15);
         }
       },
     });
@@ -291,7 +353,8 @@ export function drawRoom(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
       ctx,
       opts.ghost.def,
       { uid: "g", catalogId: opts.ghost.def.id, x: opts.ghost.x, y: opts.ghost.y, rot: opts.ghost.rot, ownerId: "" },
-      t
+      t,
+      opts.sprites
     );
     ctx.globalAlpha = 1;
     diamond(ctx, opts.ghost.x, opts.ghost.y, opts.ghost.ok ? "rgba(20,241,149,0.25)" : "rgba(255,80,80,0.3)");
