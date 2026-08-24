@@ -11,6 +11,15 @@ export const USERNAME_RE = /^[a-zA-Z0-9_]{3,16}$/;
 export const ROOM_NAME_MAX = 24;
 export const MIN_AGE = 13;
 export const PURCHASE_AGE = 18;
+
+export function passwordIssues(pw: string) {
+  const issues: string[] = [];
+  if (pw.length < 10) issues.push("At least 10 characters");
+  if (!/[a-z]/.test(pw)) issues.push("One lowercase letter");
+  if (!/[A-Z]/.test(pw)) issues.push("One uppercase letter");
+  if (!/[0-9]/.test(pw)) issues.push("One number");
+  return issues;
+}
 export const TRADE_SLOTS = 6;
 
 export const RESERVED_NAMES = new Set([

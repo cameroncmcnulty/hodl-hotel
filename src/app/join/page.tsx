@@ -1,15 +1,18 @@
 "use client";
 
+import { BirthdayFields } from "@/components/BirthdayFields";
 import { CharacterPreview, FigureEditor } from "@/components/CharacterPreview";
 import { HotelBackdrop } from "@/components/HotelBackdrop";
+import { LayoutPreview } from "@/components/LayoutPreview";
 import { Wordmark } from "@/components/Wordmark";
-import { STARTER_COINS } from "@/lib/constants";
+import { passwordIssues, STARTER_COINS } from "@/lib/constants";
 import { DEFAULT_FIGURE } from "@/lib/game/avatar";
 import { USER_LAYOUTS } from "@/lib/layouts";
+import { ageYears } from "@/lib/moderate";
 import type { Figure } from "@/lib/types";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 export default function JoinPage() {
   const r = useRouter();
@@ -18,6 +21,12 @@ export default function JoinPage() {
   const [password, setPassword] = useState("");
   const [birthday, setBirthday] = useState("");
   const [tos, setTos] = useState(false);
+  const [privacy, setPrivacy] = useState(false);
+  const [guidelines, setGuidelines] = useState(false);
+  const [virtualGoods, setVirtualGoods] = useState(false);
+  const [ageConfirm, setAgeConfirm] = useState(false);
+  const [guardian, setGuardian] = useState(false);
+  const [showPw, setShowPw] = useState(false);
   const [username, setUsername] = useState("");
   const [figure, setFigure] = useState<Figure>(DEFAULT_FIGURE);
   const [layoutId, setLayoutId] = useState(USER_LAYOUTS[0].id);
@@ -26,6 +35,20 @@ export default function JoinPage() {
   const [roomPassword, setRoomPassword] = useState("");
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
+  const pwNeeds = useMemo(() => passwordIssues(password), [password]);
+  const years = birthday ? ageYears(birthday) : 0;
+  const teen = years >= 13 && years < 18;
+  const canAccount =
+    !!email &&
+    pwNeeds.length === 0 &&
+    !!birthday &&
+    years >= 13 &&
+    tos &&
+    privacy &&
+    guidelines &&
+    virtualGoods &&
+    ageConfirm &&
+    (!teen || guardian);
 
   async function finish() {
     setBusy(true);
@@ -43,6 +66,12 @@ export default function JoinPage() {
         roomName: roomName || `${username}'s pad`,
         visibility,
         roomPassword,
+        tos,
+        privacy,
+        guidelines,
+        virtualGoods,
+        ageConfirm,
+        guardian,
       }),
     });
     const j = await res.json();
@@ -60,27 +89,86 @@ export default function JoinPage() {
 
       {step === 0 && (
         <div className="panel mt-6 grid gap-3 bg-[#24143d]/85 p-5">
-          <input className="field" type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} />
-          <input className="field" type="password" placeholder="Password (8+)" value={password} onChange={(e) => setPassword(e.target.value)} />
+          <input className="field" type="email" autoComplete="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} />
           <label className="text-sm text-white/70">
-            Birthday
-            <input className="field mt-1" type="date" value={birthday} onChange={(e) => setBirthday(e.target.value)} />
+            Password
+            <div className="relative">
+              <input
+                className="field mt-1 pr-16"
+                type={showPw ? "text" : "password"}
+                autoComplete="new-password"
+                placeholder="10+ characters"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+              <button type="button" className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-mint" onClick={() => setShowPw(!showPw)}>
+                {showPw ? "Hide" : "Show"}
+              </button>
+            </div>
           </label>
-          <label className="flex items-start gap-2 text-sm text-white/70">
+          <ul className="grid gap-1 text-xs">
+            {["At least 10 characters", "One lowercase letter", "One uppercase letter", "One number"].map((rule) => {
+              const ok = !pwNeeds.includes(rule);
+              return (
+                <li key={rule} className={ok && password ? "text-mint" : "text-white/45"}>
+                  {ok && password ? "✓" : "○"} {rule}
+                </li>
+              );
+            })}
+          </ul>
+          <BirthdayFields value={birthday} onChange={setBirthday} />
+          {birthday && years > 0 && years < 13 && <p className="text-sm text-coral">You must be 13 or older to create an account.</p>}
+          <label className="flex items-start gap-2 text-sm text-white/80">
+            <input type="checkbox" checked={ageConfirm} onChange={(e) => setAgeConfirm(e.target.checked)} className="mt-1" />
+            <span>I confirm my birthday is accurate and I am at least 13 years old.</span>
+          </label>
+          {teen && (
+            <label className="flex items-start gap-2 text-sm text-white/80">
+              <input type="checkbox" checked={guardian} onChange={(e) => setGuardian(e.target.checked)} className="mt-1" />
+              <span>I have a parent or guardian’s permission to play. I understand I cannot buy coins with Solana until I am 18.</span>
+            </label>
+          )}
+          <label className="flex items-start gap-2 text-sm text-white/80">
             <input type="checkbox" checked={tos} onChange={(e) => setTos(e.target.checked)} className="mt-1" />
             <span>
-              I am 13+ (18+ to buy coins with Solana) and agree to the{" "}
-              <Link href="/legal/terms" className="text-mint">
-                Terms
-              </Link>{" "}
-              and{" "}
-              <Link href="/legal/privacy" className="text-mint">
-                Privacy Policy
+              I agree to the{" "}
+              <Link href="/legal/terms" className="text-mint underline" target="_blank">
+                Terms of Service
               </Link>
               .
             </span>
           </label>
-          <button className="btn-sol" disabled={!email || password.length < 8 || !birthday || !tos} onClick={() => setStep(1)}>
+          <label className="flex items-start gap-2 text-sm text-white/80">
+            <input type="checkbox" checked={privacy} onChange={(e) => setPrivacy(e.target.checked)} className="mt-1" />
+            <span>
+              I agree to the{" "}
+              <Link href="/legal/privacy" className="text-mint underline" target="_blank">
+                Privacy Policy
+              </Link>{" "}
+              (PIPEDA / similar privacy laws).
+            </span>
+          </label>
+          <label className="flex items-start gap-2 text-sm text-white/80">
+            <input type="checkbox" checked={guidelines} onChange={(e) => setGuidelines(e.target.checked)} className="mt-1" />
+            <span>
+              I will follow the{" "}
+              <Link href="/legal/guidelines" className="text-mint underline" target="_blank">
+                Community Guidelines
+              </Link>
+              .
+            </span>
+          </label>
+          <label className="flex items-start gap-2 text-sm text-white/80">
+            <input type="checkbox" checked={virtualGoods} onChange={(e) => setVirtualGoods(e.target.checked)} className="mt-1" />
+            <span>
+              I understand coins and furniture are virtual goods with no cash value, as described in the{" "}
+              <Link href="/legal/virtual-goods" className="text-mint underline" target="_blank">
+                Virtual Goods Policy
+              </Link>
+              . Crypto purchases are 18+ and irreversible.
+            </span>
+          </label>
+          <button className="btn-sol" disabled={!canAccount} onClick={() => setStep(1)}>
             Next — username
           </button>
         </div>
@@ -127,9 +215,10 @@ export default function JoinPage() {
               <button
                 key={l.id}
                 onClick={() => setLayoutId(l.id)}
-                className={`rounded-2xl border p-3 text-left ${layoutId === l.id ? "border-mint bg-mint/10" : "border-white/10"}`}
+                className={`rounded-2xl border p-2 text-left ${layoutId === l.id ? "border-mint bg-mint/10" : "border-white/10"}`}
               >
-                <div className="font-display">{l.name}</div>
+                <LayoutPreview layoutId={l.id} />
+                <div className="mt-2 font-display">{l.name}</div>
                 <div className="text-xs text-white/60">{l.blurb}</div>
               </button>
             ))}

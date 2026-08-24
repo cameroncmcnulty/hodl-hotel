@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
-import { BACKPACK_SLOTS, MIN_AGE, RESERVED_NAMES, USERNAME_RE } from "@/lib/constants";
+import { BACKPACK_SLOTS, MIN_AGE, passwordIssues, RESERVED_NAMES, USERNAME_RE } from "@/lib/constants";
 import { clampFigure, DEFAULT_FIGURE } from "@/lib/game/avatar";
 import { USER_LAYOUTS } from "@/lib/layouts";
 import { ageYears } from "@/lib/moderate";
@@ -23,12 +23,20 @@ export async function POST(req: Request) {
   const layoutId = String(body.layoutId || "cozy_studio");
 
   if (!email.includes("@") || email.length > 80) return NextResponse.json({ error: "Need a valid email" }, { status: 400 });
-  if (password.length < 8) return NextResponse.json({ error: "Password must be 8+ characters" }, { status: 400 });
+  const pw = passwordIssues(password);
+  if (pw.length) return NextResponse.json({ error: `Password needs: ${pw.join(", ")}` }, { status: 400 });
+  if (!body.tos || !body.privacy || !body.guidelines || !body.virtualGoods || !body.ageConfirm) {
+    return NextResponse.json({ error: "Please accept the required legal notices" }, { status: 400 });
+  }
   if (!USERNAME_RE.test(username) || RESERVED_NAMES.has(username.toLowerCase())) {
     return NextResponse.json({ error: "Username must be 3–16 letters, numbers, or _" }, { status: 400 });
   }
-  if (ageYears(birthday) < MIN_AGE) {
+  const years = ageYears(birthday);
+  if (years < MIN_AGE) {
     return NextResponse.json({ error: "You must be 13 or older to create an account" }, { status: 400 });
+  }
+  if (years < 18 && !body.guardian) {
+    return NextResponse.json({ error: "Players 13–17 need a parent or guardian’s permission to play" }, { status: 400 });
   }
   if (!USER_LAYOUTS.some((l) => l.id === layoutId)) return NextResponse.json({ error: "Pick a room layout" }, { status: 400 });
   if (visibility === "locked" && roomPass.length < 3) {
@@ -58,6 +66,11 @@ export async function POST(req: Request) {
     backpack: Array.from({ length: BACKPACK_SLOTS }, () => null),
     ownedRoomIds: [roomId],
     quests: {},
+    tosAcceptedAt: new Date().toISOString(),
+    privacyAcceptedAt: new Date().toISOString(),
+    guidelinesAcceptedAt: new Date().toISOString(),
+    virtualGoodsAcceptedAt: new Date().toISOString(),
+    ageConfirmedAt: new Date().toISOString(),
   };
   db.users.push(user);
   db.rooms.push({

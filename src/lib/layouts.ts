@@ -117,6 +117,23 @@ oooooooooooooo
 `
   ),
   parse(
+    "garden_lanai",
+    "Garden Lanai",
+    "A courtyard pad — indoor ring around a sunny garden.",
+    `
+..........
+..........
+..oooooo..
+..o....o..
+..o..s.o..
+..o....o..
+..oooooo..
+..........
+..........
+..........
+`
+  ),
+  parse(
     "grand_lobby",
     "Grand Lobby",
     "Hotel lobby",
@@ -224,7 +241,7 @@ oooooooooooooooooo
 ];
 
 export const USER_LAYOUTS = LAYOUTS.filter((l) =>
-  ["cozy_studio", "city_loft", "neon_suite", "sky_penthouse", "vault_den"].includes(l.id)
+  ["cozy_studio", "city_loft", "neon_suite", "sky_penthouse", "vault_den", "garden_lanai"].includes(l.id)
 );
 
 export function layoutById(id: string) {

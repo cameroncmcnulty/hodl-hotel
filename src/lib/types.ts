@@ -37,6 +37,11 @@ export type User = {
   ownedRoomIds: string[];
   wallet?: string;
   quests: Record<string, { progress: number; done: boolean }>;
+  tosAcceptedAt?: string;
+  privacyAcceptedAt?: string;
+  guidelinesAcceptedAt?: string;
+  virtualGoodsAcceptedAt?: string;
+  ageConfirmedAt?: string;
 };
 
 export type PublicUser = Omit<User, "passwordHash" | "email"> & { email?: string };

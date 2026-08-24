@@ -83,6 +83,11 @@ function wallN(ctx: CanvasRenderingContext2D, x: number, y: number, color: strin
   const trim3 = iso(x + 1, y, h - 0.22);
   const trim4 = iso(x, y, h - 0.22);
   poly(ctx, [trim, trim2, trim3, trim4], "#e0b14a");
+  poly(
+    ctx,
+    [iso(x + 0.28, y, 2.25), iso(x + 0.72, y, 2.25), iso(x + 0.72, y, 1.2), iso(x + 0.28, y, 1.2)],
+    "#7ec8ea"
+  );
   void color;
 }
 
@@ -98,6 +103,11 @@ function wallW(ctx: CanvasRenderingContext2D, x: number, y: number, color: strin
   const trim3 = iso(x, y + 1, h - 0.22);
   const trim4 = iso(x, y, h - 0.22);
   poly(ctx, [trim, trim2, trim3, trim4], "#c4922e");
+  poly(
+    ctx,
+    [iso(x, y + 0.28, 2.25), iso(x, y + 0.72, 2.25), iso(x, y + 0.72, 1.2), iso(x, y + 0.28, 1.2)],
+    "#5aa8c8"
+  );
   void color;
 }
 

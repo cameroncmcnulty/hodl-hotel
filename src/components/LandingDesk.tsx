@@ -10,6 +10,7 @@ export function LandingDesk() {
   const [password, setPassword] = useState("");
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
+  const [showPw, setShowPw] = useState(false);
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -27,7 +28,7 @@ export function LandingDesk() {
   }
 
   return (
-    <div className="absolute right-3 top-24 z-20 flex w-[min(340px,92vw)] flex-col gap-4 md:right-10 md:top-1/2 md:-translate-y-1/2">
+    <div className="relative z-20 mx-auto mt-3 mb-16 flex w-[min(360px,94vw)] flex-col gap-3 md:absolute md:right-8 md:top-1/2 md:mx-0 md:mt-0 md:mb-0 md:w-[340px] md:-translate-y-1/2">
       <div className="rounded-[28px] border-2 border-[#2a3350]/30 bg-[#5c6b8a]/90 p-3 shadow-2xl backdrop-blur-sm">
         <p className="px-2 pb-2 text-center text-sm font-semibold text-white">First time?</p>
         <div className="rounded-2xl bg-[#f4efe6] px-4 py-4 text-center text-[#24143d]">
@@ -52,13 +53,18 @@ export function LandingDesk() {
           </label>
           <label className="text-xs font-semibold">
             Password
-            <input
-              className="mt-1 w-full rounded-lg border-2 border-[#c9bba8] bg-white px-3 py-2 text-sm outline-none ring-mint/40 focus:ring-2"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              autoComplete="current-password"
-            />
+            <div className="relative">
+              <input
+                className="mt-1 w-full rounded-lg border-2 border-[#c9bba8] bg-white px-3 py-2 pr-14 text-sm outline-none ring-mint/40 focus:ring-2"
+                type={showPw ? "text" : "password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                autoComplete="current-password"
+              />
+              <button type="button" className="absolute right-2 top-1/2 -translate-y-1/2 text-[11px] font-bold text-[#5c6b8a]" onClick={() => setShowPw(!showPw)}>
+                {showPw ? "Hide" : "Show"}
+              </button>
+            </div>
           </label>
           {err && <p className="text-sm text-coral">{err}</p>}
           <button className="mt-1 rounded-xl bg-[#24143d] px-4 py-2 text-sm font-bold text-white hover:bg-[#9945FF]" disabled={busy}>
