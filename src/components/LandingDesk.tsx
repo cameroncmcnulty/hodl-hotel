@@ -28,7 +28,7 @@ export function LandingDesk() {
   }
 
   return (
-    <div className="relative z-20 mx-auto mt-3 mb-16 flex w-[min(360px,94vw)] flex-col gap-3 md:absolute md:right-8 md:top-1/2 md:mx-0 md:mt-0 md:mb-0 md:w-[340px] md:-translate-y-1/2">
+    <div className="absolute bottom-14 left-1/2 z-20 flex w-[min(340px,calc(100vw-1.5rem))] -translate-x-1/2 flex-col gap-2 md:bottom-auto md:left-auto md:right-8 md:top-1/2 md:w-[320px] md:translate-x-0 md:-translate-y-1/2">
       <div className="rounded-[28px] border-2 border-[#2a3350]/30 bg-[#5c6b8a]/90 p-3 shadow-2xl backdrop-blur-sm">
         <p className="px-2 pb-2 text-center text-sm font-semibold text-white">First time?</p>
         <div className="rounded-2xl bg-[#f4efe6] px-4 py-4 text-center text-[#24143d]">

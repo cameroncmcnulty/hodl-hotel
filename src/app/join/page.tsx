@@ -83,12 +83,12 @@ export default function JoinPage() {
   return (
     <HotelBackdrop>
       <Wordmark />
-      <main className="relative z-20 mx-auto max-w-3xl px-4 py-28 pb-16 md:ml-auto md:mr-8">
-      <p className="text-xs uppercase tracking-[0.2em] text-[#24143d]">Check-in {step + 1} / 4</p>
-      <h1 className="font-display text-3xl text-[#24143d] drop-shadow">Create your guest</h1>
+      <main className="relative z-20 mx-auto max-w-3xl px-4 py-24 pb-16 text-white md:ml-auto md:mr-8 md:py-28">
+      <p className="text-xs uppercase tracking-[0.2em] text-white drop-shadow">Check-in {step + 1} / 4</p>
+      <h1 className="font-display text-3xl text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.65)]">Create your guest</h1>
 
       {step === 0 && (
-        <div className="panel mt-6 grid gap-3 bg-[#24143d]/85 p-5">
+        <div className="panel mt-6 grid gap-3 bg-[#24143d]/92 p-5 text-white">
           <input className="field" type="email" autoComplete="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} />
           <label className="text-sm text-white/70">
             Password
@@ -175,7 +175,7 @@ export default function JoinPage() {
       )}
 
       {step === 1 && (
-        <div className="panel mt-6 grid gap-3 bg-[#24143d]/85 p-5">
+        <div className="panel mt-6 grid gap-3 bg-[#24143d]/92 p-5 text-white">
           <input className="field" placeholder="Username (3–16)" value={username} onChange={(e) => setUsername(e.target.value)} />
           <p className="text-xs text-white/50">Letters, numbers, underscore. This is how people find you.</p>
           <div className="flex gap-2">
@@ -190,7 +190,7 @@ export default function JoinPage() {
       )}
 
       {step === 2 && (
-        <div className="panel mt-6 grid gap-6 bg-[#24143d]/85 p-5 md:grid-cols-2">
+        <div className="panel mt-6 grid gap-6 bg-[#24143d]/92 p-5 text-white md:grid-cols-2">
           <CharacterPreview figure={figure} />
           <FigureEditor figure={figure} onChange={setFigure} />
           <div className="md:col-span-2 flex gap-2">
@@ -205,7 +205,7 @@ export default function JoinPage() {
       )}
 
       {step === 3 && (
-        <div className="panel mt-6 grid gap-4 bg-[#24143d]/85 p-5">
+        <div className="panel mt-6 grid gap-4 bg-[#24143d]/92 p-5 text-white">
           <p className="text-sm text-white/70">
             You start with <b className="text-gold">{STARTER_COINS} coins</b> — enough for a bed, seating, a lamp, and a plant.
             Shop after you land.
@@ -218,8 +218,8 @@ export default function JoinPage() {
                 className={`rounded-2xl border p-2 text-left ${layoutId === l.id ? "border-mint bg-mint/10" : "border-white/10"}`}
               >
                 <LayoutPreview layoutId={l.id} />
-                <div className="mt-2 font-display">{l.name}</div>
-                <div className="text-xs text-white/60">{l.blurb}</div>
+                <div className="mt-2 font-display text-white">{l.name}</div>
+                <div className="text-xs text-white/70">{l.blurb}</div>
               </button>
             ))}
           </div>

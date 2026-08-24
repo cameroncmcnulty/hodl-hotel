@@ -8,7 +8,7 @@ export default function Home() {
     <HotelBackdrop>
       <Wordmark />
       <LandingDesk />
-      <footer className="relative z-20 mt-auto flex flex-wrap items-center justify-between gap-2 bg-black/55 px-4 py-2 text-[11px] text-white/80 md:absolute md:bottom-0 md:left-0 md:right-0">
+      <footer className="absolute bottom-0 left-0 right-0 z-20 flex flex-wrap items-center justify-between gap-2 bg-black/55 px-3 py-2 text-[10px] text-white/85 md:text-[11px]">
         <span>HODL Hotel is original. Not affiliated with any other hotel sim.</span>
         <nav className="flex flex-wrap gap-3">
           <Link href="/legal/terms">Terms</Link>

@@ -50,5 +50,5 @@ body {
 }
 
 .field {
-  @apply w-full rounded-xl border border-white/15 bg-black/30 px-3 py-2 text-sm outline-none ring-mint/50 focus:ring-2;
+  @apply w-full rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-sm text-white placeholder:text-white/45 outline-none ring-mint/50 focus:ring-2;
 }

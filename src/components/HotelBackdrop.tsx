@@ -1,12 +1,17 @@
 export function HotelBackdrop({ children }: { children: React.ReactNode }) {
   return (
-    <div className="relative flex min-h-screen flex-col overflow-x-hidden bg-[#4eb8ff] text-ink">
+    <div className="relative min-h-[100dvh] overflow-x-hidden bg-[#4eb8ff]">
+      <img
+        src="/art/landing-mobile.jpg"
+        alt=""
+        className="pointer-events-none fixed inset-0 h-[100dvh] w-full object-cover object-center md:hidden"
+      />
       <img
         src="/art/landing-bg.jpg"
         alt="HODL Hotel grounds with Solana power plant. Pixel sign reads Powered by Solana."
-        className="pointer-events-none relative z-0 mx-auto h-[36vh] w-full object-contain object-center md:fixed md:inset-0 md:h-full md:object-contain"
+        className="pointer-events-none fixed inset-0 hidden h-[100dvh] w-full object-cover object-center md:block"
       />
-      {children}
+      <div className="relative z-10 min-h-[100dvh]">{children}</div>
     </div>
   );
 }
