@@ -69,10 +69,10 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
     });
   }, []);
 
-  const act = useCallback(async (body: object) => {
+  const act = useCallback(async (body: { type: string; [k: string]: unknown }) => {
     const res = await fetch("/api/game", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
     const j = await res.json();
-    if (j.error) setStatus(j.error);
+    if (j.error && body.type !== "ping") setStatus(j.error);
     if (j.room) {
       setSnap(j);
       setRoomId(j.room.id);
@@ -82,20 +82,44 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
 
   useEffect(() => {
     act({ type: "join", roomId: homeRoomId });
+    return () => {
+      fetch("/api/game", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ type: "leave" }) });
+    };
   }, [act, homeRoomId]);
 
   useEffect(() => {
+    if (!snap?.room) return;
     const id = setInterval(() => {
       act({ type: "ping" });
-    }, 280);
+    }, 420);
     return () => clearInterval(id);
-  }, [act]);
+  }, [act, snap?.room?.id]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === " " && (e.target as HTMLElement).tagName !== "INPUT") {
+      const tag = (e.target as HTMLElement).tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+      if (e.key === " ") {
         e.preventDefault();
         act({ type: "dance" });
+      }
+      const you = snap?.occupants.find((o) => o.userId === meState.id);
+      if (you) {
+        const step: Record<string, [number, number]> = {
+          ArrowUp: [0, -1],
+          ArrowDown: [0, 1],
+          ArrowLeft: [-1, 0],
+          ArrowRight: [1, 0],
+          w: [0, -1],
+          a: [-1, 0],
+          s: [0, 1],
+          d: [1, 0],
+        };
+        const delta = step[e.key] || step[e.key.toLowerCase()];
+        if (delta) {
+          e.preventDefault();
+          act({ type: "walk", x: Math.round(you.x) + delta[0], y: Math.round(you.y) + delta[1] });
+        }
       }
       if ((e.key === "r" || e.key === "R") && place) {
         setPlace({ ...place, rot: (((place.rot + 1) % 4) as 0 | 1 | 2 | 3) });
@@ -108,7 +132,7 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [act, place]);
+  }, [act, place, snap, meState.id]);
 
   useEffect(() => {
     let raf = 0;
@@ -177,9 +201,15 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
     } else setPanel(null);
   }
 
+  useEffect(() => {
+    if (!status) return;
+    const t = setTimeout(() => setStatus(""), 2800);
+    return () => clearTimeout(t);
+  }, [status]);
+
   async function refreshMe() {
     const j = await fetch("/api/auth/me").then((r) => r.json());
-    if (j.user) setMe({ ...meState, ...j.user });
+    if (j.user) setMe((prev) => ({ ...prev, ...j.user }));
   }
 
   async function openNav() {
@@ -605,7 +635,7 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
 
       {you?.dance && <div className="pointer-events-none absolute bottom-28 right-6 text-2xl">💃</div>}
 
-      <p className="pointer-events-none absolute bottom-1 left-3 text-[10px] text-white/30">Click to walk · right-click items · Space to dance</p>
+      <p className="pointer-events-none absolute bottom-[4.5rem] left-3 text-[10px] text-white/70">Click or WASD to walk · right-click items · Space to dance · R rotates</p>
     </div>
   );
 }

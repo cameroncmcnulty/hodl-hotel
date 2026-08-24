@@ -28,20 +28,16 @@ export function LandingDesk() {
   }
 
   return (
-    <div className="absolute bottom-14 left-1/2 z-20 flex w-[min(340px,calc(100vw-1.5rem))] -translate-x-1/2 flex-col gap-2 md:bottom-auto md:left-auto md:right-8 md:top-1/2 md:w-[320px] md:translate-x-0 md:-translate-y-1/2">
-      <div className="rounded-[28px] border-2 border-[#2a3350]/30 bg-[#5c6b8a]/90 p-3 shadow-2xl backdrop-blur-sm">
-        <p className="px-2 pb-2 text-center text-sm font-semibold text-white">First time?</p>
-        <div className="rounded-2xl bg-[#f4efe6] px-4 py-4 text-center text-[#24143d]">
-          <p className="text-sm">No guest yet?</p>
-          <Link href="/join" className="mt-3 inline-block rounded-xl bg-gradient-to-r from-sol to-mint px-4 py-2 text-sm font-bold text-ink shadow-glow">
-            Create one here
-          </Link>
-        </div>
-      </div>
-
-      <form onSubmit={onSubmit} className="rounded-[28px] border-2 border-[#2a3350]/30 bg-[#5c6b8a]/90 p-3 shadow-2xl backdrop-blur-sm">
-        <p className="px-2 pb-2 text-center text-sm font-semibold text-white">What&apos;s your guest name?</p>
-        <div className="grid gap-2 rounded-2xl bg-[#f4efe6] px-4 py-4 text-[#24143d]">
+    <div className="absolute left-1/2 top-16 z-20 w-[min(300px,calc(100vw-1.25rem))] -translate-x-1/2 md:left-6 md:top-28 md:w-[280px] md:translate-x-0">
+      <form onSubmit={onSubmit} className="rounded-2xl border-2 border-white/25 bg-[#5c6b8a]/92 p-2.5 shadow-2xl backdrop-blur-md">
+        <p className="px-1 pb-1.5 text-center text-xs font-semibold text-white">Check in</p>
+        <div className="grid gap-1.5 rounded-xl bg-[#f4efe6] px-3 py-3 text-[#24143d]">
+          <p className="text-center text-[11px]">
+            First visit?{" "}
+            <Link href="/join" className="font-bold text-[#6b21c4] underline">
+              Create a guest
+            </Link>
+          </p>
           <label className="text-xs font-semibold">
             Email or username
             <input

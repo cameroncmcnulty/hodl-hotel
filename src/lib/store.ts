@@ -144,6 +144,13 @@ export function liveRoom(roomId: string): LiveRoom {
   return L.rooms[roomId];
 }
 
+export function dropOccupant(userId: string) {
+  const L = live();
+  for (const r of Object.values(L.rooms)) {
+    r.occupants = r.occupants.filter((o) => o.userId !== userId);
+  }
+}
+
 export function pruneLive() {
   const now = Date.now();
   const L = live();

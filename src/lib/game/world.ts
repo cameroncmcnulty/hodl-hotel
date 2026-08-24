@@ -2,7 +2,7 @@ import { BACKPACK_SLOTS, CHAT_MAX, HISTORY_LIMIT, TRADE_SLOTS } from "../constan
 import { furn, footprint } from "../catalog";
 import { layoutById, walkable, isDance } from "../layouts";
 import { moderate } from "../moderate";
-import { findRoom, findUser, liveRoom, loadDB, log, occupantCount, pruneLive, saveDB } from "../store";
+import { dropOccupant, findRoom, findUser, liveRoom, loadDB, log, occupantCount, pruneLive, saveDB } from "../store";
 import type { Item, Occupant, Placed, User } from "../types";
 import { astar, blockedSet, dirTowards } from "./path";
 
@@ -35,11 +35,7 @@ function emptyOcc(u: User, x: number, y: number): Occupant {
 }
 
 function dropFromAllRooms(userId: string) {
-  const { rooms } = (globalThis as unknown as { __hodlLive?: { rooms: Record<string, { occupants: Occupant[] }> } })
-    .__hodlLive || { rooms: {} };
-  for (const r of Object.values(rooms)) {
-    r.occupants = r.occupants.filter((o) => o.userId !== userId);
-  }
+  dropOccupant(userId);
 }
 
 function firstFreeSlot(u: User) {
@@ -114,6 +110,12 @@ export function applyAction(userId: string, action: Action) {
     if (occupantCount(room.id) >= room.maxUsers && !liveRoom(room.id).occupants.some((o) => o.userId === userId)) {
       return { error: "Room is full" };
     }
+    const already = liveRoom(room.id).occupants.find((o) => o.userId === userId);
+    if (already) {
+      already.lastBeat = Date.now();
+      room.lastActiveAt = new Date().toISOString();
+      return snapshot(room.id, userId);
+    }
     dropFromAllRooms(userId);
     const layout = layoutById(room.layoutId);
     const live = liveRoom(room.id);
@@ -129,8 +131,10 @@ export function applyAction(userId: string, action: Action) {
   }
 
   const here = current();
-  if (!here && action.type !== "ping") return { error: "Join a room first" };
-  if (!here) return snapshot(u.ownedRoomIds[0] || "public-lobby", userId);
+  if (!here) {
+    if (action.type === "ping") return { ok: true, occupants: [] as Occupant[] };
+    return { error: "Join a room first" };
+  }
 
   const room = findRoom(db, here.roomId)!;
   const live = liveRoom(here.roomId);
@@ -157,6 +161,7 @@ export function applyAction(userId: string, action: Action) {
       occ.x = n.x;
       occ.y = n.y;
       occ.path = occ.path.slice(1);
+      occ.sitUid = undefined;
       const stepped = room.furniture.find((p) => p.x === n.x && p.y === n.y && furn(p.catalogId)?.use === "teleport");
       if (stepped?.pairId) {
         const dest = db.rooms

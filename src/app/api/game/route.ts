@@ -15,6 +15,6 @@ export async function POST(req: Request) {
   if (!id) return NextResponse.json({ error: "Sign in" }, { status: 401 });
   const body = await req.json().catch(() => ({}));
   const result = applyAction(id, body);
-  const status = "error" in result && result.error ? 400 : 200;
-  return NextResponse.json(result, { status });
+  const failed = "error" in result && result.error && body.type !== "ping";
+  return NextResponse.json(result, { status: failed ? 400 : 200 });
 }

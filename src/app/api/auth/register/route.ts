@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { BACKPACK_SLOTS, MIN_AGE, passwordIssues, RESERVED_NAMES, USERNAME_RE } from "@/lib/constants";
 import { clampFigure, DEFAULT_FIGURE } from "@/lib/game/avatar";
-import { USER_LAYOUTS } from "@/lib/layouts";
+import { layoutById, USER_LAYOUTS, walkable } from "@/lib/layouts";
 import { ageYears } from "@/lib/moderate";
 import { setSessionCookie } from "@/lib/session";
 import { loadDB, log, publicUser, saveDB } from "@/lib/store";
@@ -73,6 +73,13 @@ export async function POST(req: Request) {
     ageConfirmedAt: new Date().toISOString(),
   };
   db.users.push(user);
+  const layout = layoutById(layoutId);
+  const sx = layout.spawn.x;
+  const sy = layout.spawn.y;
+  const spot = (dx: number, dy: number) =>
+    walkable(layout, sx + dx, sy + dy) ? { x: sx + dx, y: sy + dy } : { x: sx, y: sy };
+  const plant = spot(1, 0);
+  const lamp = spot(0, 1);
   db.rooms.push({
     id: roomId,
     name: roomName || `${username}'s pad`,
@@ -80,7 +87,11 @@ export async function POST(req: Request) {
     layoutId,
     visibility,
     password: visibility === "locked" ? roomPass : undefined,
-    furniture: [],
+    furniture: [
+      { uid: crypto.randomUUID(), catalogId: "rug_small", x: sx, y: sy, rot: 0 as const, ownerId: id },
+      { uid: crypto.randomUUID(), catalogId: "plant_palm", x: plant.x, y: plant.y, rot: 0 as const, ownerId: id },
+      { uid: crypto.randomUUID(), catalogId: "lamp_floor", x: lamp.x, y: lamp.y, rot: 0 as const, ownerId: id },
+    ],
     maxUsers: 25,
     createdAt: new Date().toISOString(),
     lastActiveAt: new Date().toISOString(),
