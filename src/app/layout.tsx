@@ -8,7 +8,7 @@ const sans = Nunito({ subsets: ["latin"], variable: "--font-sans" });
 export const metadata: Metadata = {
   title: "HODL Hotel",
   description: "A cartoon social hotel powered by Solana. Decorate rooms, hang with friends, trade furniture.",
-  metadataBase: new URL("https://hodlhotel.local"),
+  metadataBase: new URL("https://hodlhotel.app"),
   openGraph: {
     title: "HODL Hotel",
     description: "Cartoon rooms. Real friends. Powered by Solana.",
