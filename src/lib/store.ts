@@ -2,10 +2,12 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
 import { join } from "path";
 import bcrypt from "bcryptjs";
 import { BACKPACK_SLOTS, STARTER_COINS, TREASURY_WALLET } from "./constants";
+import { FREE_LAYOUT_IDS } from "./layouts";
 import type { DB, Occupant, ChatLine, Room, User } from "./types";
 import { seedPublicRooms } from "./seed";
 
-const FILES = [join(process.cwd(), "data", "db.json"), join("/tmp", "hodl-hotel-db.json")];
+const dataDir = process.env.DATA_DIR || join(process.cwd(), "data");
+const FILES = [join(dataDir, "db.json"), join("/tmp", "hodl-hotel-db.json")];
 
 function empty(): DB {
   return {
@@ -67,6 +69,9 @@ function bootstrap(db: DB) {
     db.settings.treasuryWallet = TREASURY_WALLET;
   }
   seedPublicRooms(db);
+  for (const u of db.users) {
+    if (!u.ownedLayoutIds?.length) u.ownedLayoutIds = [...FREE_LAYOUT_IDS];
+  }
   const email = (process.env.ADMIN_EMAIL || "admin@hodlhotel.local").toLowerCase();
   const pass = process.env.ADMIN_PASSWORD || "change-me";
   let admin = db.users.find((u) => u.email === email);
@@ -87,6 +92,7 @@ function bootstrap(db: DB) {
       roomHistory: [],
       backpack: Array.from({ length: BACKPACK_SLOTS }, () => null),
       ownedRoomIds: [],
+      ownedLayoutIds: [...FREE_LAYOUT_IDS],
       quests: {},
     };
     db.users.push(admin);

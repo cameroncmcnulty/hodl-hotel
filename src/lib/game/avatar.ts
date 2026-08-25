@@ -49,14 +49,14 @@ export function drawAvatarFront(ctx: CanvasRenderingContext2D, fig: Figure, cx: 
     ctx.strokeStyle = "#1a1020";
     ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
   };
-  block(-10, 18, 8, 6, shoe);
-  block(2, 18, 8, 6, shoe);
-  block(-9, 6, 8, 14, bot);
-  block(1, 6, 8, 14, bot);
-  block(-13, -2, 26, 16, top);
-  block(-16, 0, 7, 12, skin);
-  block(9, 0, 7, 12, skin);
-  block(-12, -22, 24, 24, skin);
+  block(-11, 22, 9, 7, shoe);
+  block(2, 22, 9, 7, shoe);
+  block(-10, 8, 9, 16, bot);
+  block(1, 8, 9, 16, bot);
+  block(-14, -2, 28, 18, top);
+  block(-18, 2, 8, 14, skin);
+  block(10, 2, 8, 14, skin);
+  block(-14, -28, 28, 28, skin);
   drawHair(ctx, f.hair, hair, 0);
   if (f.acc === 1) {
     ctx.strokeStyle = "#222";
@@ -85,8 +85,8 @@ export function drawAvatarFront(ctx: CanvasRenderingContext2D, fig: Figure, cx: 
   }
   ctx.fillStyle = "#222";
   ctx.beginPath();
-  ctx.arc(-5, -12, 2, 0, Math.PI * 2);
-  ctx.arc(5, -12, 2, 0, Math.PI * 2);
+  ctx.arc(-6, -16, 2.4, 0, Math.PI * 2);
+  ctx.arc(6, -16, 2.4, 0, Math.PI * 2);
   ctx.fill();
   ctx.restore();
 }
@@ -149,7 +149,7 @@ export function drawAvatarIso(
   const shoe = SHOES[f.shoes];
   const step = Math.round((dance ? Math.sin(t * 10) : Math.sin(t * 7)) * 2);
   ctx.save();
-  ctx.translate(Math.round(sx), Math.round(sy - 8 - bob));
+  ctx.translate(Math.round(sx), Math.round(sy - 10 - bob));
   ctx.scale(flip, 1);
   ctx.imageSmoothingEnabled = false;
   const px = (x: number, y: number, w: number, h: number, fill: string) => {
@@ -160,53 +160,52 @@ export function drawAvatarIso(
     ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
   };
   ctx.save();
-  ctx.globalAlpha = 0.2;
+  ctx.globalAlpha = 0.22;
   ctx.fillStyle = "#1a1020";
   ctx.beginPath();
-  ctx.ellipse(0, 22, 10, 4, 0, 0, Math.PI * 2);
+  ctx.ellipse(0, 24, 11, 4, 0, 0, Math.PI * 2);
   ctx.fill();
   ctx.restore();
-  px(-8, 16 + step, 8, 6, shoe);
-  px(1, 16 - step, 8, 6, shoe);
-  px(-7, 4, 7, 14, bot);
-  px(0, 4, 7, 14, bot);
-  px(-11, -8, 22, 16, top);
-  px(-14, -4, 6, 12, skin);
-  px(8, -4, 6, 12, skin);
-  px(-11, -28, 22, 22, skin);
-  ctx.fillStyle = hair;
+  px(-9, 16 + step, 8, 7, shoe);
+  px(1, 16 - step, 8, 7, shoe);
+  px(-8, 4, 8, 14, bot);
+  px(0, 4, 8, 14, bot);
+  px(-12, -8, 24, 16, top);
+  px(-16, -4, 7, 12, skin);
+  px(9, -4, 7, 12, skin);
+  px(-13, -32, 26, 26, skin);
   if (f.hair === 3) {
-    px(-4, -44, 5, 16, hair);
-    px(2, -42, 5, 14, hair);
-    px(-10, -34, 20, 10, hair);
+    px(-5, -48, 6, 18, hair);
+    px(2, -46, 6, 16, hair);
+    px(-12, -38, 24, 12, hair);
   } else if (f.hair === 5) {
-    px(-12, -34, 24, 10, hair);
-    px(-6, -40, 12, 8, hair);
+    px(-14, -38, 28, 12, hair);
+    px(-7, -44, 14, 10, hair);
   } else if (f.hair === 6) {
-    px(-11, -32, 22, 12, hair);
-    px(-4, -10, 7, 16, hair);
+    px(-13, -36, 26, 14, hair);
+    px(-5, -8, 8, 18, hair);
   } else if (f.hair === 7) {
-    px(-3, -46, 6, 20, hair);
-    px(-11, -32, 22, 8, hair);
+    px(-4, -50, 8, 22, hair);
+    px(-13, -36, 26, 10, hair);
   } else {
-    px(-12, -36, 24, 12, hair);
-    px(-8, -40, 16, 6, hair);
+    px(-14, -40, 28, 14, hair);
+    px(-9, -44, 18, 8, hair);
   }
   ctx.fillStyle = "#1a1020";
-  ctx.fillRect(3, -20, 3, 3);
-  ctx.fillRect(3, -19, 4, 2);
-  if (f.acc === 2) px(-12, -24, 24, 5, "#111");
+  ctx.fillRect(4, -22, 4, 4);
+  ctx.fillRect(5, -21, 5, 2);
+  if (f.acc === 2) px(-13, -26, 26, 5, "#111");
   if (f.acc === 1) {
     ctx.strokeStyle = "#111";
     ctx.lineWidth = 2;
-    ctx.strokeRect(-8, -22, 7, 5);
-    ctx.strokeRect(2, -22, 7, 5);
+    ctx.strokeRect(-9, -24, 8, 6);
+    ctx.strokeRect(2, -24, 8, 6);
   }
   if (f.acc === 3) {
-    px(-16, -22, 7, 7, "#222");
-    px(9, -22, 7, 7, "#222");
+    px(-18, -24, 8, 8, "#222");
+    px(10, -24, 8, 8, "#222");
   }
-  if (f.acc === 6) px(-12, -26, 24, 5, "#14F195");
+  if (f.acc === 6) px(-13, -28, 26, 5, "#14F195");
   ctx.restore();
 }
 

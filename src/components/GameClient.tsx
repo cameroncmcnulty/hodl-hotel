@@ -1,8 +1,10 @@
 "use client";
 
 import { FurnIcon } from "@/components/FurnIcon";
+import { LayoutPreview } from "@/components/LayoutPreview";
 import { CATALOG, furn } from "@/lib/catalog";
 import { CATS } from "@/lib/catalog";
+import { FREE_LAYOUT_IDS, PREMIUM_LAYOUTS, USER_LAYOUTS } from "@/lib/layouts";
 import { COIN_PACKS } from "@/lib/constants";
 import { drawRoom, tileAt } from "@/lib/game/draw";
 import { iso } from "@/lib/game/iso";
@@ -30,6 +32,7 @@ type Me = {
   friends: string[];
   role: string;
   ownedRoomIds: string[];
+  ownedLayoutIds?: string[];
 };
 
 type Snap = {
@@ -64,11 +67,13 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
   const cam = useRef({ x: 400, y: 200 });
   const spritesRef = useRef<Record<string, HTMLCanvasElement>>({});
 
+  const furnKey = (snap?.room.furniture || []).map((f) => f.catalogId).join(",");
   useEffect(() => {
-    loadSprites().then((s) => {
+    const ids = furnKey ? furnKey.split(",") : [];
+    loadSprites(ids).then((s) => {
       spritesRef.current = s;
     });
-  }, []);
+  }, [snap?.room?.id, furnKey]);
 
   const act = useCallback(async (body: { type: string; [k: string]: unknown }) => {
     const res = await fetch("/api/game", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
@@ -92,7 +97,7 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
     if (!snap?.room) return;
     const id = setInterval(() => {
       act({ type: "ping" });
-    }, 420);
+    }, 900);
     return () => clearInterval(id);
   }, [act, snap?.room?.id]);
 
@@ -228,6 +233,27 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
   async function openAds() {
     setPanel("ads");
     setAds(await fetch("/api/ads").then((r) => r.json()));
+  }
+
+  async function buyPlan(id: string) {
+    const res = await fetch("/api/shop", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ layoutId: id }) });
+    const j = await res.json();
+    if (j.error) setStatus(j.error);
+    else {
+      setStatus(`Unlocked ${j.plan.name}`);
+      refreshMe();
+    }
+  }
+
+  async function applyPlan(id: string) {
+    const j = await act({ type: "setLayout", layoutId: id });
+    if (j.error) setStatus(j.error);
+    else setStatus("Floor plan applied");
+    refreshMe();
+  }
+
+  function ownsPlan(id: string) {
+    return FREE_LAYOUT_IDS.includes(id) || !!meState.ownedLayoutIds?.includes(id);
   }
 
   async function buy(id: string) {
@@ -425,12 +451,34 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
       {panel === "shop" && (
         <Hud title="Furniture shop" onClose={() => setPanel(null)} wide>
           <div className="mb-3 flex flex-wrap gap-1">
-            {CATS.map((c) => (
+            {[...CATS, "plans"].map((c) => (
               <button key={c} className={`rounded-full px-2 py-1 text-xs ${shopCat === c ? "bg-mint text-ink" : "bg-white/10"}`} onClick={() => setShopCat(c)}>
                 {c}
               </button>
             ))}
           </div>
+          {shopCat === "plans" ? (
+            <div className="grid max-h-[52vh] grid-cols-2 gap-2 overflow-auto">
+              {[...USER_LAYOUTS, ...PREMIUM_LAYOUTS].map((l) => (
+                <div key={l.id} className="rounded-xl border border-white/10 bg-black/25 p-2">
+                  <LayoutPreview layoutId={l.id} />
+                  <div className="mt-1 font-semibold leading-tight">
+                    {l.name} {l.premium && <span className="text-gold">gold</span>}
+                  </div>
+                  <div className="text-xs text-white/60">{l.blurb}</div>
+                  {ownsPlan(l.id) ? (
+                    <button className="btn-sol mt-2 w-full text-xs" onClick={() => applyPlan(l.id)}>
+                      Use in this room
+                    </button>
+                  ) : (
+                    <button className="btn-sol mt-2 w-full text-xs" onClick={() => buyPlan(l.id)}>
+                      {l.price} coins
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : (
           <div className="grid max-h-[52vh] grid-cols-2 gap-2 overflow-auto md:grid-cols-3">
             {CATALOG.filter((f) => f.category === shopCat && f.id !== "ad_board").map((f) => (
               <div key={f.id} className="rounded-xl border border-white/10 bg-black/25 p-2">
@@ -447,6 +495,7 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
               </div>
             ))}
           </div>
+          )}
         </Hud>
       )}
 

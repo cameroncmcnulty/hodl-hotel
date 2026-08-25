@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
 import { CATALOG, furn } from "@/lib/catalog";
 import { BACKPACK_SLOTS } from "@/lib/constants";
+import { FREE_LAYOUT_IDS, PREMIUM_LAYOUTS } from "@/lib/layouts";
 import { sessionUserId } from "@/lib/session";
 import { findUser, loadDB, log, publicUser, saveDB } from "@/lib/store";
 
 export async function GET() {
-  return NextResponse.json({ catalog: CATALOG });
+  return NextResponse.json({ catalog: CATALOG, plans: PREMIUM_LAYOUTS.map((l) => ({ id: l.id, name: l.name, blurb: l.blurb, price: l.price })) });
 }
 
 export async function POST(req: Request) {
@@ -14,7 +15,21 @@ export async function POST(req: Request) {
   const db = loadDB();
   const u = findUser(db, id);
   if (!u) return NextResponse.json({ error: "Sign in" }, { status: 401 });
-  const { catalogId, qty } = await req.json().catch(() => ({}));
+  const body = await req.json().catch(() => ({}));
+  if (body.layoutId) {
+    const layout = PREMIUM_LAYOUTS.find((l) => l.id === body.layoutId);
+    if (!layout) return NextResponse.json({ error: "Not a premium floor plan" }, { status: 400 });
+    if (!u.ownedLayoutIds) u.ownedLayoutIds = [...FREE_LAYOUT_IDS];
+    if (u.ownedLayoutIds.includes(layout.id)) return NextResponse.json({ error: "You already own this plan" }, { status: 400 });
+    const price = layout.price || 0;
+    if (u.coins < price) return NextResponse.json({ error: "Not enough coins" }, { status: 400 });
+    u.coins -= price;
+    u.ownedLayoutIds.push(layout.id);
+    log(db, "buy", `${u.username} unlocked floor plan ${layout.name}`);
+    saveDB(db);
+    return NextResponse.json({ user: publicUser(u), plan: layout });
+  }
+  const { catalogId, qty } = body;
   const def = furn(String(catalogId || ""));
   if (!def) return NextResponse.json({ error: "Unknown item" }, { status: 400 });
   const n = Math.min(10, Math.max(1, Number(qty) || 1));

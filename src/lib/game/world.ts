@@ -1,6 +1,6 @@
 import { BACKPACK_SLOTS, CHAT_MAX, HISTORY_LIMIT, TRADE_SLOTS } from "../constants";
 import { furn, footprint } from "../catalog";
-import { layoutById, walkable, isDance } from "../layouts";
+import { FREE_LAYOUT_IDS, layoutById, walkable, isDance } from "../layouts";
 import { moderate } from "../moderate";
 import { dropOccupant, findRoom, findUser, liveRoom, loadDB, log, occupantCount, pruneLive, saveDB } from "../store";
 import type { Item, Occupant, Placed, User } from "../types";
@@ -18,7 +18,8 @@ export type Action =
   | { type: "use"; uid: string }
   | { type: "dance"; on?: boolean }
   | { type: "linkPads"; a: string; b: string }
-  | { type: "setFrame"; uid: string; nftMint?: string; nftUrl?: string };
+  | { type: "setFrame"; uid: string; nftMint?: string; nftUrl?: string }
+  | { type: "setLayout"; layoutId: string };
 
 function emptyOcc(u: User, x: number, y: number): Occupant {
   return {
@@ -317,6 +318,49 @@ export function applyAction(userId: string, action: Action) {
     const pairId = crypto.randomUUID();
     a.pairId = pairId;
     b.pairId = pairId;
+    saveDB(db);
+    return snapshot(here.roomId, userId);
+  }
+
+  if (action.type === "setLayout") {
+    if (room.ownerId !== userId) return { error: "Only the host can change the floor plan" };
+    if (room.ownerId === null) return { error: "Hotel rooms stay as built" };
+    const next = layoutById(action.layoutId);
+    if (!next) return { error: "Unknown plan" };
+    if (!FREE_LAYOUT_IDS.includes(next.id) && !u.ownedLayoutIds?.includes(next.id)) {
+      return { error: "Buy this floor plan in the shop first" };
+    }
+    const keep: Placed[] = [];
+    for (const p of room.furniture) {
+      const def = furn(p.catalogId);
+      if (!def) continue;
+      const { w, d } = footprint(def, p.rot);
+      let ok = true;
+      for (let dy = 0; dy < d && ok; dy++) {
+        for (let dx = 0; dx < w; dx++) {
+          if (!walkable(next, p.x + dx, p.y + dy) && def.slot !== "wall") ok = false;
+        }
+      }
+      if (ok) keep.push(p);
+      else {
+        const free = firstFreeSlot(u);
+        if (free < 0) return { error: "Backpack full — pick up extra furniture first" };
+        u.backpack[free] = {
+          uid: p.uid,
+          catalogId: p.catalogId,
+          pairId: p.pairId,
+          nftMint: p.nftMint,
+          nftUrl: p.nftUrl,
+        };
+      }
+    }
+    room.furniture = keep;
+    room.layoutId = next.id;
+    if (!walkable(next, Math.round(occ.x), Math.round(occ.y))) {
+      occ.x = next.spawn.x;
+      occ.y = next.spawn.y;
+      occ.path = [];
+    }
     saveDB(db);
     return snapshot(here.roomId, userId);
   }

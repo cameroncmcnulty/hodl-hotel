@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { BACKPACK_SLOTS, MIN_AGE, passwordIssues, RESERVED_NAMES, USERNAME_RE } from "@/lib/constants";
 import { clampFigure, DEFAULT_FIGURE } from "@/lib/game/avatar";
-import { layoutById, USER_LAYOUTS, walkable } from "@/lib/layouts";
+import { FREE_LAYOUT_IDS, layoutById, USER_LAYOUTS, walkable } from "@/lib/layouts";
 import { ageYears } from "@/lib/moderate";
 import { setSessionCookie } from "@/lib/session";
 import { loadDB, log, publicUser, saveDB } from "@/lib/store";
@@ -65,6 +65,7 @@ export async function POST(req: Request) {
     roomHistory: [{ roomId, at: new Date().toISOString() }],
     backpack: Array.from({ length: BACKPACK_SLOTS }, () => null),
     ownedRoomIds: [roomId],
+    ownedLayoutIds: [...FREE_LAYOUT_IDS],
     quests: {},
     tosAcceptedAt: new Date().toISOString(),
     privacyAcceptedAt: new Date().toISOString(),

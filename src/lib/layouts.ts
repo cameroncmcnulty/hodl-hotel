@@ -9,15 +9,27 @@ export type Layout = {
   spawn: { x: number; y: number };
   grid: Cell[][];
   indoor: boolean;
+  premium?: boolean;
+  price?: number;
+  paper?: string;
+  floorA?: string;
+  floorB?: string;
 };
 
-function parse(id: string, name: string, blurb: string, map: string, indoor = true): Layout {
+function parse(
+  id: string,
+  name: string,
+  blurb: string,
+  map: string,
+  extra: Partial<Layout> = {}
+): Layout {
   const rows = map
     .trim()
     .split("\n")
     .map((r) => r.trim().split("") as Cell[]);
+  const w = Math.max(...rows.map((r) => r.length));
+  for (const r of rows) while (r.length < w) r.push("#");
   const h = rows.length;
-  const w = rows[0].length;
   let spawn = { x: Math.floor(w / 2), y: Math.floor(h / 2) };
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
@@ -27,112 +39,229 @@ function parse(id: string, name: string, blurb: string, map: string, indoor = tr
       }
     }
   }
-  return { id, name, blurb, w, h, spawn, grid: rows, indoor };
+  return {
+    id,
+    name,
+    blurb,
+    w,
+    h,
+    spawn,
+    grid: rows,
+    indoor: extra.indoor !== false,
+    premium: extra.premium,
+    price: extra.price,
+    paper: extra.paper,
+    floorA: extra.floorA,
+    floorB: extra.floorB,
+  };
 }
+
+const MINT = { paper: "#8ee0c4", floorA: "#4db7ea", floorB: "#3aa6dc" };
 
 export const LAYOUTS: Layout[] = [
   parse(
     "cozy_studio",
-    "Cozy Studio",
-    "A tight 8×8 cube. Easy to fill, hard to overstuff.",
+    "Studio Box",
+    "A clean rectangle — the classic starter pad.",
     `
-........
-........
-........
-........
-...s....
-........
-........
-........
-`
+..........
+..........
+..........
+....s.....
+..........
+..........
+..........
+..........
+`,
+    MINT
   ),
   parse(
     "city_loft",
-    "City Loft",
-    "L-shaped loft with a nook for a desk or bar.",
+    "Elbow Loft",
+    "L-shaped loft. Lounge on the long arm, sleep in the nook.",
     `
-..........
-..........
-..........
-.....s....
-..........
-......####
-......####
-......####
-......####
-..........
-`
-  ),
-  parse(
-    "neon_suite",
-    "Neon Suite",
-    "Wide 12×10 suite. Room for a lounge and a sleep side.",
-    `
-............
 ............
 ............
 ............
 ......s.....
 ............
 ............
+........####
+........####
+........####
+........####
+`,
+    MINT
+  ),
+  parse(
+    "neon_suite",
+    "Stepped Wing",
+    "A wide suite with a notched back wall — extra corners to dress.",
+    `
+####........
+####........
+............
+............
+......s.....
 ............
 ............
 ............
-`
+`,
+    { ...MINT, paper: "#9ae0d0" }
   ),
   parse(
     "sky_penthouse",
-    "Sky Penthouse",
-    "Indoor lounge plus a sun terrace along the edge.",
+    "Side Nook",
+    "Deep back wall with a right-hand runway toward the door.",
     `
-..............
-..............
-..............
-..............
-.......s......
-..............
-..............
-..............
-oooooooooooooo
-oooooooooooooo
-oooooooooooooo
-..............
-`
-  ),
-  parse(
-    "vault_den",
-    "Vault Den",
-    "A square den with a central column — great for a statue.",
-    `
-..........
-..........
-..........
-...##.....
-...##..s..
-..........
-..........
-..........
-..........
-..........
-`
+............
+............
+............
+............
+######......
+######......
+######..s...
+######......
+######......
+`,
+    MINT
   ),
   parse(
     "garden_lanai",
-    "Garden Lanai",
-    "A courtyard pad — indoor ring around a sunny garden.",
+    "Cross Hall",
+    "Plus-shaped hall. Four wings to theme however you like.",
+    `
+.....###.....
+.....###.....
+.....###.....
+#############
+.....###.....
+....s###.....
+#############
+.....###.....
+.....###.....
+.....###.....
+`,
+    { ...MINT, paper: "#7fd4b8" }
+  ),
+  parse(
+    "vault_den",
+    "Atrium Court",
+    "A square pad with a solid column in the middle — statue magnet.",
     `
 ..........
 ..........
-..oooooo..
-..o....o..
-..o..s.o..
-..o....o..
-..oooooo..
+..........
+...####...
+...####...
+...##s#...
+...####...
 ..........
 ..........
 ..........
-`
+`,
+    MINT
   ),
+
+  parse(
+    "gold_elbow",
+    "Pocket Elbow",
+    "A compact premium L — small, expensive, easy to fill.",
+    `
+.......
+.......
+.......
+....###
+.s..###
+....###
+....###
+`,
+    { ...MINT, premium: true, price: 280, paper: "#f0c97a" }
+  ),
+  parse(
+    "gold_twin",
+    "Twin Bay",
+    "Two rooms sharing an L — lounge plus a private wing.",
+    `
+#######.....
+#######.....
+#######.....
+#######.....
+#######s....
+#######.....
+....########
+....########
+....########
+`,
+    { ...MINT, premium: true, price: 520, paper: "#f3d08a" }
+  ),
+  parse(
+    "gold_gallery",
+    "Gallery Wing",
+    "A long gallery with a side bay for a dance floor or exhibit.",
+    `
+..............
+..............
+..............
+..............
+...........###
+........######
+......s.######
+........######
+..............
+`,
+    { ...MINT, premium: true, price: 780, paper: "#e8b4ff" }
+  ),
+  parse(
+    "gold_split",
+    "Split Suite",
+    "Two pads joined by a hall — host in one, crash in the other.",
+    `
+#######..#######
+#######..#######
+#######..#######
+#######ss#######
+#######..#######
+################
+#######..#######
+#######..#######
+`,
+    { ...MINT, premium: true, price: 1200, paper: "#b8e0ff" }
+  ),
+  parse(
+    "gold_cluster",
+    "Cluster Pad",
+    "Four pods around a hub. A social maze in miniature.",
+    `
+#####....#####
+#####....#####
+#####....#####
+######ss######
+....######....
+....######....
+#####....#####
+#####....#####
+`,
+    { ...MINT, premium: true, price: 1680, paper: "#ffb4d0" }
+  ),
+  parse(
+    "gold_maze",
+    "Maze Manor",
+    "Corridors, chambers, secrets. The hotel’s richest floor plan.",
+    `
+##############
+#....##......#
+#.##.##.####.#
+#.#s.....#...#
+#.####.###.#.#
+#......#...#.#
+####.#######.#
+#............#
+##############
+`,
+    { ...MINT, premium: true, price: 2400, paper: "#d4b4ff" }
+  ),
+
   parse(
     "grand_lobby",
     "Grand Lobby",
@@ -155,7 +284,7 @@ oooooooooooooo
 ................
 ................
 `,
-    true
+    { paper: "#f0d2a8", floorA: "#f4e0c0", floorB: "#e8d0a8" }
   ),
   parse(
     "roof_pool",
@@ -177,7 +306,7 @@ oooooooooooooooooo
 ..................
 ..................
 `,
-    false
+    { indoor: false, paper: "#87d0ea", floorA: "#f2b090", floorB: "#e49a78" }
   ),
   parse(
     "shill_club",
@@ -198,7 +327,8 @@ oooooooooooooooooo
 ................
 ................
 ................
-`
+`,
+    { paper: "#6b3fa0", floorA: "#3b1d5c", floorB: "#2a1444" }
   ),
   parse(
     "cook_lab",
@@ -217,7 +347,8 @@ oooooooooooooooooo
 ..............
 ..............
 ..............
-`
+`,
+    { paper: "#e8c07a", floorA: "#d7b48a", floorB: "#c9a06e" }
   ),
   parse(
     "pixel_arcade",
@@ -236,13 +367,22 @@ oooooooooooooooooo
 ..............
 ..............
 ..............
-`
+`,
+    { paper: "#7ec8ea", floorA: "#3d3d55", floorB: "#2a2a40" }
   ),
 ];
 
-export const USER_LAYOUTS = LAYOUTS.filter((l) =>
-  ["cozy_studio", "city_loft", "neon_suite", "sky_penthouse", "vault_den", "garden_lanai"].includes(l.id)
-);
+export const FREE_LAYOUT_IDS = [
+  "cozy_studio",
+  "city_loft",
+  "neon_suite",
+  "sky_penthouse",
+  "garden_lanai",
+  "vault_den",
+];
+
+export const USER_LAYOUTS = LAYOUTS.filter((l) => FREE_LAYOUT_IDS.includes(l.id));
+export const PREMIUM_LAYOUTS = LAYOUTS.filter((l) => l.premium);
 
 export function layoutById(id: string) {
   return LAYOUTS.find((l) => l.id === id) || LAYOUTS[0];
@@ -264,4 +404,9 @@ export function isWater(layout: Layout, x: number, y: number) {
 
 export function isOutdoor(layout: Layout, x: number, y: number) {
   return layout.grid[y]?.[x] === "o";
+}
+
+export function ownsLayout(owned: string[] | undefined, layoutId: string) {
+  if (FREE_LAYOUT_IDS.includes(layoutId)) return true;
+  return !!owned?.includes(layoutId);
 }

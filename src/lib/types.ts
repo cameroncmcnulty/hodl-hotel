@@ -35,6 +35,7 @@ export type User = {
   roomHistory: { roomId: string; at: string }[];
   backpack: (Item | null)[];
   ownedRoomIds: string[];
+  ownedLayoutIds?: string[];
   wallet?: string;
   quests: Record<string, { progress: number; done: boolean }>;
   tosAcceptedAt?: string;

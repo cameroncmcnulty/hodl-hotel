@@ -19,7 +19,7 @@ export function tileAt(cam: Cam, mx: number, my: number) {
   return { x: Math.floor(x), y: Math.floor(y) };
 }
 
-function diamond(ctx: CanvasRenderingContext2D, x: number, y: number, fill: string, stroke = "#3a2a20") {
+function diamond(ctx: CanvasRenderingContext2D, x: number, y: number, fill: string, stroke = "#1a3040") {
   const p = iso(x, y);
   const t = { x: snap(p.sx), y: snap(p.sy) };
   const r = { x: snap(p.sx + TW / 2), y: snap(p.sy + TH / 2) };
@@ -37,14 +37,9 @@ function diamond(ctx: CanvasRenderingContext2D, x: number, y: number, fill: stri
   ctx.lineWidth = 1;
   ctx.stroke();
   ctx.beginPath();
-  ctx.moveTo(t.x, t.y + 2);
-  ctx.lineTo(r.x - 2, r.y);
-  ctx.strokeStyle = "rgba(255,255,255,0.28)";
-  ctx.stroke();
-  ctx.beginPath();
-  ctx.moveTo(t.x, t.y + 2);
-  ctx.lineTo(l.x + 2, l.y);
-  ctx.strokeStyle = "rgba(0,0,0,0.12)";
+  ctx.moveTo(t.x, t.y + 1);
+  ctx.lineTo(r.x - 1, r.y);
+  ctx.strokeStyle = "rgba(255,255,255,0.45)";
   ctx.stroke();
 }
 
@@ -101,54 +96,29 @@ function poly(ctx: CanvasRenderingContext2D, pts: { sx: number; sy: number }[], 
 }
 
 function wallN(ctx: CanvasRenderingContext2D, x: number, y: number, color: string, paper: string) {
-  const h = 3.6;
-  const a = iso(x, y, h);
-  const b = iso(x + 1, y, h);
-  const c = iso(x + 1, y, 0);
-  const d = iso(x, y, 0);
-  poly(ctx, [a, b, c, d], paper);
-  poly(ctx, [iso(x, y, 0.28), iso(x + 1, y, 0.28), iso(x + 1, y, 0), iso(x, y, 0)], "#8a6238");
-  poly(ctx, [iso(x, y, h), iso(x + 1, y, h), iso(x + 1, y, h - 0.22), iso(x, y, h - 0.22)], "#e0b14a");
+  const h = 4.1;
+  poly(ctx, [iso(x, y, h), iso(x + 1, y, h), iso(x + 1, y, 0), iso(x, y, 0)], paper);
+  poly(ctx, [iso(x, y, 0.32), iso(x + 1, y, 0.32), iso(x + 1, y, 0), iso(x, y, 0)], "#c48a3a");
+  poly(ctx, [iso(x, y, h), iso(x + 1, y, h), iso(x + 1, y, h - 0.28), iso(x, y, h - 0.28)], "#f0c14a");
   if (x % 2 === 1) {
-    poly(
-      ctx,
-      [iso(x + 0.22, y, 2.35), iso(x + 0.78, y, 2.35), iso(x + 0.78, y, 1.15), iso(x + 0.22, y, 1.15)],
-      "#7ec8ea"
-    );
-    poly(
-      ctx,
-      [iso(x + 0.48, y, 2.35), iso(x + 0.52, y, 2.35), iso(x + 0.52, y, 1.15), iso(x + 0.48, y, 1.15)],
-      "rgba(255,255,255,0.55)"
-    );
-    poly(
-      ctx,
-      [iso(x + 0.22, y, 1.72), iso(x + 0.78, y, 1.72), iso(x + 0.78, y, 1.78), iso(x + 0.22, y, 1.78)],
-      "rgba(255,255,255,0.45)"
-    );
-  } else {
-    poly(
-      ctx,
-      [iso(x + 0.18, y, 2.7), iso(x + 0.82, y, 2.7), iso(x + 0.82, y, 2.55), iso(x + 0.18, y, 2.55)],
-      shade(paper, -18)
-    );
+    poly(ctx, [iso(x + 0.18, y, 2.55), iso(x + 0.82, y, 2.55), iso(x + 0.82, y, 1.15), iso(x + 0.18, y, 1.15)], "#7ed7ff");
+    poly(ctx, [iso(x + 0.48, y, 2.55), iso(x + 0.52, y, 2.55), iso(x + 0.52, y, 1.15), iso(x + 0.48, y, 1.15)], "rgba(255,255,255,0.7)");
+    poly(ctx, [iso(x + 0.18, y, 1.82), iso(x + 0.82, y, 1.82), iso(x + 0.82, y, 1.88), iso(x + 0.18, y, 1.88)], "rgba(255,255,255,0.55)");
+    poly(ctx, [iso(x + 0.28, y, 2.35), iso(x + 0.42, y, 2.28), iso(x + 0.5, y, 2.22), iso(x + 0.28, y, 2.22)], "#fff");
   }
   void color;
 }
 
 function wallW(ctx: CanvasRenderingContext2D, x: number, y: number, color: string, paper: string) {
-  const h = 3.6;
-  const a = iso(x, y, h);
-  const b = iso(x, y + 1, h);
-  const c = iso(x, y + 1, 0);
-  const d = iso(x, y, 0);
-  poly(ctx, [a, b, c, d], shade(paper, -22));
-  poly(ctx, [iso(x, y, 0.28), iso(x, y + 1, 0.28), iso(x, y + 1, 0), iso(x, y, 0)], "#6d4c2f");
-  poly(ctx, [iso(x, y, h), iso(x, y + 1, h), iso(x, y + 1, h - 0.22), iso(x, y, h - 0.22)], "#c4922e");
+  const h = 4.1;
+  poly(ctx, [iso(x, y, h), iso(x, y + 1, h), iso(x, y + 1, 0), iso(x, y, 0)], shade(paper, -28));
+  poly(ctx, [iso(x, y, 0.32), iso(x, y + 1, 0.32), iso(x, y + 1, 0), iso(x, y, 0)], "#a56e28");
+  poly(ctx, [iso(x, y, h), iso(x, y + 1, h), iso(x, y + 1, h - 0.28), iso(x, y, h - 0.28)], "#d4a63a");
   if (y % 2 === 1) {
     poly(
       ctx,
       [iso(x, y + 0.22, 2.35), iso(x, y + 0.78, 2.35), iso(x, y + 0.78, 1.15), iso(x, y + 0.22, 1.15)],
-      "#5aa8c8"
+      "#5ec4e8"
     );
     poly(
       ctx,
@@ -311,13 +281,10 @@ export function drawRoom(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
   ctx.translate(cam.x, cam.y);
   ctx.imageSmoothingEnabled = false;
 
-  const paper =
-    layout.id === "shill_club" ? "#6b3fa0" : layout.id.includes("pool") ? "#87d0ea" : layout.id === "cook_lab" ? "#e8c07a" : "#e6c39a";
+  const paper = layout.paper || "#8ee0c4";
   const wall = paper;
-  const floorA =
-    layout.id === "shill_club" ? "#3b1d5c" : layout.id.includes("pool") ? "#f2b090" : layout.id === "cook_lab" ? "#d7b48a" : "#f0d2b0";
-  const floorB =
-    layout.id === "shill_club" ? "#2a1444" : layout.id.includes("pool") ? "#e49a78" : layout.id === "cook_lab" ? "#c9a06e" : "#e4c29a";
+  const floorA = layout.floorA || "#4db7ea";
+  const floorB = layout.floorB || "#3aa6dc";
 
   for (let y = 0; y < layout.h; y++) {
     for (let x = 0; x < layout.w; x++) {
@@ -332,9 +299,9 @@ export function drawRoom(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
       const eastOpen = !walkable(layout, x + 1, y) && !isWater(layout, x + 1, y);
       const southOpen = !walkable(layout, x, y + 1) && !isWater(layout, x, y + 1);
       if (eastOpen || southOpen) {
-        floorDrop(ctx, x, y, eastOpen, southOpen, "#6a4a32", "#8a6240");
+        floorDrop(ctx, x, y, eastOpen, southOpen, shade(fill, -45), shade(fill, -28));
       }
-      diamond(ctx, x, y, fill, "#4a3428");
+      diamond(ctx, x, y, fill, "#163048");
       if (!walkable(layout, x, y - 1) && !isWater(layout, x, y - 1)) wallN(ctx, x, y, wall, paper);
       if (!walkable(layout, x - 1, y) && !isWater(layout, x - 1, y)) wallW(ctx, x, y, wall, paper);
     }
@@ -392,15 +359,15 @@ export function drawRoom(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
         ctx.fillStyle = "#fff";
         ctx.strokeStyle = "#111";
         ctx.lineWidth = 3;
-        ctx.strokeText(name, p.sx - nw / 2, p.sy - 52);
+        ctx.strokeText(name, p.sx - nw / 2, p.sy - 64);
         ctx.fillStyle = "#2a7dff";
-        ctx.fillText(name, p.sx - nw / 2, p.sy - 52);
+        ctx.fillText(name, p.sx - nw / 2, p.sy - 64);
         if (o.chat && Date.now() - o.chat.at < 6000) {
           const msg = o.chat.text;
           ctx.font = "12px Tahoma, sans-serif";
           const mw = Math.min(200, ctx.measureText(msg).width + 16);
           const bx = snap(p.sx - mw / 2);
-          const by = snap(p.sy - 86);
+          const by = snap(p.sy - 98);
           ctx.fillStyle = "#fff";
           ctx.strokeStyle = "#222";
           ctx.lineWidth = 2;

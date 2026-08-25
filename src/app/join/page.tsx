@@ -219,8 +219,8 @@ export default function JoinPage() {
       {step === 3 && (
         <div className="panel mt-6 grid gap-4 bg-[#24143d]/92 p-5 text-white">
           <p className="text-sm text-white/70">
-            You start with <b className="text-gold">{STARTER_COINS} coins</b> — enough for a bed, seating, a lamp, and a plant.
-            Shop after you land.
+            You start with <b className="text-gold">{STARTER_COINS} coins</b> and one of six free floor plans.
+            Gold plans (the other shapes) are in the shop after you land.
           </p>
           <div className="grid gap-3 sm:grid-cols-2">
             {USER_LAYOUTS.map((l) => (

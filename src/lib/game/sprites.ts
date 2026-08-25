@@ -119,7 +119,7 @@ export function loadSprite(id: string) {
 }
 
 export async function loadSprites(ids?: string[]) {
-  const list = ids && ids.length ? ids : Object.keys(SPRITE_SRC);
+  const list = ids ? ids.filter(Boolean) : Object.keys(SPRITE_SRC);
   await Promise.all(list.map((id) => loadSprite(id)));
   return cache;
 }
