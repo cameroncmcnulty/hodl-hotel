@@ -2,6 +2,32 @@ import { layoutById, walkable } from "../layouts";
 import type { Placed } from "../types";
 import { furn, footprint } from "../catalog";
 
+export function canPlaceFurn(
+  room: { layoutId: string; furniture: Placed[] },
+  defId: string,
+  x: number,
+  y: number,
+  rot: 0 | 1 | 2 | 3
+) {
+  const def = furn(defId);
+  if (!def) return false;
+  const layout = layoutById(room.layoutId);
+  const { w, d } = footprint(def, rot);
+  for (let dy = 0; dy < d; dy++) {
+    for (let dx = 0; dx < w; dx++) {
+      if (!walkable(layout, x + dx, y + dy) && def.slot === "floor") return false;
+    }
+  }
+  if (def.walkable || def.slot === "wall") return true;
+  const blocked = blockedSet(room.layoutId, room.furniture);
+  for (let dy = 0; dy < d; dy++) {
+    for (let dx = 0; dx < w; dx++) {
+      if (blocked.has(`${x + dx},${y + dy}`)) return false;
+    }
+  }
+  return true;
+}
+
 export function blockedSet(layoutId: string, furniture: Placed[], ignoreWalkable = true) {
   const layout = layoutById(layoutId);
   const blocked = new Set<string>();

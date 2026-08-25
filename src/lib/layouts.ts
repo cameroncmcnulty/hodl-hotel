@@ -56,7 +56,7 @@ function parse(
   };
 }
 
-const MINT = { paper: "#8ee0c4", floorA: "#4db7ea", floorB: "#3aa6dc" };
+const MINT = { paper: "#8ee0c4", floorA: "#4aaee0", floorB: "#3e9fd0" };
 
 export const LAYOUTS: Layout[] = [
   parse(

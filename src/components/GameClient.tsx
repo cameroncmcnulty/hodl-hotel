@@ -7,6 +7,7 @@ import { CATS } from "@/lib/catalog";
 import { FREE_LAYOUT_IDS, PREMIUM_LAYOUTS, USER_LAYOUTS } from "@/lib/layouts";
 import { COIN_PACKS } from "@/lib/constants";
 import { drawRoom, tileAt } from "@/lib/game/draw";
+import { canPlaceFurn } from "@/lib/game/path";
 import { iso } from "@/lib/game/iso";
 import { motAt, setPath, tickMot, type Mot } from "@/lib/game/motion";
 import { loadSprites, spriteCache } from "@/lib/game/sprites";
@@ -205,7 +206,16 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
             cam: cam.current,
             t: tRef.current,
             hover: hover || undefined,
-            ghost: gdef && hover ? { def: gdef, x: hover.x, y: hover.y, rot: place!.rot, ok: true } : undefined,
+            ghost:
+              gdef && hover
+                ? {
+                    def: gdef,
+                    x: hover.x,
+                    y: hover.y,
+                    rot: place!.rot,
+                    ok: canPlaceFurn(s.room, place!.catalogId, hover.x, hover.y, place!.rot),
+                  }
+                : undefined,
             sprites: spritesRef.current || spriteCache(),
           });
           if (s.room.id === "public-shill-zone") {

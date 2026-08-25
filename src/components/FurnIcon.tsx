@@ -30,8 +30,8 @@ export function FurnIcon({ id, className }: { id: string; className?: string }) 
       const spanX = ((w + d) * TW) / 2 + 8;
       const spanY = ((w + d) * TH) / 2 + def.h * ZH + 24;
       const scale = Math.min(0.95, (W - 16) / spanX, (H - 20) / spanY);
-      const mid = iso(w / 2, d / 2);
-      ctx.setTransform(scale, 0, 0, scale, W / 2 - mid.sx * scale, H * 0.78 - mid.sy * scale);
+      const foot = iso(w, d);
+      ctx.setTransform(scale, 0, 0, scale, W / 2 - foot.sx * scale, H * 0.9 - foot.sy * scale);
       drawFurniture(
         ctx,
         def,

@@ -1,1 +1,1 @@
-Smooth tile walking, hotel-sim avatars, sharper landing art.
+Snap furniture to tile diamonds, Habbo-style walls and floors, cleaner placement ghost.

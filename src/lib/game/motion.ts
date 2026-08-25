@@ -28,6 +28,8 @@ export function setPath(m: Mot, path: { x: number; y: number }[], from = { x: m.
 export function tickMot(m: Mot, dt: number) {
   if (!m.queue.length) {
     m.moving = false;
+    m.x = Math.round(m.x);
+    m.y = Math.round(m.y);
     return;
   }
   m.moving = true;
