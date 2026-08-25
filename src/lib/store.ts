@@ -134,6 +134,16 @@ export function findRoom(db: DB, id: string) {
   return db.rooms.find((r) => r.id === id);
 }
 
+export function persistInfo() {
+  const dir = process.env.DATA_DIR || join(process.cwd(), "data");
+  const file = join(dir, "db.json");
+  return {
+    dataDir: dir,
+    volumeMounted: existsSync("/data"),
+    dbFile: existsSync(file),
+  };
+}
+
 type LiveRoom = { occupants: Occupant[]; chat: ChatLine[] };
 
 type Live = { rooms: Record<string, LiveRoom> };

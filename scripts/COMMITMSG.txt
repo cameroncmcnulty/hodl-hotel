@@ -1,1 +1,1 @@
-Sharper landing, mint isometric rooms, 12 floor plans (6 free + 6 gold), lighter sprite loading, Railway-ready.
+Railway health check, PORT-safe start, cache art, lighter landing images.

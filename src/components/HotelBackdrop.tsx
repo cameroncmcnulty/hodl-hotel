@@ -2,7 +2,7 @@ export function HotelBackdrop({ children }: { children: React.ReactNode }) {
   return (
     <div className="relative min-h-[100dvh] overflow-x-hidden bg-[#4ec6f0]">
       <img
-        src="/art/landing-mobile.jpg?v=4"
+        src="/art/landing-mobile.jpg?v=5"
         alt=""
         width={1080}
         height={1920}
@@ -12,7 +12,7 @@ export function HotelBackdrop({ children }: { children: React.ReactNode }) {
         style={{ imageRendering: "pixelated" }}
       />
       <img
-        src="/art/landing-bg.jpg?v=4"
+        src="/art/landing-bg.jpg?v=5"
         alt="HODL Hotel grounds with Solana power plant. Pixel sign reads Powered by Solana."
         width={1920}
         height={1080}
