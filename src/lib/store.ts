@@ -6,7 +6,19 @@ import { FREE_LAYOUT_IDS } from "./layouts";
 import type { DB, Occupant, ChatLine, Room, User } from "./types";
 import { seedPublicRooms } from "./seed";
 
-const dataDir = process.env.DATA_DIR || join(process.cwd(), "data");
+function resolveDataDir() {
+  if (process.env.DATA_DIR) return process.env.DATA_DIR;
+  for (const dir of ["/data", "/mnt/data"]) {
+    try {
+      if (existsSync(dir)) return dir;
+    } catch {
+      /* */
+    }
+  }
+  return join(process.cwd(), "data");
+}
+
+const dataDir = resolveDataDir();
 const FILES = [join(dataDir, "db.json"), join("/tmp", "hodl-hotel-db.json")];
 
 function empty(): DB {
@@ -135,11 +147,10 @@ export function findRoom(db: DB, id: string) {
 }
 
 export function persistInfo() {
-  const dir = process.env.DATA_DIR || join(process.cwd(), "data");
-  const file = join(dir, "db.json");
+  const file = join(dataDir, "db.json");
   return {
-    dataDir: dir,
-    volumeMounted: existsSync("/data"),
+    dataDir,
+    volumeMounted: existsSync("/data") || existsSync("/mnt/data"),
     dbFile: existsSync(file),
   };
 }
