@@ -9,7 +9,7 @@ const IMG = path.join(
   "images"
 );
 const ART = path.join(__dirname, "..", "public", "art");
-fs.copyFileSync(path.join(IMG, "75.jpg"), path.join(ART, "landing-bg.jpg"));
-fs.copyFileSync(path.join(IMG, "76.jpg"), path.join(ART, "landing-mobile.jpg"));
+fs.copyFileSync(path.join(IMG, "77.jpg"), path.join(ART, "landing-bg.jpg"));
+fs.copyFileSync(path.join(IMG, "78.jpg"), path.join(ART, "landing-mobile.jpg"));
 fs.copyFileSync(path.join(ART, "landing-bg.jpg"), path.join(ART, "hotel-hero.jpg"));
-console.log("landing copied");
+console.log("ok", fs.statSync(path.join(ART, "landing-bg.jpg")).size, fs.statSync(path.join(ART, "landing-mobile.jpg")).size);

@@ -8,6 +8,7 @@ import { FREE_LAYOUT_IDS, PREMIUM_LAYOUTS, USER_LAYOUTS } from "@/lib/layouts";
 import { COIN_PACKS } from "@/lib/constants";
 import { drawRoom, tileAt } from "@/lib/game/draw";
 import { iso } from "@/lib/game/iso";
+import { motAt, setPath, tickMot, type Mot } from "@/lib/game/motion";
 import { loadSprites, spriteCache } from "@/lib/game/sprites";
 import type { Ad, ChatLine, Occupant, Placed, Room } from "@/lib/types";
 import {
@@ -66,6 +67,8 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
   const tRef = useRef(0);
   const cam = useRef({ x: 400, y: 200 });
   const spritesRef = useRef<Record<string, HTMLCanvasElement>>({});
+  const motions = useRef<Record<string, Mot>>({});
+  const lastTs = useRef(typeof performance !== "undefined" ? performance.now() : 0);
 
   const furnKey = (snap?.room.furniture || []).map((f) => f.catalogId).join(",");
   useEffect(() => {
@@ -80,8 +83,20 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
     const j = await res.json();
     if (j.error && body.type !== "ping") setStatus(j.error);
     if (j.room) {
+      if (body.type === "join") motions.current = {};
       setSnap(j);
       setRoomId(j.room.id);
+      for (const o of j.occupants as Occupant[]) {
+        let m = motions.current[o.userId];
+        if (!m) {
+          m = motAt(o.x, o.y, o.dir);
+          motions.current[o.userId] = m;
+        }
+        if (o.path?.length) setPath(m, o.path);
+        else if (o.userId !== me.id && Math.hypot(o.x - m.x, o.y - m.y) > 0.45) {
+          setPath(m, [{ x: o.x, y: o.y }]);
+        }
+      }
     }
     return j;
   }, []);
@@ -96,8 +111,9 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
   useEffect(() => {
     if (!snap?.room) return;
     const id = setInterval(() => {
-      act({ type: "ping" });
-    }, 900);
+      const m = motions.current[meState.id];
+      act({ type: "ping", x: m?.x, y: m?.y, dir: m?.dir });
+    }, 700);
     return () => clearInterval(id);
   }, [act, snap?.room?.id]);
 
@@ -109,8 +125,9 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
         e.preventDefault();
         act({ type: "dance" });
       }
+      const m = motions.current[meState.id];
       const you = snap?.occupants.find((o) => o.userId === meState.id);
-      if (you) {
+      if (you || m) {
         const step: Record<string, [number, number]> = {
           ArrowUp: [0, -1],
           ArrowDown: [0, 1],
@@ -124,7 +141,9 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
         const delta = step[e.key] || step[e.key.toLowerCase()];
         if (delta) {
           e.preventDefault();
-          act({ type: "walk", x: Math.round(you.x) + delta[0], y: Math.round(you.y) + delta[1] });
+          const x = Math.round(m?.x ?? you?.x ?? 0);
+          const y = Math.round(m?.y ?? you?.y ?? 0);
+          act({ type: "walk", x: x + delta[0], y: y + delta[1] });
         }
       }
       if ((e.key === "r" || e.key === "R") && place) {
@@ -143,7 +162,10 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
   useEffect(() => {
     let raf = 0;
     const loop = () => {
-      tRef.current += 0.016;
+      const now = performance.now();
+      const dt = Math.min(48, now - lastTs.current);
+      lastTs.current = now;
+      tRef.current += dt / 1000;
       const c = canvasRef.current;
       const s = snap;
       if (c && s) {
@@ -158,18 +180,27 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
             ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
           }
           ctx.imageSmoothingEnabled = false;
-          ctx.fillStyle = "#7ec8ea";
+          ctx.fillStyle = "#6ec8f0";
           ctx.fillRect(0, 0, w, h);
-          const you = s.occupants.find((o) => o.userId === meState.id);
+          for (const o of s.occupants) {
+            if (!motions.current[o.userId]) motions.current[o.userId] = motAt(o.x, o.y, o.dir);
+            tickMot(motions.current[o.userId], dt);
+          }
+          const vis = s.occupants.map((o) => {
+            const m = motions.current[o.userId];
+            if (!m) return o;
+            return { ...o, x: m.x, y: m.y, dir: m.dir, moving: m.moving, dist: m.dist, sitUid: m.moving ? undefined : o.sitUid };
+          });
+          const you = vis.find((o) => o.userId === meState.id);
           if (you) {
             const p = iso(you.x + 0.5, you.y + 0.5);
-            cam.current.x += (w / 2 - p.sx - cam.current.x) * 0.12;
-            cam.current.y += (h / 2 - p.sy - cam.current.y) * 0.12;
+            cam.current.x += (w / 2 - p.sx - cam.current.x) * 0.18;
+            cam.current.y += (h / 2 - p.sy - cam.current.y) * 0.18;
           }
           const gdef = place ? furn(place.catalogId) : undefined;
           drawRoom(ctx, {
             room: s.room,
-            occupants: s.occupants,
+            occupants: vis,
             ads: s.ads,
             cam: cam.current,
             t: tRef.current,

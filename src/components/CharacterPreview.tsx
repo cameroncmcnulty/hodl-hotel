@@ -13,9 +13,20 @@ export function CharacterPreview({ figure, size = 220 }: { figure: Figure; size?
     if (!ctx) return;
     ctx.imageSmoothingEnabled = false;
     ctx.clearRect(0, 0, size, size);
-    ctx.fillStyle = "rgba(255,255,255,0.08)";
+    ctx.fillStyle = "#8ee0c4";
     ctx.fillRect(0, 0, size, size);
-    drawAvatarFront(ctx, clampFigure(figure), size / 2, size * 0.58, size / 140);
+    ctx.fillStyle = "#4db7ea";
+    for (let i = 0; i < 8; i++) {
+      ctx.beginPath();
+      ctx.moveTo(size / 2, 40 + i * 18);
+      ctx.lineTo(size / 2 + 36, 58 + i * 18);
+      ctx.lineTo(size / 2, 76 + i * 18);
+      ctx.lineTo(size / 2 - 36, 58 + i * 18);
+      ctx.closePath();
+      ctx.fillStyle = i % 2 ? "#4db7ea" : "#3aa6dc";
+      ctx.fill();
+    }
+    drawAvatarFront(ctx, clampFigure(figure), size / 2, size * 0.62, size / 110);
   }, [figure, size]);
   return <canvas ref={ref} width={size} height={size} className="rounded-2xl" />;
 }

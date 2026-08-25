@@ -85,6 +85,8 @@ export type Occupant = {
   path: { x: number; y: number }[];
   sitUid?: string;
   dance?: boolean;
+  moving?: boolean;
+  dist?: number;
   chat?: { text: string; at: number };
   lastBeat: number;
 };

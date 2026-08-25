@@ -352,7 +352,12 @@ export function drawRoom(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
       depth: (o.x + o.y) * 1000 + 8,
       draw: () => {
         const p = iso(o.x + 0.5, o.y + 0.5, 0);
-        drawAvatarIso(ctx, o.figure, p.sx, p.sy, o.dir, t + o.userId.length, o.dance);
+        drawAvatarIso(ctx, o.figure, p.sx, p.sy, o.dir, t + o.userId.length, {
+          dance: o.dance,
+          walking: o.moving,
+          sit: !!o.sitUid && !o.moving,
+          dist: o.dist,
+        });
         ctx.font = "bold 11px Tahoma, sans-serif";
         const name = o.username;
         const nw = ctx.measureText(name).width;

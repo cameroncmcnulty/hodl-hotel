@@ -20,8 +20,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <head>
-        <link rel="preload" as="image" href="/art/landing-bg.jpg?v=5" media="(min-width: 768px)" />
-        <link rel="preload" as="image" href="/art/landing-mobile.jpg?v=5" media="(max-width: 767px)" />
+        <link rel="preload" as="image" href="/art/landing-bg.jpg?v=6" media="(min-width: 768px)" />
+        <link rel="preload" as="image" href="/art/landing-mobile.jpg?v=6" media="(max-width: 767px)" />
       </head>
       <body className={`${display.variable} ${sans.variable} font-sans antialiased`}>{children}</body>
     </html>

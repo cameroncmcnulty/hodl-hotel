@@ -4,7 +4,7 @@ import { FREE_LAYOUT_IDS, layoutById, walkable, isDance } from "../layouts";
 import { moderate } from "../moderate";
 import { dropOccupant, findRoom, findUser, liveRoom, loadDB, log, occupantCount, pruneLive, saveDB } from "../store";
 import type { Item, Occupant, Placed, User } from "../types";
-import { astar, blockedSet, dirTowards } from "./path";
+import { astar, blockedSet } from "./path";
 
 export type Action =
   | { type: "join"; roomId: string; password?: string }
@@ -156,29 +156,33 @@ export function applyAction(userId: string, action: Action) {
     if (typeof action.y === "number") occ.y = action.y;
     if (action.dir !== undefined) occ.dir = action.dir;
     if (action.dance !== undefined) occ.dance = action.dance;
+    const rx = Math.round(occ.x);
+    const ry = Math.round(occ.y);
     if (occ.path.length) {
-      const n = occ.path[0];
-      occ.dir = dirTowards(Math.round(occ.x), Math.round(occ.y), n.x, n.y);
-      occ.x = n.x;
-      occ.y = n.y;
-      occ.path = occ.path.slice(1);
-      occ.sitUid = undefined;
-      const stepped = room.furniture.find((p) => p.x === n.x && p.y === n.y && furn(p.catalogId)?.use === "teleport");
-      if (stepped?.pairId) {
-        const dest = db.rooms
-          .flatMap((r) => r.furniture.map((f) => ({ r, f })))
-          .find(({ f }) => f.pairId === stepped.pairId && f.uid !== stepped.uid);
-        if (dest) {
-          dropFromAllRooms(userId);
-          const L = liveRoom(dest.r.id);
-          L.occupants.push(emptyOcc(u, dest.f.x, dest.f.y));
-          u.roomHistory = [{ roomId: dest.r.id, at: new Date().toISOString() }, ...u.roomHistory].slice(0, HISTORY_LIMIT);
-          saveDB(db);
-          return snapshot(dest.r.id, userId);
-        }
+      const last = occ.path[occ.path.length - 1];
+      if (Math.hypot(occ.x - last.x, occ.y - last.y) < 0.2) occ.path = [];
+    }
+    occ.sitUid = undefined;
+    const sit = room.furniture.find((p) => {
+      const def = furn(p.catalogId);
+      return def?.sittable && p.x === rx && p.y === ry;
+    });
+    if (sit && !occ.path.length) occ.sitUid = sit.uid;
+    const stepped = room.furniture.find((p) => p.x === rx && p.y === ry && furn(p.catalogId)?.use === "teleport");
+    if (stepped?.pairId) {
+      const dest = db.rooms
+        .flatMap((r) => r.furniture.map((f) => ({ r, f })))
+        .find(({ f }) => f.pairId === stepped.pairId && f.uid !== stepped.uid);
+      if (dest) {
+        dropFromAllRooms(userId);
+        const L = liveRoom(dest.r.id);
+        L.occupants.push(emptyOcc(u, dest.f.x, dest.f.y));
+        u.roomHistory = [{ roomId: dest.r.id, at: new Date().toISOString() }, ...u.roomHistory].slice(0, HISTORY_LIMIT);
+        saveDB(db);
+        return snapshot(dest.r.id, userId);
       }
     }
-    if (isDance(layoutById(room.layoutId), Math.round(occ.x), Math.round(occ.y))) occ.dance = true;
+    if (isDance(layoutById(room.layoutId), rx, ry)) occ.dance = true;
     return snapshot(here.roomId, userId);
   }
 

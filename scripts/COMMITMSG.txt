@@ -1,1 +1,1 @@
-Railway health check, PORT-safe start, cache art, lighter landing images.
+Smooth tile walking, hotel-sim avatars, sharper landing art.
