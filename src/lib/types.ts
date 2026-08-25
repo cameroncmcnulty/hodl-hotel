@@ -6,6 +6,8 @@ export type Figure = {
   bottom: number;
   shoes: number;
   acc: number;
+  topCut?: number;
+  botCut?: number;
 };
 
 export type Item = {

@@ -383,15 +383,15 @@ export function drawRoom(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
         ctx.fillStyle = "#fff";
         ctx.strokeStyle = "#111";
         ctx.lineWidth = 3;
-        ctx.strokeText(name, p.sx - nw / 2, p.sy - 64);
+        ctx.strokeText(name, p.sx - nw / 2, p.sy - 96);
         ctx.fillStyle = "#2a7dff";
-        ctx.fillText(name, p.sx - nw / 2, p.sy - 64);
+        ctx.fillText(name, p.sx - nw / 2, p.sy - 96);
         if (o.chat && Date.now() - o.chat.at < 6000) {
           const msg = o.chat.text;
           ctx.font = "12px Tahoma, sans-serif";
           const mw = Math.min(200, ctx.measureText(msg).width + 16);
           const bx = snap(p.sx - mw / 2);
-          const by = snap(p.sy - 98);
+          const by = snap(p.sy - 122);
           ctx.fillStyle = "#fff";
           ctx.strokeStyle = "#222";
           ctx.lineWidth = 2;

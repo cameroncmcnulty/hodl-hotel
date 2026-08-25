@@ -2,7 +2,19 @@
 
 import { useEffect, useRef } from "react";
 import type { Figure } from "@/lib/types";
-import { ACC, BOTTOMS, clampFigure, drawAvatarFront, HAIR_C, HAIR_STYLES, SHOES, SKIN, TOPS } from "@/lib/game/avatar";
+import {
+  ACC,
+  BOTTOMS,
+  BOT_CUTS,
+  clampFigure,
+  drawAvatarFront,
+  HAIR_C,
+  HAIR_STYLES,
+  SHOES,
+  SKIN,
+  TOP_CUTS,
+  TOPS,
+} from "@/lib/game/avatar";
 
 export function CharacterPreview({ figure, size = 220 }: { figure: Figure; size?: number }) {
   const ref = useRef<HTMLCanvasElement>(null);
@@ -41,14 +53,24 @@ export function FigureEditor({ figure, onChange }: { figure: Figure; onChange: (
           type="range"
           min={0}
           max={max}
-          value={f[key]}
+          value={Number(f[key] ?? 0)}
           className="w-full"
           onChange={(e) => onChange({ ...f, [key]: Number(e.target.value) })}
         />
         {swatches ? (
-          <span className="h-5 w-5 rounded-md border border-white/20" style={{ background: swatches[f[key]] }} />
+          <span className="h-5 w-5 rounded-md border border-white/20" style={{ background: swatches[Number(f[key] ?? 0)] }} />
         ) : (
-          <span className="w-16 text-right text-white/80">{[HAIR_STYLES, ACC][key === "hair" ? 0 : 0] && key === "hair" ? HAIR_STYLES[f.hair] : key === "acc" ? ACC[f.acc] : f[key]}</span>
+          <span className="w-16 text-right text-white/80">
+            {key === "hair"
+              ? HAIR_STYLES[f.hair]
+              : key === "acc"
+                ? ACC[f.acc]
+                : key === "topCut"
+                  ? TOP_CUTS[f.topCut ?? 0]
+                  : key === "botCut"
+                    ? BOT_CUTS[f.botCut ?? 0]
+                    : f[key]}
+          </span>
         )}
       </div>
     </label>
@@ -59,8 +81,10 @@ export function FigureEditor({ figure, onChange }: { figure: Figure; onChange: (
       {row("Skin", "skin", SKIN.length - 1, SKIN)}
       {row("Hair style", "hair", HAIR_STYLES.length - 1)}
       {row("Hair color", "hairColor", HAIR_C.length - 1, HAIR_C)}
-      {row("Top", "top", TOPS.length - 1, TOPS)}
-      {row("Bottoms", "bottom", BOTTOMS.length - 1, BOTTOMS)}
+      {row("Top color", "top", TOPS.length - 1, TOPS)}
+      {row("Shirt", "topCut", TOP_CUTS.length - 1)}
+      {row("Bottom color", "bottom", BOTTOMS.length - 1, BOTTOMS)}
+      {row("Pants", "botCut", BOT_CUTS.length - 1)}
       {row("Shoes", "shoes", SHOES.length - 1, SHOES)}
       {row("Extra", "acc", ACC.length - 1)}
     </div>

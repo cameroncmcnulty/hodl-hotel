@@ -1,1 +1,1 @@
-Snap furniture to tile diamonds, Habbo-style walls and floors, cleaner placement ghost.
+Pixel-doll avatars: 12 hairs, shirt/pants cuts, walk frames, same sprite from creation to room.
