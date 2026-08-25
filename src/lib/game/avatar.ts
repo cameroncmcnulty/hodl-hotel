@@ -149,7 +149,7 @@ export function drawAvatarIso(
   const shoe = SHOES[f.shoes];
   const step = Math.round((dance ? Math.sin(t * 10) : Math.sin(t * 7)) * 2);
   ctx.save();
-  ctx.translate(Math.round(sx), Math.round(sy - 6 - bob));
+  ctx.translate(Math.round(sx), Math.round(sy - 8 - bob));
   ctx.scale(flip, 1);
   ctx.imageSmoothingEnabled = false;
   const px = (x: number, y: number, w: number, h: number, fill: string) => {
@@ -159,25 +159,54 @@ export function drawAvatarIso(
     ctx.lineWidth = 1;
     ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
   };
-  px(-7, 14 + step, 7, 5, shoe);
-  px(1, 14 - step, 7, 5, shoe);
-  px(-6, 4, 6, 12, bot);
-  px(0, 4, 6, 12, bot);
-  px(-10, -6, 20, 14, top);
-  px(-9, -26, 18, 18, skin);
-  ctx.fillStyle = hair;
-  ctx.fillRect(-10, -32, 20, 10);
-  ctx.fillRect(-6, -36, 12, 6);
-  ctx.strokeStyle = "#1a1020";
-  ctx.strokeRect(-10.5, -32.5, 21, 11);
+  ctx.save();
+  ctx.globalAlpha = 0.2;
   ctx.fillStyle = "#1a1020";
-  ctx.fillRect(flip > 0 ? 2 : -6, -20, 3, 3);
-  if (f.acc === 2) px(-10, -22, 20, 4, "#111");
+  ctx.beginPath();
+  ctx.ellipse(0, 22, 10, 4, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+  px(-8, 16 + step, 8, 6, shoe);
+  px(1, 16 - step, 8, 6, shoe);
+  px(-7, 4, 7, 14, bot);
+  px(0, 4, 7, 14, bot);
+  px(-11, -8, 22, 16, top);
+  px(-14, -4, 6, 12, skin);
+  px(8, -4, 6, 12, skin);
+  px(-11, -28, 22, 22, skin);
+  ctx.fillStyle = hair;
+  if (f.hair === 3) {
+    px(-4, -44, 5, 16, hair);
+    px(2, -42, 5, 14, hair);
+    px(-10, -34, 20, 10, hair);
+  } else if (f.hair === 5) {
+    px(-12, -34, 24, 10, hair);
+    px(-6, -40, 12, 8, hair);
+  } else if (f.hair === 6) {
+    px(-11, -32, 22, 12, hair);
+    px(-4, -10, 7, 16, hair);
+  } else if (f.hair === 7) {
+    px(-3, -46, 6, 20, hair);
+    px(-11, -32, 22, 8, hair);
+  } else {
+    px(-12, -36, 24, 12, hair);
+    px(-8, -40, 16, 6, hair);
+  }
+  ctx.fillStyle = "#1a1020";
+  ctx.fillRect(3, -20, 3, 3);
+  ctx.fillRect(3, -19, 4, 2);
+  if (f.acc === 2) px(-12, -24, 24, 5, "#111");
   if (f.acc === 1) {
     ctx.strokeStyle = "#111";
-    ctx.strokeRect(-8, -21, 7, 5);
-    ctx.strokeRect(1, -21, 7, 5);
+    ctx.lineWidth = 2;
+    ctx.strokeRect(-8, -22, 7, 5);
+    ctx.strokeRect(2, -22, 7, 5);
   }
+  if (f.acc === 3) {
+    px(-16, -22, 7, 7, "#222");
+    px(9, -22, 7, 7, "#222");
+  }
+  if (f.acc === 6) px(-12, -26, 24, 5, "#14F195");
   ctx.restore();
 }
 

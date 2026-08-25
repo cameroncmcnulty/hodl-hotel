@@ -3,9 +3,9 @@
 import { useEffect, useRef } from "react";
 import { furn } from "@/lib/catalog";
 import { drawRoom } from "@/lib/game/draw";
-import { iso } from "@/lib/game/iso";
+import { camToFit } from "@/lib/game/iso";
 import { loadSprites } from "@/lib/game/sprites";
-import { layoutById } from "@/lib/layouts";
+import { layoutById, walkable } from "@/lib/layouts";
 import type { Placed, Room } from "@/lib/types";
 
 const SAMPLES: Record<string, { id: string; x: number; y: number }[]> = {
@@ -40,7 +40,7 @@ const SAMPLES: Record<string, { id: string; x: number; y: number }[]> = {
   ],
   vault_den: [
     { id: "throne_obsidian", x: 6, y: 2 },
-    { id: "statue_sol", x: 3, y: 6 },
+    { id: "statue_sol", x: 7, y: 6 },
     { id: "bean_gold", x: 7, y: 7 },
     { id: "lamp_sol", x: 1, y: 1 },
   ],
@@ -53,27 +53,29 @@ const SAMPLES: Record<string, { id: string; x: number; y: number }[]> = {
   ],
 };
 
+const VW = 480;
+const VH = 280;
+
 export function LayoutPreview({ layoutId }: { layoutId: string }) {
   const ref = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
     let alive = true;
-    const paint = async () => {
-      const sprites = await loadSprites();
+
+    const paint = (sprites: Record<string, HTMLCanvasElement> = {}) => {
       const c = ref.current;
       if (!alive || !c) return;
       const ctx = c.getContext("2d");
       if (!ctx) return;
       const layout = layoutById(layoutId);
-      const dpr = 1;
-      c.width = 280;
-      c.height = 160;
+      c.width = VW;
+      c.height = VH;
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.imageSmoothingEnabled = false;
       ctx.fillStyle = "#7ec8ea";
-      ctx.fillRect(0, 0, 280, 160);
-      const mid = iso(layout.w / 2, layout.h / 2);
+      ctx.fillRect(0, 0, VW, VH);
       const furniture: Placed[] = (SAMPLES[layoutId] || [])
-        .filter((s) => furn(s.id))
+        .filter((s) => furn(s.id) && walkable(layout, s.x, s.y))
         .map((s, i) => ({
           uid: `p${i}`,
           catalogId: s.id,
@@ -93,21 +95,36 @@ export function LayoutPreview({ layoutId }: { layoutId: string }) {
         createdAt: "",
         lastActiveAt: "",
       };
+      const { scale, ox, oy } = camToFit(layout, VW, VH, 18);
+      ctx.setTransform(scale, 0, 0, scale, ox, oy);
+      ctx.imageSmoothingEnabled = false;
       drawRoom(ctx, {
         room,
         occupants: [],
         ads: [],
-        cam: { x: 140 - mid.sx, y: 88 - mid.sy },
+        cam: { x: 0, y: 0 },
         t: 0.4,
         sprites,
       });
-      void dpr;
     };
-    paint();
+
+    paint({});
+    const needed = (SAMPLES[layoutId] || []).map((s) => s.id);
+    loadSprites(needed).then((s) => {
+      if (alive) paint(s);
+    });
     return () => {
       alive = false;
     };
   }, [layoutId]);
 
-  return <canvas ref={ref} width={280} height={160} className="h-28 w-full rounded-lg bg-[#7ec8ea]" style={{ imageRendering: "pixelated" }} />;
+  return (
+    <canvas
+      ref={ref}
+      width={VW}
+      height={VH}
+      className="h-36 w-full rounded-lg bg-[#7ec8ea] sm:h-40"
+      style={{ imageRendering: "pixelated" }}
+    />
+  );
 }

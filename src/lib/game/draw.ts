@@ -21,17 +21,46 @@ export function tileAt(cam: Cam, mx: number, my: number) {
 
 function diamond(ctx: CanvasRenderingContext2D, x: number, y: number, fill: string, stroke = "#3a2a20") {
   const p = iso(x, y);
+  const t = { x: snap(p.sx), y: snap(p.sy) };
+  const r = { x: snap(p.sx + TW / 2), y: snap(p.sy + TH / 2) };
+  const b = { x: snap(p.sx), y: snap(p.sy + TH) };
+  const l = { x: snap(p.sx - TW / 2), y: snap(p.sy + TH / 2) };
   ctx.beginPath();
-  ctx.moveTo(snap(p.sx), snap(p.sy));
-  ctx.lineTo(snap(p.sx + TW / 2), snap(p.sy + TH / 2));
-  ctx.lineTo(snap(p.sx), snap(p.sy + TH));
-  ctx.lineTo(snap(p.sx - TW / 2), snap(p.sy + TH / 2));
+  ctx.moveTo(t.x, t.y);
+  ctx.lineTo(r.x, r.y);
+  ctx.lineTo(b.x, b.y);
+  ctx.lineTo(l.x, l.y);
   ctx.closePath();
   ctx.fillStyle = fill;
   ctx.fill();
   ctx.strokeStyle = stroke;
   ctx.lineWidth = 1;
   ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(t.x, t.y + 2);
+  ctx.lineTo(r.x - 2, r.y);
+  ctx.strokeStyle = "rgba(255,255,255,0.28)";
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(t.x, t.y + 2);
+  ctx.lineTo(l.x + 2, l.y);
+  ctx.strokeStyle = "rgba(0,0,0,0.12)";
+  ctx.stroke();
+}
+
+const EDGE = 10;
+
+function floorDrop(ctx: CanvasRenderingContext2D, x: number, y: number, east: boolean, south: boolean, dark: string, mid: string) {
+  const p = iso(x, y);
+  const r = { sx: snap(p.sx + TW / 2), sy: snap(p.sy + TH / 2) };
+  const b = { sx: snap(p.sx), sy: snap(p.sy + TH) };
+  const l = { sx: snap(p.sx - TW / 2), sy: snap(p.sy + TH / 2) };
+  if (east) {
+    poly(ctx, [r, b, { sx: b.sx, sy: b.sy + EDGE }, { sx: r.sx, sy: r.sy + EDGE }], dark);
+  }
+  if (south) {
+    poly(ctx, [l, b, { sx: b.sx, sy: b.sy + EDGE }, { sx: l.sx, sy: l.sy + EDGE }], mid);
+  }
 }
 
 function cube(
@@ -61,12 +90,12 @@ function cube(
 
 function poly(ctx: CanvasRenderingContext2D, pts: { sx: number; sy: number }[], fill: string) {
   ctx.beginPath();
-  ctx.moveTo(pts[0].sx, pts[0].sy);
-  for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].sx, pts[i].sy);
+  ctx.moveTo(snap(pts[0].sx), snap(pts[0].sy));
+  for (let i = 1; i < pts.length; i++) ctx.lineTo(snap(pts[i].sx), snap(pts[i].sy));
   ctx.closePath();
   ctx.fillStyle = fill;
   ctx.fill();
-  ctx.strokeStyle = "rgba(20,10,30,0.45)";
+  ctx.strokeStyle = "rgba(20,10,30,0.55)";
   ctx.lineWidth = 1;
   ctx.stroke();
 }
@@ -78,16 +107,31 @@ function wallN(ctx: CanvasRenderingContext2D, x: number, y: number, color: strin
   const c = iso(x + 1, y, 0);
   const d = iso(x, y, 0);
   poly(ctx, [a, b, c, d], paper);
-  const trim = iso(x, y, h);
-  const trim2 = iso(x + 1, y, h);
-  const trim3 = iso(x + 1, y, h - 0.22);
-  const trim4 = iso(x, y, h - 0.22);
-  poly(ctx, [trim, trim2, trim3, trim4], "#e0b14a");
-  poly(
-    ctx,
-    [iso(x + 0.28, y, 2.25), iso(x + 0.72, y, 2.25), iso(x + 0.72, y, 1.2), iso(x + 0.28, y, 1.2)],
-    "#7ec8ea"
-  );
+  poly(ctx, [iso(x, y, 0.28), iso(x + 1, y, 0.28), iso(x + 1, y, 0), iso(x, y, 0)], "#8a6238");
+  poly(ctx, [iso(x, y, h), iso(x + 1, y, h), iso(x + 1, y, h - 0.22), iso(x, y, h - 0.22)], "#e0b14a");
+  if (x % 2 === 1) {
+    poly(
+      ctx,
+      [iso(x + 0.22, y, 2.35), iso(x + 0.78, y, 2.35), iso(x + 0.78, y, 1.15), iso(x + 0.22, y, 1.15)],
+      "#7ec8ea"
+    );
+    poly(
+      ctx,
+      [iso(x + 0.48, y, 2.35), iso(x + 0.52, y, 2.35), iso(x + 0.52, y, 1.15), iso(x + 0.48, y, 1.15)],
+      "rgba(255,255,255,0.55)"
+    );
+    poly(
+      ctx,
+      [iso(x + 0.22, y, 1.72), iso(x + 0.78, y, 1.72), iso(x + 0.78, y, 1.78), iso(x + 0.22, y, 1.78)],
+      "rgba(255,255,255,0.45)"
+    );
+  } else {
+    poly(
+      ctx,
+      [iso(x + 0.18, y, 2.7), iso(x + 0.82, y, 2.7), iso(x + 0.82, y, 2.55), iso(x + 0.18, y, 2.55)],
+      shade(paper, -18)
+    );
+  }
   void color;
 }
 
@@ -98,16 +142,26 @@ function wallW(ctx: CanvasRenderingContext2D, x: number, y: number, color: strin
   const c = iso(x, y + 1, 0);
   const d = iso(x, y, 0);
   poly(ctx, [a, b, c, d], shade(paper, -22));
-  const trim = iso(x, y, h);
-  const trim2 = iso(x, y + 1, h);
-  const trim3 = iso(x, y + 1, h - 0.22);
-  const trim4 = iso(x, y, h - 0.22);
-  poly(ctx, [trim, trim2, trim3, trim4], "#c4922e");
-  poly(
-    ctx,
-    [iso(x, y + 0.28, 2.25), iso(x, y + 0.72, 2.25), iso(x, y + 0.72, 1.2), iso(x, y + 0.28, 1.2)],
-    "#5aa8c8"
-  );
+  poly(ctx, [iso(x, y, 0.28), iso(x, y + 1, 0.28), iso(x, y + 1, 0), iso(x, y, 0)], "#6d4c2f");
+  poly(ctx, [iso(x, y, h), iso(x, y + 1, h), iso(x, y + 1, h - 0.22), iso(x, y, h - 0.22)], "#c4922e");
+  if (y % 2 === 1) {
+    poly(
+      ctx,
+      [iso(x, y + 0.22, 2.35), iso(x, y + 0.78, 2.35), iso(x, y + 0.78, 1.15), iso(x, y + 0.22, 1.15)],
+      "#5aa8c8"
+    );
+    poly(
+      ctx,
+      [iso(x, y + 0.48, 2.35), iso(x, y + 0.52, 2.35), iso(x, y + 0.52, 1.15), iso(x, y + 0.48, 1.15)],
+      "rgba(255,255,255,0.35)"
+    );
+  } else {
+    poly(
+      ctx,
+      [iso(x, y + 0.18, 2.7), iso(x, y + 0.82, 2.7), iso(x, y + 0.82, 2.55), iso(x, y + 0.18, 2.55)],
+      shade(paper, -36)
+    );
+  }
   void color;
 }
 
@@ -120,10 +174,17 @@ function drawSprite(
   d: number
 ) {
   const p = iso(x + w / 2, y + d / 2);
-  const tw = Math.max(TW * 0.95 * w, 36);
+  const tw = Math.max(TW * 1.05 * Math.max(w, d * 0.85), 40);
   const th = tw * (spr.height / spr.width);
   ctx.imageSmoothingEnabled = false;
-  ctx.drawImage(spr, snap(p.sx - tw / 2), snap(p.sy - th + TH * 0.35), tw, th);
+  ctx.save();
+  ctx.globalAlpha = 0.22;
+  ctx.fillStyle = "#1a1020";
+  ctx.beginPath();
+  ctx.ellipse(snap(p.sx), snap(p.sy + TH * 0.28), tw * 0.32, TH * 0.22, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+  ctx.drawImage(spr, snap(p.sx - tw / 2), snap(p.sy - th + TH * 0.42), tw, th);
 }
 
 export function drawFurniture(
@@ -260,14 +321,20 @@ export function drawRoom(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
 
   for (let y = 0; y < layout.h; y++) {
     for (let x = 0; x < layout.w; x++) {
-      if (!walkable(layout, x, y) && !isWater(layout, x, y)) continue;
+      const tile = walkable(layout, x, y) || isWater(layout, x, y);
+      if (!tile) continue;
       let fill = (x + y) % 2 === 0 ? floorA : floorB;
       if (isDance(layout, x, y)) {
         const flash = Math.floor(t * 2 + x + y) % 3;
         fill = flash === 0 ? "#ff4fd8" : flash === 1 ? "#45f0ff" : "#9945FF";
       } else if (isWater(layout, x, y)) fill = (x + y) % 2 === 0 ? "#3ec6e0" : "#2aa8c8";
       else if (isOutdoor(layout, x, y)) fill = (x + y) % 2 === 0 ? "#cfe88a" : "#b5d46a";
-      diamond(ctx, x, y, fill, "#5a4030");
+      const eastOpen = !walkable(layout, x + 1, y) && !isWater(layout, x + 1, y);
+      const southOpen = !walkable(layout, x, y + 1) && !isWater(layout, x, y + 1);
+      if (eastOpen || southOpen) {
+        floorDrop(ctx, x, y, eastOpen, southOpen, "#6a4a32", "#8a6240");
+      }
+      diamond(ctx, x, y, fill, "#4a3428");
       if (!walkable(layout, x, y - 1) && !isWater(layout, x, y - 1)) wallN(ctx, x, y, wall, paper);
       if (!walkable(layout, x - 1, y) && !isWater(layout, x - 1, y)) wallW(ctx, x, y, wall, paper);
     }

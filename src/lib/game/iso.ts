@@ -18,3 +18,37 @@ export function uniso(sx: number, sy: number) {
 export function depth(x: number, y: number, z = 0) {
   return (x + y) * 1000 + z;
 }
+
+/** Screen-space AABB of a layout including walls and floor thickness. */
+export function layoutIsoBounds(layout: { w: number; h: number }, wallH = 3.8) {
+  const corners = [
+    iso(0, 0, wallH),
+    iso(layout.w, 0, wallH),
+    iso(0, layout.h, wallH),
+    iso(0, 0, 0),
+    iso(layout.w, 0, 0),
+    iso(0, layout.h, 0),
+    iso(layout.w, layout.h, 0),
+  ];
+  let minX = Infinity,
+    minY = Infinity,
+    maxX = -Infinity,
+    maxY = -Infinity;
+  for (const p of corners) {
+    minX = Math.min(minX, p.sx);
+    maxX = Math.max(maxX, p.sx);
+    minY = Math.min(minY, p.sy);
+    maxY = Math.max(maxY, p.sy);
+  }
+  maxY += 14;
+  return { minX, minY, maxX, maxY, w: maxX - minX, h: maxY - minY };
+}
+
+/** Scale + origin so the whole layout sits inside a view with padding. */
+export function camToFit(layout: { w: number; h: number }, viewW: number, viewH: number, pad = 14) {
+  const b = layoutIsoBounds(layout);
+  const scale = Math.min((viewW - pad * 2) / b.w, (viewH - pad * 2) / b.h);
+  const ox = (viewW - b.w * scale) / 2 - b.minX * scale;
+  const oy = (viewH - b.h * scale) / 2 - b.minY * scale;
+  return { scale, ox, oy };
+}

@@ -1,11 +1,12 @@
 "use client";
 
+import { FurnIcon } from "@/components/FurnIcon";
 import { CATALOG, furn } from "@/lib/catalog";
 import { CATS } from "@/lib/catalog";
 import { COIN_PACKS } from "@/lib/constants";
 import { drawRoom, tileAt } from "@/lib/game/draw";
 import { iso } from "@/lib/game/iso";
-import { loadSprites } from "@/lib/game/sprites";
+import { loadSprites, spriteCache } from "@/lib/game/sprites";
 import type { Ad, ChatLine, Occupant, Placed, Room } from "@/lib/types";
 import {
   Backpack,
@@ -169,7 +170,7 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
             t: tRef.current,
             hover: hover || undefined,
             ghost: gdef && hover ? { def: gdef, x: hover.x, y: hover.y, rot: place!.rot, ok: true } : undefined,
-            sprites: spritesRef.current,
+            sprites: spritesRef.current || spriteCache(),
           });
           if (s.room.id === "public-shill-zone") {
             const g = ctx.createRadialGradient(w * 0.5, h * 0.4, 20, w * 0.5, h * 0.4, 400);
@@ -291,7 +292,7 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
 
   return (
     <div
-      className="relative flex h-screen flex-col overflow-hidden"
+      className="relative flex h-[100dvh] flex-col overflow-hidden"
       style={{
         background:
           "repeating-linear-gradient(45deg,#1c4a5c 0 10px,#163e4e 10px 20px)",
@@ -401,14 +402,19 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
 
       {panel === "pack" && (
         <Hud title="Backpack — 30 slots" onClose={() => setPanel(null)}>
-          <div className="grid grid-cols-6 gap-2">
+          <div className="grid grid-cols-5 gap-2 sm:grid-cols-6">
             {meState.backpack.map((slot, i) => (
               <button
                 key={i}
                 onClick={() => slot && setPlace({ uid: slot.uid, catalogId: slot.catalogId, rot: 0 })}
-                className={`aspect-square rounded-xl border text-[10px] ${slot ? "border-mint/40 bg-mint/10" : "border-white/10 bg-black/30"}`}
+                className={`flex aspect-square flex-col items-center justify-center overflow-hidden rounded-xl border text-[9px] leading-tight ${slot ? "border-mint/40 bg-[#8fd4f2]/20" : "border-white/10 bg-black/30"}`}
               >
-                {slot ? furn(slot.catalogId)?.name : ""}
+                {slot ? (
+                  <>
+                    <FurnIcon id={slot.catalogId} className="h-12 w-full" />
+                    <span className="px-0.5 pb-0.5 text-center">{furn(slot.catalogId)?.name}</span>
+                  </>
+                ) : null}
               </button>
             ))}
           </div>
@@ -425,10 +431,15 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
               </button>
             ))}
           </div>
-          <div className="grid max-h-[50vh] grid-cols-2 gap-2 overflow-auto md:grid-cols-3">
+          <div className="grid max-h-[52vh] grid-cols-2 gap-2 overflow-auto md:grid-cols-3">
             {CATALOG.filter((f) => f.category === shopCat && f.id !== "ad_board").map((f) => (
-              <div key={f.id} className="rounded-xl border border-white/10 p-2">
-                <div className="font-semibold">{f.name} {f.rare && <span className="text-gold">rare</span>}</div>
+              <div key={f.id} className="rounded-xl border border-white/10 bg-black/25 p-2">
+                <div className="overflow-hidden rounded-lg border border-white/10 bg-[#7ec8ea]">
+                  <FurnIcon id={f.id} className="h-28 w-full" />
+                </div>
+                <div className="mt-1.5 font-semibold leading-tight">
+                  {f.name} {f.rare && <span className="text-gold">rare</span>}
+                </div>
                 <div className="text-xs text-white/60">{f.desc}</div>
                 <button className="btn-sol mt-2 w-full text-xs" onClick={() => buy(f.id)}>
                   {f.price === 0 ? "Free" : `${f.price} coins`}
