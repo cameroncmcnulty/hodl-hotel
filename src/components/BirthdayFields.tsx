@@ -1,10 +1,30 @@
 "use client";
 
-const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+import { useMemo, useState } from "react";
+import { ageYears } from "@/lib/moderate";
+
+const MONTHS = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+];
 
 function daysInMonth(year: number, month: number) {
+  if (!year || !month) return 31;
   return new Date(year, month, 0).getDate();
 }
+
+const selectClass =
+  "field bg-[#1b1433] text-white [color-scheme:dark] [&_option]:bg-[#1b1433] [&_option]:text-white";
 
 export function BirthdayFields({
   value,
@@ -16,31 +36,36 @@ export function BirthdayFields({
   const now = new Date();
   const maxYear = now.getFullYear() - 13;
   const minYear = now.getFullYear() - 100;
-  const [y, m, d] = (value || "").split("-").map(Number);
-  const year = y || 0;
-  const month = m || 0;
-  const day = d || 0;
+  const parsed = (value || "").split("-");
+  const [month, setMonth] = useState(Number(parsed[1]) || 0);
+  const [day, setDay] = useState(Number(parsed[2]) || 0);
+  const [year, setYear] = useState(Number(parsed[0]) || 0);
 
-  function set(nextY: number, nextM: number, nextD: number) {
-    if (!nextY || !nextM || !nextD) {
+  const dim = daysInMonth(year || maxYear, month);
+
+  function commit(nextY: number, nextM: number, nextD: number) {
+    setYear(nextY);
+    setMonth(nextM);
+    const maxD = daysInMonth(nextY || maxYear, nextM);
+    const d = nextD > maxD ? maxD : nextD;
+    setDay(d);
+    if (nextY && nextM && d) {
+      onChange(`${nextY}-${String(nextM).padStart(2, "0")}-${String(d).padStart(2, "0")}`);
+    } else {
       onChange("");
-      return;
     }
-    const dim = daysInMonth(nextY, nextM);
-    const dd = Math.min(nextD, dim);
-    onChange(`${nextY}-${String(nextM).padStart(2, "0")}-${String(dd).padStart(2, "0")}`);
   }
 
-  const dim = year && month ? daysInMonth(year, month) : 31;
+  const yearsOld = useMemo(() => (value ? ageYears(value) : 0), [value]);
 
   return (
     <fieldset className="grid gap-2">
-      <legend className="text-sm text-white/70">Birthday</legend>
+      <legend className="text-sm font-semibold text-white">Birthday</legend>
       <div className="grid grid-cols-3 gap-2">
         <select
-          className="field"
+          className={selectClass}
           value={month || ""}
-          onChange={(e) => set(year, Number(e.target.value), day || 1)}
+          onChange={(e) => commit(year, Number(e.target.value) || 0, day || 1)}
           aria-label="Month"
         >
           <option value="">Month</option>
@@ -51,9 +76,9 @@ export function BirthdayFields({
           ))}
         </select>
         <select
-          className="field"
+          className={selectClass}
           value={day || ""}
-          onChange={(e) => set(year, month, Number(e.target.value))}
+          onChange={(e) => commit(year, month, Number(e.target.value) || 0)}
           aria-label="Day"
         >
           <option value="">Day</option>
@@ -64,9 +89,9 @@ export function BirthdayFields({
           ))}
         </select>
         <select
-          className="field"
+          className={selectClass}
           value={year || ""}
-          onChange={(e) => set(Number(e.target.value), month, day || 1)}
+          onChange={(e) => commit(Number(e.target.value) || 0, month, day || 1)}
           aria-label="Year"
         >
           <option value="">Year</option>
@@ -77,7 +102,17 @@ export function BirthdayFields({
           ))}
         </select>
       </div>
-      <p className="text-xs text-white/45">Used only to confirm you are 13+ to play and 18+ to buy coins with Solana.</p>
+      {yearsOld >= 13 ? (
+        <p className="text-xs text-mint">
+          {yearsOld < 18
+            ? `${yearsOld} years old — you can play with a parent’s permission. Coin packs with Solana are 18+.`
+            : `${yearsOld} years old — you can play and buy coin packs.`}
+        </p>
+      ) : value ? (
+        <p className="text-xs text-coral">You must be 13 or older to create an account.</p>
+      ) : (
+        <p className="text-xs text-white/55">Pick month, day, then year. Used only for the age gate.</p>
+      )}
     </fieldset>
   );
 }

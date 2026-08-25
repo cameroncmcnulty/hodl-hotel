@@ -176,13 +176,25 @@ export default function JoinPage() {
 
       {step === 1 && (
         <div className="panel mt-6 grid gap-3 bg-[#24143d]/92 p-5 text-white">
-          <input className="field" placeholder="Username (3–16)" value={username} onChange={(e) => setUsername(e.target.value)} />
+          <input className="field" placeholder="Username (3–16)" value={username} onChange={(e) => { setUsername(e.target.value); setErr(""); }} />
           <p className="text-xs text-white/50">Letters, numbers, underscore. This is how people find you.</p>
+          {err && <p className="text-sm text-coral">{err}</p>}
           <div className="flex gap-2">
             <button className="btn-ink" onClick={() => setStep(0)}>
               Back
             </button>
-            <button className="btn-sol" disabled={username.length < 3} onClick={() => setStep(2)}>
+            <button
+              className="btn-sol"
+              disabled={username.length < 3}
+              onClick={() => {
+                if (!/^[a-zA-Z0-9_]{3,16}$/.test(username)) {
+                  setErr("Username must be 3–16 letters, numbers, or _");
+                  return;
+                }
+                setErr("");
+                setStep(2);
+              }}
+            >
               Next — look
             </button>
           </div>
