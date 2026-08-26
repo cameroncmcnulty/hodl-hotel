@@ -1,21 +1,36 @@
 import type { Figure } from "../types";
-import { mix, Pix, rgb } from "./pix";
+import { mix } from "./pix";
 
 export const SKIN = ["#fbe0c8", "#f0c3a0", "#d29b6b", "#a86b3c", "#6e4320", "#3d2614"];
-export const HAIR_C = ["#1b1b1b", "#4a2c0a", "#c45c26", "#e8d07a", "#6b3fa0", "#14F195", "#ff6b5a", "#f5c542", "#2ec4b6", "#dfe7ff"];
-export const TOPS = ["#ff6b5a", "#9945FF", "#14F195", "#2ec4b6", "#f5c542", "#24143d", "#ffffff", "#ff8fab", "#3b82f6", "#111111"];
-export const BOTTOMS = ["#24143d", "#1e3a5f", "#4b5563", "#7c3aed", "#0f766e", "#9a3412", "#111111", "#f5c542"];
-export const SHOES = ["#111111", "#ffffff", "#9945FF", "#ff6b5a", "#2ec4b6", "#f5c542"];
-export const HAIR_STYLES = ["buzz", "tuft", "bob", "spike", "curl", "cap", "long", "mohawk", "pony", "bun", "fluff", "band"];
-export const TOP_CUTS = ["tee", "hoodie", "vest", "tank", "sweater", "shirt"];
-export const BOT_CUTS = ["pants", "shorts", "skirt", "cargo"];
+export const HAIR_C = [
+  "#1e5a68",
+  "#1b1b1b",
+  "#4a2c0a",
+  "#c45c26",
+  "#e8d07a",
+  "#6b3fa0",
+  "#14F195",
+  "#ff6b5a",
+  "#f5c542",
+  "#2ec4b6",
+  "#dfe7ff",
+  "#f4e4d4",
+];
+export const TOPS = ["#1a1a1e", "#ff6b5a", "#9945FF", "#14F195", "#2ec4b6", "#f5c542", "#ffffff", "#ff8fab", "#3b82f6", "#24143d"];
+export const BOTTOMS = ["#2a3340", "#1e3a5f", "#4b5563", "#7c3aed", "#0f766e", "#9a3412", "#111111", "#f5c542"];
+export const SHOES = ["#f4f4f6", "#111111", "#9945FF", "#ff6b5a", "#2ec4b6", "#f5c542"];
+export const HAIR_STYLES = ["spike", "buzz", "bob", "pony", "bun", "mohawk", "curl", "long"];
+export const TOP_CUTS = ["hoodie", "tee", "jacket", "sweater", "tank", "shirt"];
+export const BOT_CUTS = ["pants", "shorts", "skirt", "cargo", "dress"];
 export const ACC = ["none", "glasses", "shades", "headphones", "scarf", "pack", "visor", "bow"];
+export const GENDERS = ["boy", "girl"];
 
 export const DEFAULT_FIGURE: Figure = {
+  gender: 0,
   skin: 1,
-  hair: 2,
-  hairColor: 1,
-  top: 1,
+  hair: 0,
+  hairColor: 0,
+  top: 0,
   bottom: 0,
   shoes: 0,
   acc: 0,
@@ -23,9 +38,18 @@ export const DEFAULT_FIGURE: Figure = {
   botCut: 0,
 };
 
+export const AVATAR_DRAW_H = 128;
+export const AVATAR_NAME_LIFT = 138;
+export const SPRITE_W = 384;
+export const SPRITE_H = 576;
+
+const sprites = new Map<string, HTMLCanvasElement>();
+let loadPromise: Promise<void> | null = null;
+
 export function clampFigure(f: Partial<Figure> | undefined): Figure {
   const n = (v: unknown, max: number) => Math.max(0, Math.min(max, Number(v) || 0));
   return {
+    gender: n(f?.gender, GENDERS.length - 1),
     skin: n(f?.skin, SKIN.length - 1),
     hair: n(f?.hair, HAIR_STYLES.length - 1),
     hairColor: n(f?.hairColor, HAIR_C.length - 1),
@@ -38,266 +62,363 @@ export function clampFigure(f: Partial<Figure> | undefined): Figure {
   };
 }
 
-/** Native doll size: ~Habbo proportions, 3/4 at 45°. Scaled up with nearest-neighbor. */
-const W = 32;
-const H = 52;
-const cache = new Map<string, HTMLCanvasElement>();
-
-function hairCap(p: Pix, hx: number, hy: number, col: string, extra = 0) {
-  p.disc(hx, hy - 2, 8 + extra, 7 + extra, rgb(col));
-  p.rect(hx - 6, hy - 8, 13, 4, mix(col, 22));
+function loadImage(src: string) {
+  return new Promise<HTMLImageElement | null>((resolve) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => resolve(null);
+    img.src = src;
+  });
 }
 
-function hairBack(p: Pix, hx: number, hy: number, style: number, col: string, back: boolean) {
-  const c = rgb(col);
-  const d = mix(col, -40);
-  const lit = mix(col, 24);
-  if (style === 0) {
-    hairCap(p, hx, hy, col);
-  } else if (style === 1) {
-    hairCap(p, hx, hy, col, 1);
-    p.rect(hx - 4, hy - 11, 9, 4, c);
-    p.rect(hx - 2, hy - 12, 5, 2, lit);
-  } else if (style === 2) {
-    hairCap(p, hx, hy, col, 1);
-    p.disc(hx - 8, hy + 2, 4, 6, c);
-    p.disc(hx + 8, hy + 1, 4, 7, c);
-    p.rect(hx - 7, hy - 9, 15, 4, lit);
-  } else if (style === 3) {
-    hairCap(p, hx, hy, col);
-    for (const [ox, oy, hh] of [
-      [-5, -12, 6],
-      [-2, -14, 8],
-      [1, -15, 8],
-      [4, -13, 7],
-    ] as [number, number, number][]) {
-      p.rect(hx + ox, hy + oy, 2, hh, c);
-      p.set(hx + ox + 1, hy + oy, lit);
-    }
-  } else if (style === 4) {
-    p.disc(hx - 6, hy - 4, 5, 5, c);
-    p.disc(hx + 6, hy - 5, 5, 5, c);
-    p.disc(hx, hy - 8, 5, 5, c);
-    hairCap(p, hx, hy, col);
-  } else if (style === 5) {
-    p.block(hx - 8, hy - 8, 17, 8, col);
-    p.rect(hx - 5, hy - 12, 11, 5, d);
-    p.rect(hx - 4, hy - 13, 9, 2, lit);
-    hairCap(p, hx, hy + 1, col);
-  } else if (style === 6) {
-    hairCap(p, hx, hy, col, 1);
-    p.block(hx - 9, hy + 1, 4, 14, col);
-    p.block(hx + 6, hy + 1, 4, 15, col);
-    p.rect(hx - 9, hy + 13, 4, 3, d);
-    p.rect(hx + 6, hy + 14, 4, 3, d);
-  } else if (style === 7) {
-    hairCap(p, hx, hy, col);
-    p.block(hx - 2, hy - 16, 5, 12, col);
-    p.rect(hx - 1, hy - 17, 3, 2, lit);
-  } else if (style === 8) {
-    hairCap(p, hx, hy, col);
-    if (back) {
-      p.block(hx - 1, hy + 6, 3, 11, col);
-      p.disc(hx, hy + 16, 3, 3, c);
-    } else {
-      p.block(hx + 8, hy + 1, 3, 12, col);
-      p.disc(hx + 9, hy + 13, 3, 3, c);
-    }
-  } else if (style === 9) {
-    hairCap(p, hx, hy, col);
-    const bx = back ? hx : hx + 7;
-    p.disc(bx, hy - 10, 4, 4, c);
-    p.disc(bx, hy - 11, 3, 3, d);
-  } else if (style === 10) {
-    hairCap(p, hx, hy, col, 2);
-    p.rect(hx - 9, hy - 3, 3, 6, c);
-    p.rect(hx + 7, hy - 4, 3, 6, c);
-    p.rect(hx - 6, hy - 10, 13, 4, lit);
-  } else {
-    hairCap(p, hx, hy, col);
-    p.block(hx - 8, hy - 5, 17, 4, col);
-    p.rect(hx - 7, hy - 6, 15, 2, d);
+export function loadAvatars() {
+  if (!loadPromise) {
+    loadPromise = (async () => {
+      const man = (await fetch("/art/avatars/manifest.json")
+        .then((r) => r.json())
+        .catch(() => [])) as string[];
+      await Promise.all(
+        man.map(async (file) => {
+          const img = await loadImage(`/art/avatars/${file}`);
+          if (!img) return;
+          const c = document.createElement("canvas");
+          c.width = img.width;
+          c.height = img.height;
+          const ctx = c.getContext("2d")!;
+          ctx.imageSmoothingEnabled = false;
+          ctx.drawImage(img, 0, 0);
+          sprites.set(file.replace(/\.png$/i, ""), c);
+        })
+      );
+    })();
   }
+  return loadPromise;
 }
 
-function hairFront(p: Pix, hx: number, hy: number, style: number, col: string, back: boolean) {
-  if (back) return;
-  const c = rgb(col);
-  if (style === 1 || style === 2 || style === 4 || style === 10) {
-    p.rect(hx - 5, hy - 6, 11, 3, c);
-    p.rect(hx - 4, hy - 4, 4, 3, mix(col, -28));
-  }
-  if (style === 6) {
-    p.rect(hx - 6, hy - 5, 5, 4, c);
-    p.rect(hx + 2, hy - 5, 5, 4, c);
-  }
-  if (style === 0 || style === 8 || style === 9) p.rect(hx - 4, hy - 7, 9, 2, c);
+export function avatarsReady() {
+  return sprites.size > 0;
 }
 
-function paintDoll(fig: Figure, back: boolean, frame: number, sit: boolean, dance: boolean) {
-  const p = new Pix(W, H);
-  const skin = SKIN[fig.skin];
-  const hair = HAIR_C[fig.hairColor];
-  const top = TOPS[fig.top];
-  const botc = BOTTOMS[fig.bottom];
-  const shoe = SHOES[fig.shoes];
-  const cut = fig.topCut ?? 0;
-  const bcut = fig.botCut ?? 0;
-  const hx = 16;
-  const hy = 14;
-  const bob = dance ? (frame % 2 === 0 ? -2 : 0) : 0;
-  const walk = frame % 4;
-  const farK = walk === 1 ? 2 : walk === 3 ? -1 : 0;
-  const nearK = walk === 3 ? 2 : walk === 1 ? -1 : 0;
-
-  hairBack(p, hx, hy + bob, fig.hair, hair, back);
-
-  p.discShade(hx, hy + bob, 8, 9, skin);
-  p.rect(hx - 5, hy + 4 + bob, 11, 5, rgb(skin));
-  p.rect(hx - 4, hy + 6 + bob, 9, 3, mix(skin, -18));
-  p.rect(hx - 9, hy + 1 + bob, 3, 4, rgb(skin));
-  p.rect(hx + 7, hy + 1 + bob, 3, 4, rgb(skin));
-  p.rect(hx - 9, hy + 2 + bob, 2, 2, mix(skin, -22));
-
-  hairFront(p, hx, hy + bob, fig.hair, hair, back);
-
-  if (!back) {
-    p.rect(hx - 4, hy - 3 + bob, 3, 1, mix(skin, -50));
-    p.rect(hx + 2, hy - 3 + bob, 3, 1, mix(skin, -50));
-    p.rect(hx - 3, hy - 1 + bob, 3, 3, [250, 250, 252]);
-    p.rect(hx + 3, hy - 1 + bob, 3, 3, [250, 250, 252]);
-    p.rect(hx - 2, hy + bob, 2, 2, [22, 14, 24]);
-    p.rect(hx + 4, hy + bob, 2, 2, [22, 14, 24]);
-    p.set(hx + 5, hy - 1 + bob, [255, 255, 255]);
-    p.rect(hx - 4, hy + 3 + bob, 2, 1, mix(skin, 20));
-    p.rect(hx + 4, hy + 3 + bob, 2, 1, mix(skin, 20));
-    p.rect(hx, hy + 5 + bob, 3, 1, mix(skin, -38));
-    if (fig.acc === 1) {
-      p.rect(hx - 5, hy - 2 + bob, 5, 4, [30, 30, 34]);
-      p.rect(hx + 2, hy - 2 + bob, 5, 4, [30, 30, 34]);
-      p.rect(hx - 4, hy - 1 + bob, 3, 2, [170, 215, 230]);
-      p.rect(hx + 3, hy - 1 + bob, 3, 2, [170, 215, 230]);
-    }
-    if (fig.acc === 2) p.block(hx - 8, hy - 2 + bob, 17, 3, "#111111");
-  }
-  if (fig.acc === 3) {
-    p.disc(hx - 9, hy + bob, 3, 3, [40, 40, 44]);
-    p.disc(hx + 9, hy + bob, 3, 3, [40, 40, 44]);
-  }
-  if (fig.acc === 6) p.block(hx - 8, hy - 6 + bob, 17, 3, "#14F195");
-  if (fig.acc === 7) p.disc(hx + 8, hy - 8 + bob, 3, 3, rgb("#ff6b5a"));
-
-  p.block(hx - 1, 23 + bob, 3, 3, skin);
-
-  const armY = 26 + bob + (dance ? -3 : 0);
-  p.block(hx - 10, armY, 3, 10, skin);
-  p.rect(hx - 10, armY + 9, 3, 2, mix(skin, -18));
-
-  const ty = 25 + bob;
-  if (cut === 1) {
-    p.block(hx - 7, ty - 1, 15, 12, top);
-    p.rect(hx - 2, ty + 2, 2, 5, [242, 242, 245]);
-    p.rect(hx + 2, ty + 2, 2, 5, [242, 242, 245]);
-    p.disc(hx, hy + 7 + bob, 7, 4, rgb(top));
-    p.rect(hx - 6, ty - 1, 13, 3, mix(top, 22));
-  } else if (cut === 2) {
-    p.block(hx - 6, ty, 13, 11, top);
-    p.rect(hx - 4, ty + 2, 9, 7, [246, 246, 248]);
-    p.block(hx - 7, ty - 1, 4, 11, top);
-    p.block(hx + 4, ty - 1, 4, 11, top);
-  } else if (cut === 3) {
-    p.block(hx - 6, ty + 2, 13, 9, top);
-    p.rect(hx - 7, ty, 3, 5, rgb(skin));
-    p.rect(hx + 5, ty, 3, 5, rgb(skin));
-    p.rect(hx - 5, ty + 2, 11, 2, mix(top, 24));
-  } else if (cut === 4) {
-    p.block(hx - 8, ty - 1, 17, 13, top);
-    p.rect(hx - 7, ty, 15, 3, mix(top, 20));
-  } else if (cut === 5) {
-    p.block(hx - 6, ty, 13, 11, top);
-    p.rect(hx - 1, ty + 3, 4, 2, mix(top, -36));
-    p.rect(hx - 5, ty, 11, 2, mix(top, 18));
-  } else {
-    p.block(hx - 6, ty, 13, 11, top);
-    p.rect(hx - 5, ty, 11, 3, mix(top, 26));
-    p.block(hx - 10, armY + 1, 4, 4, top);
-    p.block(hx + 7, armY + 1, 4, 4, top);
-  }
-
-  p.block(hx + 7, armY + 1, 3, 10, skin);
-  p.rect(hx + 7, armY + 10, 3, 2, mix(skin, -18));
-
-  if (fig.acc === 4) p.block(hx - 5, ty - 1, 11, 4, "#ff6b5a");
-  if (fig.acc === 5) p.block(hx - 4, ty + 3, 9, 7, "#3d2a18");
-
-  const hip = 36 + bob;
-  const farX = 11 + (sit ? 0 : farK);
-  const nearX = 16 + (sit ? 0 : nearK);
-  const legH = sit ? 6 : 10;
-  if (bcut === 2) {
-    p.block(hx - 6, hip, 13, 7, botc);
-    p.rect(hx - 5, hip, 11, 2, mix(botc, 20));
-    p.block(farX, hip + 6, 4, sit ? 3 : 5, skin);
-    p.block(nearX, hip + 7, 4, sit ? 3 : 5, skin);
-  } else if (bcut === 1) {
-    p.block(farX, hip, 5, 6, botc);
-    p.block(nearX, hip + 1, 5, 6, botc);
-    p.block(farX, hip + 6, 4, 5, skin);
-    p.block(nearX, hip + 7, 4, 5, skin);
-  } else if (bcut === 3) {
-    p.block(farX, hip, 5, legH, botc);
-    p.block(nearX, hip + 1, 5, legH, botc);
-    p.rect(farX, hip + 4, 5, 1, mix(botc, -30));
-    p.rect(nearX, hip + 5, 5, 1, mix(botc, -30));
-  } else {
-    p.block(farX, hip, 5, legH, botc);
-    p.block(nearX, hip + 1, 5, legH, botc);
-    p.rect(farX + 1, hip, 3, 3, mix(botc, 18));
-    p.rect(nearX + 1, hip + 1, 3, 3, mix(botc, 18));
-  }
-
-  const shoeY = sit ? 46 + bob : 46 + bob;
-  p.block(farX + farK, shoeY, 6, 4, shoe);
-  p.block(nearX + nearK, shoeY + 1, 6, 4, shoe);
-  p.rect(farX + 1 + farK, shoeY, 4, 1, mix(shoe, 32));
-  p.rect(nearX + 1 + nearK, shoeY + 1, 4, 1, mix(shoe, 32));
-
-  p.outline([16, 10, 22]);
-  return p;
+function hexRgb(hex: string): [number, number, number] {
+  const h = hex.replace("#", "");
+  return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
 }
 
-function raster(fig: Figure, dir: 0 | 1 | 2 | 3, frame: number, sit: boolean, dance: boolean) {
-  const f = clampFigure(fig);
-  const key = `${f.skin}.${f.hair}.${f.hairColor}.${f.top}.${f.bottom}.${f.shoes}.${f.acc}.${f.topCut}.${f.botCut}.${dir}.${frame}.${sit}.${dance}`;
-  const hit = cache.get(key);
+function lum(r: number, g: number, b: number) {
+  return (r * 0.32 + g * 0.5 + b * 0.18) / 255;
+}
+
+function tint(r: number, g: number, b: number, target: [number, number, number]): [number, number, number] {
+  const L = lum(r, g, b);
+  const tL = Math.max(0.08, lum(target[0], target[1], target[2]));
+  const k = L / tL;
+  return [
+    Math.max(0, Math.min(255, Math.round(target[0] * k))),
+    Math.max(0, Math.min(255, Math.round(target[1] * k))),
+    Math.max(0, Math.min(255, Math.round(target[2] * k))),
+  ];
+}
+
+function isHairPx(r: number, g: number, b: number) {
+  if (r > 140 && g > 90 && b > 60 && r > g + 12 && g > b - 8) return false;
+  const L = r * 0.32 + g * 0.5 + b * 0.18;
+  if (L < 32) return false;
+  return g > r + 12 && g >= b - 6 && g > 45 && r < 130;
+}
+
+function isSkinPx(r: number, g: number, b: number) {
+  return r > 125 && g > 75 && b > 40 && r > g && g >= b - 12 && r - b > 22 && b < 190 && g < 205;
+}
+
+function isPurplePx(r: number, g: number, b: number) {
+  return r > 55 && b > 85 && g < 100 && b > g + 18 && Math.abs(r - b) < 90;
+}
+
+const recache = new Map<string, HTMLCanvasElement>();
+
+function recolor(src: HTMLCanvasElement, fig: Figure, id: string) {
+  const tagged = `${id}.${fig.skin}.${fig.hairColor}.${fig.top}.${fig.bottom}.${fig.shoes}`;
+  const hit = recache.get(tagged);
   if (hit) return hit;
-  const back = dir === 2 || dir === 3;
-  const pix = paintDoll(f, back, frame, sit, dance);
-  const src = pix.canvas();
-  const flip = dir === 1 || dir === 2;
   const out = document.createElement("canvas");
-  out.width = W;
-  out.height = H;
+  out.width = src.width;
+  out.height = src.height;
   const ctx = out.getContext("2d")!;
-  ctx.imageSmoothingEnabled = false;
-  if (flip) {
-    ctx.translate(W, 0);
-    ctx.scale(-1, 1);
-  }
   ctx.drawImage(src, 0, 0);
-  cache.set(key, out);
-  if (cache.size > 400) {
-    const first = cache.keys().next().value;
-    if (first) cache.delete(first);
+  const data = ctx.getImageData(0, 0, out.width, out.height);
+  const d = data.data;
+  const hairT = hexRgb(HAIR_C[fig.hairColor]);
+  const skinT = hexRgb(SKIN[fig.skin]);
+  const topT = hexRgb(TOPS[fig.top]);
+  const botT = hexRgb(BOTTOMS[fig.bottom]);
+  const shoeT = hexRgb(SHOES[fig.shoes]);
+  const h = out.height;
+  for (let i = 0, y = 0; i < d.length; i += 4) {
+    const px = (i / 4) | 0;
+    y = (px / out.width) | 0;
+    const a = d[i + 3];
+    if (a < 12) continue;
+    const r = d[i],
+      g = d[i + 1],
+      b = d[i + 2];
+    const yn = y / h;
+    if (isHairPx(r, g, b) && yn < 0.48) {
+      const t = tint(r, g, b, hairT);
+      d[i] = t[0];
+      d[i + 1] = t[1];
+      d[i + 2] = t[2];
+      continue;
+    }
+    if (isSkinPx(r, g, b)) {
+      const t = tint(r, g, b, skinT);
+      d[i] = t[0];
+      d[i + 1] = t[1];
+      d[i + 2] = t[2];
+      continue;
+    }
+    if (isPurplePx(r, g, b)) continue;
+    const mx = Math.max(r, g, b);
+    const mn = Math.min(r, g, b);
+    if (yn > 0.74 && mn > 165 && mx - mn < 55) {
+      const t = tint(r, g, b, shoeT);
+      d[i] = t[0];
+      d[i + 1] = t[1];
+      d[i + 2] = t[2];
+      continue;
+    }
+    if (yn > 0.5 && yn < 0.82 && mx < 90) {
+      const t = tint(r, g, b, botT);
+      d[i] = t[0];
+      d[i + 1] = t[1];
+      d[i + 2] = t[2];
+      continue;
+    }
+    if (yn > 0.3 && yn < 0.62 && !isSkinPx(r, g, b) && !isHairPx(r, g, b)) {
+      if (mx < 95 || (mn > 150 && yn < 0.58) || (r > 140 && g > 120 && b > 90 && yn < 0.56)) {
+        const t = tint(r, g, b, topT);
+        d[i] = t[0];
+        d[i + 1] = t[1];
+        d[i + 2] = t[2];
+      }
+    }
+  }
+  ctx.putImageData(data, 0, 0);
+  recache.set(tagged, out);
+  if (recache.size > 220) {
+    const first = recache.keys().next().value;
+    if (first) recache.delete(first);
   }
   return out;
 }
 
-export function drawAvatarFront(ctx: CanvasRenderingContext2D, fig: Figure, cx: number, cy: number, scale = 4) {
-  const spr = raster(fig, 0, 0, false, false);
-  const s = Math.max(3, Math.round(scale));
+function gKey(fig: Figure) {
+  return fig.gender === 1 ? "f" : "m";
+}
+
+function viewOf(dir: 0 | 1 | 2 | 3) {
+  return dir === 2 || dir === 3 ? "ne" : "se";
+}
+
+function flipOf(dir: 0 | 1 | 2 | 3) {
+  return dir === 1 || dir === 2;
+}
+
+function spr(id: string) {
+  return sprites.get(id) || null;
+}
+
+function firstSpr(ids: string[]) {
+  for (const id of ids) {
+    const s = sprites.get(id);
+    if (s) return { id, src: s };
+  }
+  return null;
+}
+
+function hairLayerId(g: string, hair: string, view: string) {
+  if (hair === "spike") return `${g}-${view}-idle-layer`;
+  return `${g}-hair-${hair}-${view}-layer`;
+}
+
+function pickBody(fig: Figure, dir: 0 | 1 | 2 | 3, walking: boolean, sit: boolean, frame: number) {
+  const g = gKey(fig);
+  const view = viewOf(dir);
+  const top = TOP_CUTS[fig.topCut ?? 0] || "hoodie";
+  const bot = BOT_CUTS[fig.botCut ?? 0] || "pants";
+  const defaultFit = top === "hoodie" && bot === "pants";
+
+  if (sit) return firstSpr([`${g}-se-sit`, `${g}-se-idle`]);
+
+  if (walking && defaultFit) {
+    const w = firstSpr([`${g}-${view}-walk${frame % 2}`, `${g}-${view}-idle`]);
+    if (w) return w;
+  }
+
+  if (bot !== "pants") {
+    const b = firstSpr([`${g}-bot-${bot}-${view}`, `${g}-bot-${bot}-se`]);
+    if (b) return b;
+  }
+  if (top !== "hoodie") {
+    const t = firstSpr([`${g}-top-${top}-${view}`, `${g}-top-${top}-se`]);
+    if (t) return t;
+  }
+  return firstSpr([`${g}-${view}-idle`, `${g}-se-idle`]);
+}
+
+function overlayHair(body: HTMLCanvasElement, layer: HTMLCanvasElement, scalp: HTMLCanvasElement | null) {
+  const ctx = body.getContext("2d")!;
+  const bd = ctx.getImageData(0, 0, body.width, body.height);
+  const lctx = layer.getContext("2d")!;
+  const ld = lctx.getImageData(0, 0, layer.width, layer.height);
+  const sd = scalp ? scalp.getContext("2d")!.getImageData(0, 0, scalp.width, scalp.height) : null;
+  const w = body.width;
+  const h = body.height;
+  const cut = Math.floor(h * 0.55);
+  const b = bd.data;
+  const l = ld.data;
+  const s = sd?.data;
+  const mark = new Uint8Array(w * h);
+  for (let y = 0; y < cut; y++) {
+    for (let x = 0; x < w; x++) {
+      const i = (y * w + x) * 4;
+      if (b[i + 3] > 12 && isHairPx(b[i], b[i + 1], b[i + 2])) mark[y * w + x] = 1;
+    }
+  }
+  const grown = new Uint8Array(mark);
+  for (let y = 1; y < cut - 1; y++) {
+    for (let x = 1; x < w - 1; x++) {
+      const p = y * w + x;
+      if (mark[p] || mark[p - 1] || mark[p + 1] || mark[p - w] || mark[p + w]) grown[p] = 1;
+    }
+  }
+  for (let y = 0; y < cut; y++) {
+    for (let x = 0; x < w; x++) {
+      if (!grown[y * w + x]) continue;
+      const i = (y * w + x) * 4;
+      if (s && s[i + 3] > 12) {
+        b[i] = s[i];
+        b[i + 1] = s[i + 1];
+        b[i + 2] = s[i + 2];
+        b[i + 3] = s[i + 3];
+      } else b[i + 3] = 0;
+    }
+  }
+  const lw = layer.width;
+  const lh = layer.height;
+  const mw = Math.min(w, lw);
+  const mh = Math.min(h, lh);
+  for (let y = 0; y < mh; y++) {
+    for (let x = 0; x < mw; x++) {
+      const i = (y * w + x) * 4;
+      const li = (y * lw + x) * 4;
+      if (l[li + 3] > 18) {
+        b[i] = l[li];
+        b[i + 1] = l[li + 1];
+        b[i + 2] = l[li + 2];
+        b[i + 3] = l[li + 3];
+      }
+    }
+  }
+  ctx.putImageData(bd, 0, 0);
+}
+
+const composeCache = new Map<string, HTMLCanvasElement>();
+
+function compose(fig: Figure, dir: 0 | 1 | 2 | 3, walking: boolean, sit: boolean, frame: number) {
+  const g = gKey(fig);
+  const view = viewOf(dir);
+  const hair = HAIR_STYLES[fig.hair] || "spike";
+  const top = TOP_CUTS[fig.topCut ?? 0] || "hoodie";
+  const bot = BOT_CUTS[fig.botCut ?? 0] || "pants";
+  const body = pickBody(fig, dir, walking, sit, frame);
+  if (!body) return null;
+  const layerName = hairLayerId(g, hair, view);
+  const layerAlt = hairLayerId(g, hair, "se");
+  const needHair = hair !== "spike" || top !== "hoodie" || bot !== "pants";
+  const key = `${body.id}|${needHair ? layerName : "none"}|${frame}|${sit ? 1 : 0}`;
+  const hit = composeCache.get(key);
+  if (hit) return { id: key, src: hit };
+
+  const out = document.createElement("canvas");
+  out.width = body.src.width;
+  out.height = body.src.height;
+  const ctx = out.getContext("2d")!;
+  ctx.drawImage(body.src, 0, 0);
+
+  if (needHair && hair !== "spike") {
+    const layer = spr(layerName) || spr(layerAlt);
+    if (layer) {
+      const scalp = spr(`${g}-hair-buzz-se`) || spr(`${g}-se-idle`);
+      overlayHair(out, layer, scalp);
+    }
+  }
+
+  composeCache.set(key, out);
+  if (composeCache.size > 160) {
+    const first = composeCache.keys().next().value;
+    if (first) composeCache.delete(first);
+  }
+  return { id: key, src: out };
+}
+
+function blit(ctx: CanvasRenderingContext2D, src: HTMLCanvasElement, dx: number, dy: number, dw: number, dh: number, flip: boolean) {
   ctx.imageSmoothingEnabled = false;
-  ctx.drawImage(spr, Math.round(cx - (W * s) / 2), Math.round(cy - H * s * 0.72), W * s, H * s);
+  if (flip) {
+    ctx.save();
+    ctx.translate(dx + dw, dy);
+    ctx.scale(-1, 1);
+    ctx.drawImage(src, 0, 0, dw, dh);
+    ctx.restore();
+  } else {
+    ctx.drawImage(src, dx, dy, dw, dh);
+  }
+}
+
+function drawAcc(ctx: CanvasRenderingContext2D, fig: Figure, dx: number, dy: number, dw: number, dh: number) {
+  if (!fig.acc) return;
+  const x = dx + dw * 0.5;
+  const y = dy + dh * 0.27;
+  ctx.save();
+  ctx.imageSmoothingEnabled = false;
+  if (fig.acc === 1 || fig.acc === 2) {
+    ctx.fillStyle = fig.acc === 2 ? "#111214" : "rgba(40,50,60,0.85)";
+    ctx.fillRect(x - dw * 0.16, y, dw * 0.12, dh * 0.05);
+    ctx.fillRect(x + dw * 0.02, y, dw * 0.12, dh * 0.05);
+    ctx.fillRect(x - dw * 0.04, y + dh * 0.015, dw * 0.08, dh * 0.012);
+    if (fig.acc === 1) {
+      ctx.fillStyle = "rgba(170,215,230,0.45)";
+      ctx.fillRect(x - dw * 0.14, y + 1, dw * 0.08, dh * 0.03);
+      ctx.fillRect(x + dw * 0.04, y + 1, dw * 0.08, dh * 0.03);
+    }
+  } else if (fig.acc === 3) {
+    ctx.fillStyle = "#222";
+    ctx.beginPath();
+    ctx.arc(x - dw * 0.2, y, dw * 0.07, 0, Math.PI * 2);
+    ctx.arc(x + dw * 0.2, y, dw * 0.07, 0, Math.PI * 2);
+    ctx.fill();
+  } else if (fig.acc === 7) {
+    ctx.fillStyle = "#ff6b5a";
+    ctx.beginPath();
+    ctx.arc(x + dw * 0.16, dy + dh * 0.16, dw * 0.06, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+export function drawAvatarFront(ctx: CanvasRenderingContext2D, fig: Figure, cx: number, cy: number, scale = 4, dir: 0 | 1 | 2 | 3 = 0) {
+  const f = clampFigure(fig);
+  const made = compose(f, dir, false, false, 0);
+  const destH = Math.max(96, Math.round(28 * scale));
+  const destW = Math.round((destH * SPRITE_W) / SPRITE_H);
+  const dx = Math.round(cx - destW / 2);
+  const dy = Math.round(cy - destH * 0.92);
+  if (!made) {
+    ctx.fillStyle = "#14F195";
+    ctx.fillRect(dx + destW * 0.3, dy + destH * 0.2, destW * 0.4, destH * 0.7);
+    return;
+  }
+  blit(ctx, recolor(made.src, f, made.id), dx, dy, destW, destH, flipOf(dir));
+  if (dir === 0 || dir === 1) drawAcc(ctx, f, dx, dy, destW, destH);
 }
 
 export type AvatarDrawOpts = { dance?: boolean; walking?: boolean; sit?: boolean; dist?: number };
@@ -311,14 +432,20 @@ export function drawAvatarIso(
   t: number,
   opts: AvatarDrawOpts = {}
 ) {
+  const f = clampFigure(fig);
   const walking = !!opts.walking;
   const dance = !!opts.dance;
   const sit = !!opts.sit && !walking;
   const frame = dance ? Math.floor(t * 8) % 4 : walking ? Math.floor((opts.dist || 0) * 4) % 4 : 0;
-  const spr = raster(fig, dir, frame, sit, dance);
-  const scale = 2;
-  ctx.imageSmoothingEnabled = false;
-  ctx.drawImage(spr, Math.round(sx - (W * scale) / 2), Math.round(sy - H * scale + 16), W * scale, H * scale);
+  const made = compose(f, dir, walking, sit, frame);
+  const destH = sit ? AVATAR_DRAW_H - 10 : AVATAR_DRAW_H;
+  const destW = Math.round((destH * SPRITE_W) / SPRITE_H);
+  const bob = dance ? (frame % 2 === 0 ? -3 : 0) : walking && made ? (frame % 2 === 0 ? 0 : -3) : 0;
+  const dx = Math.round(sx - destW / 2);
+  const dy = Math.round(sy - destH + 10 + bob);
+  if (!made) return;
+  blit(ctx, recolor(made.src, f, made.id), dx, dy, destW, destH, flipOf(dir));
+  if (dir === 0 || dir === 1) drawAcc(ctx, f, dx, dy, destW, destH);
 }
 
 export function shade(hex: string, amt: number) {
@@ -362,7 +489,9 @@ export function isoBox(
     ctx.strokeStyle = "rgba(0,0,0,0.45)";
     ctx.beginPath();
     ctx.moveTo(pts[0][0], pts[0][1]);
-    for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]);
+    ctx.lineTo(pts[1][0], pts[1][1]);
+    ctx.lineTo(pts[2][0], pts[2][1]);
+    ctx.lineTo(pts[3][0], pts[3][1]);
     ctx.closePath();
     ctx.fill();
     ctx.stroke();

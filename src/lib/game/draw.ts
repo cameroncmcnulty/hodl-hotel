@@ -4,7 +4,7 @@ import type { Ad, Occupant, Placed, Room } from "../types";
 import { layoutById, isDance, isOutdoor, isStair, isWater, tileH, walkable } from "../layouts";
 import { iso, TW, TH } from "./iso";
 import type { Layout } from "../layouts";
-import { drawAvatarIso, shade } from "./avatar";
+import { AVATAR_NAME_LIFT, drawAvatarIso, shade } from "./avatar";
 
 function snap(n: number) {
   return Math.round(n);
@@ -442,9 +442,9 @@ export function drawRoom(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
         ctx.fillStyle = "#fff";
         ctx.strokeStyle = "#111";
         ctx.lineWidth = 3;
-        ctx.strokeText(name, p.sx - nw / 2, p.sy - 88);
+        ctx.strokeText(name, p.sx - nw / 2, p.sy - AVATAR_NAME_LIFT);
         ctx.fillStyle = "#2a7dff";
-        ctx.fillText(name, p.sx - nw / 2, p.sy - 88);
+        ctx.fillText(name, p.sx - nw / 2, p.sy - AVATAR_NAME_LIFT);
         if (o.chat && Date.now() - o.chat.at < 6000) {
           const msg = o.chat.text;
           ctx.font = "12px Tahoma, sans-serif";

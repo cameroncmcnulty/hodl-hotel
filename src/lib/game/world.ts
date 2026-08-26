@@ -3,7 +3,8 @@ import { furn, footprint } from "../catalog";
 import { FREE_LAYOUT_IDS, layoutById, walkable, isDance } from "../layouts";
 import { moderate } from "../moderate";
 import { dropOccupant, findRoom, findUser, liveRoom, loadDB, log, occupantCount, pruneLive, saveDB } from "../store";
-import type { Item, Occupant, Placed, User } from "../types";
+import type { Figure, Item, Occupant, Placed, User } from "../types";
+import { clampFigure } from "./avatar";
 import { astar, blockedSet, canPlaceFurn } from "./path";
 
 export type Action =
@@ -19,7 +20,8 @@ export type Action =
   | { type: "dance"; on?: boolean }
   | { type: "linkPads"; a: string; b: string }
   | { type: "setFrame"; uid: string; nftMint?: string; nftUrl?: string }
-  | { type: "setLayout"; layoutId: string };
+  | { type: "setLayout"; layoutId: string }
+  | { type: "look"; figure: Figure };
 
 function emptyOcc(u: User, x: number, y: number): Occupant {
   return {
@@ -128,6 +130,13 @@ export function applyAction(userId: string, action: Action) {
   occ.lastBeat = Date.now();
   occ.username = u.username;
   occ.figure = u.figure;
+
+  if (action.type === "look") {
+    u.figure = clampFigure(action.figure);
+    occ.figure = u.figure;
+    saveDB(db);
+    return snapshot(here.roomId, userId);
+  }
 
   if (action.type === "leave") {
     live.occupants = live.occupants.filter((o) => o.userId !== userId);

@@ -1,5 +1,6 @@
 "use client";
 
+import { CharacterPreview, FigureEditor } from "@/components/CharacterPreview";
 import { FurnIcon } from "@/components/FurnIcon";
 import { LayoutPreview } from "@/components/LayoutPreview";
 import { CATALOG, furn } from "@/lib/catalog";
@@ -10,8 +11,9 @@ import { drawRoom, tileAt } from "@/lib/game/draw";
 import { canPlaceFurn } from "@/lib/game/path";
 import { iso } from "@/lib/game/iso";
 import { motAt, setPath, tickMot, type Mot } from "@/lib/game/motion";
+import { clampFigure, loadAvatars } from "@/lib/game/avatar";
 import { loadSprites, spriteCache } from "@/lib/game/sprites";
-import type { Ad, ChatLine, Occupant, Placed, Room } from "@/lib/types";
+import type { Ad, ChatLine, Figure, Occupant, Placed, Room } from "@/lib/types";
 import {
   Backpack,
   Flag,
@@ -20,6 +22,7 @@ import {
   MessageCircle,
   MessagesSquare,
   ShoppingBag,
+  UserRound,
   Users,
   X,
 } from "lucide-react";
@@ -65,6 +68,7 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
   const [lockPass, setLockPass] = useState("");
   const [joinTarget, setJoinTarget] = useState<string | null>(null);
   const [trade, setTrade] = useState<any>(null);
+  const [look, setLook] = useState<Figure>(() => clampFigure(me.figure));
   const tRef = useRef(0);
   const cam = useRef({ x: 400, y: 200 });
   const spritesRef = useRef<Record<string, HTMLCanvasElement>>({});
@@ -78,6 +82,10 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
       spritesRef.current = s;
     });
   }, [snap?.room?.id, furnKey]);
+
+  useEffect(() => {
+    loadAvatars();
+  }, []);
 
   const act = useCallback(async (body: { type: string; [k: string]: unknown }) => {
     const res = await fetch("/api/game", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
@@ -428,6 +436,7 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
             { id: "pack", Icon: Backpack, fn: () => setPanel(panel === "pack" ? null : "pack") },
             { id: "shop", Icon: ShoppingBag, fn: () => setPanel(panel === "shop" ? null : "shop") },
             { id: "chat", Icon: MessageCircle, fn: () => setPanel(panel === "chat" ? null : "chat") },
+            { id: "look", Icon: UserRound, fn: () => { setLook(clampFigure(meState.figure)); setPanel(panel === "look" ? null : "look"); } },
             { id: "friends", Icon: Users, fn: openSocial },
             { id: "msgs", Icon: MessagesSquare, fn: openMsgs },
             { id: "ads", Icon: Flag, fn: openAds },
@@ -466,6 +475,28 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
         <div className="absolute left-1/2 top-20 -translate-x-1/2 rounded-xl bg-black/70 px-4 py-2 text-sm" onClick={() => setStatus("")}>
           {status}
         </div>
+      )}
+
+      {panel === "look" && (
+        <Hud title="Look" onClose={() => setPanel(null)}>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <CharacterPreview figure={look} size={220} />
+            <FigureEditor figure={look} onChange={setLook} />
+          </div>
+          <button
+            className="btn-sol mt-3 w-full"
+            onClick={async () => {
+              const j = await act({ type: "look", figure: look });
+              if (!j.error) {
+                setMe((p) => ({ ...p, figure: look }));
+                setPanel(null);
+                setStatus("Look saved");
+              }
+            }}
+          >
+            Save look
+          </button>
+        </Hud>
       )}
 
       {panel === "pack" && (

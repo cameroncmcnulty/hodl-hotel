@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Figure } from "@/lib/types";
 import {
   ACC,
@@ -8,16 +8,23 @@ import {
   BOT_CUTS,
   clampFigure,
   drawAvatarFront,
+  GENDERS,
   HAIR_C,
   HAIR_STYLES,
+  loadAvatars,
   SHOES,
   SKIN,
   TOP_CUTS,
   TOPS,
 } from "@/lib/game/avatar";
 
-export function CharacterPreview({ figure, size = 220 }: { figure: Figure; size?: number }) {
+export function CharacterPreview({ figure, size = 260 }: { figure: Figure; size?: number }) {
   const ref = useRef<HTMLCanvasElement>(null);
+  const [tick, setTick] = useState(0);
+  const [back, setBack] = useState(false);
+  useEffect(() => {
+    loadAvatars().then(() => setTick((n) => n + 1));
+  }, []);
   useEffect(() => {
     const c = ref.current;
     if (!c) return;
@@ -27,7 +34,6 @@ export function CharacterPreview({ figure, size = 220 }: { figure: Figure; size?
     ctx.clearRect(0, 0, size, size);
     ctx.fillStyle = "#8ee0c4";
     ctx.fillRect(0, 0, size, size);
-    ctx.fillStyle = "#4db7ea";
     for (let i = 0; i < 8; i++) {
       ctx.beginPath();
       ctx.moveTo(size / 2, 40 + i * 18);
@@ -38,9 +44,21 @@ export function CharacterPreview({ figure, size = 220 }: { figure: Figure; size?
       ctx.fillStyle = i % 2 ? "#4db7ea" : "#3aa6dc";
       ctx.fill();
     }
-    drawAvatarFront(ctx, clampFigure(figure), size / 2, size * 0.78, 4);
-  }, [figure, size]);
-  return <canvas ref={ref} width={size} height={size} className="rounded-2xl" />;
+    drawAvatarFront(ctx, clampFigure(figure), size / 2, size * 0.92, 5, back ? 3 : 0);
+  }, [figure, size, tick, back]);
+  return (
+    <div className="grid gap-2">
+      <canvas ref={ref} width={size} height={size} className="rounded-2xl" style={{ imageRendering: "pixelated" }} />
+      <div className="flex gap-2">
+        <button type="button" className={`flex-1 rounded-md border px-2 py-1 text-xs ${!back ? "border-mint text-white" : "border-white/20 text-white/60"}`} onClick={() => setBack(false)}>
+          Front
+        </button>
+        <button type="button" className={`flex-1 rounded-md border px-2 py-1 text-xs ${back ? "border-mint text-white" : "border-white/20 text-white/60"}`} onClick={() => setBack(true)}>
+          Back
+        </button>
+      </div>
+    </div>
+  );
 }
 
 export function FigureEditor({ figure, onChange }: { figure: Figure; onChange: (f: Figure) => void }) {
@@ -78,13 +96,27 @@ export function FigureEditor({ figure, onChange }: { figure: Figure; onChange: (
 
   return (
     <div className="grid gap-3">
+      <div className="flex gap-2">
+        {GENDERS.map((label, i) => (
+          <button
+            key={label}
+            type="button"
+            className={`flex-1 rounded-lg border px-3 py-1.5 text-sm capitalize ${
+              (f.gender ?? 0) === i ? "border-mint bg-mint/20 text-white" : "border-white/15 text-white/70"
+            }`}
+            onClick={() => onChange({ ...f, gender: i })}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
       {row("Skin", "skin", SKIN.length - 1, SKIN)}
       {row("Hair style", "hair", HAIR_STYLES.length - 1)}
       {row("Hair color", "hairColor", HAIR_C.length - 1, HAIR_C)}
+      {row("Top", "topCut", TOP_CUTS.length - 1)}
       {row("Top color", "top", TOPS.length - 1, TOPS)}
-      {row("Shirt", "topCut", TOP_CUTS.length - 1)}
+      {row("Bottoms", "botCut", BOT_CUTS.length - 1)}
       {row("Bottom color", "bottom", BOTTOMS.length - 1, BOTTOMS)}
-      {row("Pants", "botCut", BOT_CUTS.length - 1)}
       {row("Shoes", "shoes", SHOES.length - 1, SHOES)}
       {row("Extra", "acc", ACC.length - 1)}
     </div>

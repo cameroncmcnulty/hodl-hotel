@@ -1,4 +1,5 @@
 export type Figure = {
+  gender?: number;
   skin: number;
   hair: number;
   hairColor: number;
