@@ -73,6 +73,14 @@ const MAP = {
   "134.jpg": "m-top-shirt-se",
   "135.jpg": "m-top-tee-ne",
   "138.jpg": "m-top-jacket-ne",
+  "139.jpg": "m-hair-undercut-se",
+  "144.jpg": "m-hair-crop-se",
+  "141.jpg": "m-hair-side-se",
+  "146.jpg": "m-hair-undercut-ne",
+  "145.jpg": "f-hair-bangs-se",
+  "143.jpg": "f-hair-twin-se",
+  "142.jpg": "f-hair-twin-ne",
+  "140.jpg": "f-top-blouse-se",
 };
 
 function isMagenta(r, g, b) {
@@ -241,11 +249,17 @@ for (const [a, b] of copies) {
   }
 }
 
-function isHairPx(r, g, b) {
-  if (r > 140 && g > 90 && b > 60 && r > g + 12 && g > b - 8) return false;
+function isHairPx(r, g, b, y, h) {
+  if (r > 140 && g > 90 && b > 40 && r > g + 10 && g > b - 10) return false;
+  if (r > 210 && g > 210 && b > 210) return false;
   const L = r * 0.32 + g * 0.5 + b * 0.18;
-  if (L < 32) return false;
-  return g > r + 12 && g >= b - 6 && g > 45 && r < 130;
+  if (L < 16) return false;
+  const head = y < h * 0.5;
+  if (g > r + 4 && r < 145 && g > 22 && g + b > r * 1.7) {
+    if (head) return true;
+    return g > r + 16 && g > 55;
+  }
+  return false;
 }
 
 function extractHairLayer(file, destName) {
@@ -264,7 +278,7 @@ function extractHairLayer(file, destName) {
       const r = png.data[i],
         g = png.data[i + 1],
         b = png.data[i + 2];
-      if (!isHairPx(r, g, b)) continue;
+      if (!isHairPx(r, g, b, y, h)) continue;
       png.data.copy(layer, i, i, i + 4);
     }
   }
@@ -303,6 +317,13 @@ const hairFull = [
   "f-hair-mohawk-ne.png",
   "f-hair-curl-ne.png",
   "f-hair-long-ne.png",
+  "m-hair-undercut-se.png",
+  "m-hair-crop-se.png",
+  "m-hair-side-se.png",
+  "m-hair-undercut-ne.png",
+  "f-hair-bangs-se.png",
+  "f-hair-twin-se.png",
+  "f-hair-twin-ne.png",
 ];
 for (const f of hairFull) {
   extractHairLayer(f, f.replace(".png", "-layer.png"));

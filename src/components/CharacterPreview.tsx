@@ -5,16 +5,16 @@ import type { Figure } from "@/lib/types";
 import {
   ACC,
   BOTTOMS,
-  BOT_CUTS,
+  botsFor,
   clampFigure,
   drawAvatarFront,
   GENDERS,
   HAIR_C,
-  HAIR_STYLES,
+  hairsFor,
   loadAvatars,
   SHOES,
   SKIN,
-  TOP_CUTS,
+  topsFor,
   TOPS,
 } from "@/lib/game/avatar";
 import { ChevronLeft, ChevronRight } from "lucide-react";
@@ -98,18 +98,8 @@ export function CharacterPreview({
     if (!ctx) return;
     ctx.imageSmoothingEnabled = false;
     ctx.clearRect(0, 0, size, size);
-    ctx.fillStyle = "#d8d4cc";
+    ctx.fillStyle = "#c5c1b8";
     ctx.fillRect(0, 0, size, size);
-    for (let i = 0; i < 9; i++) {
-      ctx.beginPath();
-      ctx.moveTo(size / 2, 28 + i * 16);
-      ctx.lineTo(size / 2 + 32, 44 + i * 16);
-      ctx.lineTo(size / 2, 60 + i * 16);
-      ctx.lineTo(size / 2 - 32, 44 + i * 16);
-      ctx.closePath();
-      ctx.fillStyle = i % 2 ? "#c8c4bc" : "#b8b4ac";
-      ctx.fill();
-    }
     drawAvatarFront(ctx, clampFigure(figure), size / 2, size * 0.94, 5, dir);
   }, [figure, size, tick, dir]);
   return <canvas ref={ref} width={size} height={size} className="rounded-md" style={{ imageRendering: "pixelated" }} />;
@@ -119,8 +109,14 @@ export function FigureEditor({ figure, onChange }: { figure: Figure; onChange: (
   const f = clampFigure(figure);
   const [dirI, setDirI] = useState(0);
   const dir = DIRS[dirI];
+  const hairs = hairsFor(f.gender ?? 0);
+  const tops = topsFor(f.gender ?? 0);
+  const bots = botsFor(f.gender ?? 0);
   const cycle = (key: keyof Figure, max: number, delta: number) => {
     onChange({ ...f, [key]: wrap(Number(f[key] ?? 0) + delta, max) });
+  };
+  const setGender = (i: number) => {
+    onChange({ ...f, gender: i, hair: 0, topCut: 0, botCut: 0 });
   };
 
   return (
@@ -133,7 +129,7 @@ export function FigureEditor({ figure, onChange }: { figure: Figure; onChange: (
             className={`flex-1 rounded px-3 py-1 text-sm capitalize ${
               (f.gender ?? 0) === i ? "bg-[#14F195] font-bold text-[#111]" : "bg-[#555] text-white"
             }`}
-            onClick={() => onChange({ ...f, gender: i })}
+            onClick={() => setGender(i)}
           >
             {label}
           </button>
@@ -149,30 +145,30 @@ export function FigureEditor({ figure, onChange }: { figure: Figure; onChange: (
             {
               kind: "hair",
               color: HAIR_C[f.hairColor],
-              prev: () => cycle("hair", HAIR_STYLES.length - 1, -1),
-              next: () => cycle("hair", HAIR_STYLES.length - 1, 1),
-              label: HAIR_STYLES[f.hair],
+              prev: () => cycle("hair", hairs.length - 1, -1),
+              next: () => cycle("hair", hairs.length - 1, 1),
+              label: hairs[f.hair],
             },
             {
               kind: "skin",
               color: SKIN[f.skin],
-              prev: () => cycle("gender", GENDERS.length - 1, -1),
-              next: () => cycle("gender", GENDERS.length - 1, 1),
-              label: GENDERS[f.gender ?? 0],
+              prev: () => cycle("skin", SKIN.length - 1, -1),
+              next: () => cycle("skin", SKIN.length - 1, 1),
+              label: "skin",
             },
             {
               kind: "shirt",
               color: TOPS[f.top],
-              prev: () => cycle("topCut", TOP_CUTS.length - 1, -1),
-              next: () => cycle("topCut", TOP_CUTS.length - 1, 1),
-              label: TOP_CUTS[f.topCut ?? 0],
+              prev: () => cycle("topCut", tops.length - 1, -1),
+              next: () => cycle("topCut", tops.length - 1, 1),
+              label: tops[f.topCut ?? 0],
             },
             {
               kind: "pants",
               color: BOTTOMS[f.bottom],
-              prev: () => cycle("botCut", BOT_CUTS.length - 1, -1),
-              next: () => cycle("botCut", BOT_CUTS.length - 1, 1),
-              label: BOT_CUTS[f.botCut ?? 0],
+              prev: () => cycle("botCut", bots.length - 1, -1),
+              next: () => cycle("botCut", bots.length - 1, 1),
+              label: bots[f.botCut ?? 0],
             },
             {
               kind: "shoes",
