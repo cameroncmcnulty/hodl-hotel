@@ -1,7 +1,7 @@
 "use client";
 
 import { BirthdayFields } from "@/components/BirthdayFields";
-import { CharacterPreview, FigureEditor } from "@/components/CharacterPreview";
+import { FigureEditor } from "@/components/CharacterPreview";
 import { HotelBackdrop } from "@/components/HotelBackdrop";
 import { LayoutPreview } from "@/components/LayoutPreview";
 import { Wordmark } from "@/components/Wordmark";
@@ -202,10 +202,9 @@ export default function JoinPage() {
       )}
 
       {step === 2 && (
-        <div className="panel mt-6 grid gap-6 bg-[#24143d]/92 p-5 text-white md:grid-cols-2">
-          <CharacterPreview figure={figure} />
+        <div className="panel mt-6 grid gap-4 bg-[#24143d]/92 p-5 text-white">
           <FigureEditor figure={figure} onChange={setFigure} />
-          <div className="md:col-span-2 flex gap-2">
+          <div className="flex gap-2">
             <button className="btn-ink" onClick={() => setStep(1)}>
               Back
             </button>

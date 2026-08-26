@@ -74,12 +74,12 @@ function loadImage(src: string) {
 export function loadAvatars() {
   if (!loadPromise) {
     loadPromise = (async () => {
-      const man = (await fetch("/art/avatars/manifest.json?v=7")
+      const man = (await fetch("/art/avatars/manifest.json?v=8")
         .then((r) => r.json())
         .catch(() => [])) as string[];
       await Promise.all(
         man.map(async (file) => {
-          const img = await loadImage(`/art/avatars/${file}?v=7`);
+          const img = await loadImage(`/art/avatars/${file}?v=8`);
           if (!img) return;
           const c = document.createElement("canvas");
           c.width = img.width;
@@ -236,31 +236,26 @@ function firstSpr(ids: string[]) {
   return null;
 }
 
-function hairLayerId(g: string, hair: string, view: string) {
-  if (hair === "spike") return `${g}-${view}-idle-layer`;
-  return `${g}-hair-${hair}-${view}-layer`;
-}
-
 function pickBody(fig: Figure, dir: 0 | 1 | 2 | 3, walking: boolean, sit: boolean, frame: number) {
   const g = gKey(fig);
   const view = viewOf(dir);
+  const hair = HAIR_STYLES[fig.hair] || "spike";
   const top = TOP_CUTS[fig.topCut ?? 0] || "hoodie";
   const bot = BOT_CUTS[fig.botCut ?? 0] || "pants";
-  const defaultFit = top === "hoodie" && bot === "pants";
+  const clothesDefault = top === "hoodie" && bot === "pants";
 
   if (sit) return firstSpr([`${g}-se-sit`, `${g}-se-idle`]);
 
-  if (walking && defaultFit) {
-    const stride = frame % 4 === 1 || frame % 4 === 3;
-    if (stride) {
-      const which = frame % 4 === 3 ? 1 : 0;
-      const w = firstSpr([`${g}-${view}-walk${which}`, `${g}-${view}-walk0`, `${g}-${view}-walk1`]);
-      if (w) return w;
-    }
-    const plant = firstSpr([`${g}-${view}-idle`]);
-    if (plant) return plant;
+  if (walking) {
+    const which = frame % 2;
+    const w = firstSpr([`${g}-${view}-walk${which}`, `${g}-${view}-walk0`, `${g}-${view}-walk1`, `${g}-${view}-idle`]);
+    if (w) return w;
   }
 
+  if (hair !== "spike" && clothesDefault) {
+    const h = firstSpr([`${g}-hair-${hair}-${view}`, `${g}-hair-${hair}-se`]);
+    if (h) return h;
+  }
   if (bot !== "pants") {
     const b = firstSpr([`${g}-bot-${bot}-${view}`, `${g}-bot-${bot}-se`]);
     if (b) return b;
@@ -272,57 +267,45 @@ function pickBody(fig: Figure, dir: 0 | 1 | 2 | 3, walking: boolean, sit: boolea
   return firstSpr([`${g}-${view}-idle`, `${g}-se-idle`]);
 }
 
-function overlayHair(body: HTMLCanvasElement, layer: HTMLCanvasElement, scalp: HTMLCanvasElement | null) {
+/** Replace the whole head (and extra hair tails) from the hairstyle sprite so spikes never remain. */
+function applyHair(body: HTMLCanvasElement, hairFull: HTMLCanvasElement, extra?: HTMLCanvasElement | null) {
   const ctx = body.getContext("2d")!;
   const bd = ctx.getImageData(0, 0, body.width, body.height);
-  const lctx = layer.getContext("2d")!;
-  const ld = lctx.getImageData(0, 0, layer.width, layer.height);
-  const sd = scalp ? scalp.getContext("2d")!.getImageData(0, 0, scalp.width, scalp.height) : null;
+  const hd = hairFull.getContext("2d")!.getImageData(0, 0, hairFull.width, hairFull.height);
   const w = body.width;
   const h = body.height;
-  const cut = Math.floor(h * 0.55);
+  const hw = hairFull.width;
+  const headEnd = Math.floor(h * 0.4);
   const b = bd.data;
-  const l = ld.data;
-  const s = sd?.data;
-  const mark = new Uint8Array(w * h);
-  for (let y = 0; y < cut; y++) {
-    for (let x = 0; x < w; x++) {
-      const i = (y * w + x) * 4;
-      if (b[i + 3] > 12 && isHairPx(b[i], b[i + 1], b[i + 2])) mark[y * w + x] = 1;
-    }
-  }
-  const grown = new Uint8Array(mark);
-  for (let y = 1; y < cut - 1; y++) {
-    for (let x = 1; x < w - 1; x++) {
-      const p = y * w + x;
-      if (mark[p] || mark[p - 1] || mark[p + 1] || mark[p - w] || mark[p + w]) grown[p] = 1;
-    }
-  }
-  for (let y = 0; y < cut; y++) {
-    for (let x = 0; x < w; x++) {
-      if (!grown[y * w + x]) continue;
-      const i = (y * w + x) * 4;
-      if (s && s[i + 3] > 12) {
-        b[i] = s[i];
-        b[i + 1] = s[i + 1];
-        b[i + 2] = s[i + 2];
-        b[i + 3] = s[i + 3];
-      } else b[i + 3] = 0;
-    }
-  }
-  const lw = layer.width;
-  const lh = layer.height;
-  const mw = Math.min(w, lw);
-  const mh = Math.min(h, lh);
-  for (let y = 0; y < mh; y++) {
+  const src = hd.data;
+  const mw = Math.min(w, hw);
+  const mh = Math.min(h, hairFull.height);
+  for (let y = 0; y < Math.min(headEnd, mh); y++) {
     for (let x = 0; x < mw; x++) {
       const i = (y * w + x) * 4;
-      const li = (y * lw + x) * 4;
-      if (l[li + 3] > 18) {
-        b[i] = l[li];
-        b[i + 1] = l[li + 1];
-        b[i + 2] = l[li + 2];
-        b[i + 3] = l[li + 3];
+      const hi = (y * hw + x) * 4;
+      if (src[hi + 3] > 12) {
+        b[i] = src[hi];
+        b[i + 1] = src[hi + 1];
+        b[i + 2] = src[hi + 2];
+        b[i + 3] = src[hi + 3];
+      }
+    }
+  }
+  if (extra) {
+    const ed = extra.getContext("2d")!.getImageData(0, 0, extra.width, extra.height);
+    const ew = extra.width;
+    const eh = extra.height;
+    for (let y = headEnd; y < Math.min(h, eh); y++) {
+      for (let x = 0; x < Math.min(w, ew); x++) {
+        const i = (y * w + x) * 4;
+        const ei = (y * ew + x) * 4;
+        if (ed.data[ei + 3] > 18) {
+          b[i] = ed.data[ei];
+          b[i + 1] = ed.data[ei + 1];
+          b[i + 2] = ed.data[ei + 2];
+          b[i + 3] = ed.data[ei + 3];
+        }
       }
     }
   }
@@ -339,10 +322,10 @@ function compose(fig: Figure, dir: 0 | 1 | 2 | 3, walking: boolean, sit: boolean
   const bot = BOT_CUTS[fig.botCut ?? 0] || "pants";
   const body = pickBody(fig, dir, walking, sit, frame);
   if (!body) return null;
-  const layerName = hairLayerId(g, hair, view);
-  const layerAlt = hairLayerId(g, hair, "se");
-  const needHair = hair !== "spike" || top !== "hoodie" || bot !== "pants";
-  const key = `${body.id}|${needHair ? layerName : "none"}|${frame}|${sit ? 1 : 0}`;
+  const clothesDefault = top === "hoodie" && bot === "pants";
+  const hairFull = firstSpr([`${g}-hair-${hair}-${view}`, `${g}-hair-${hair}-se`]);
+  const needSwap = hair !== "spike" && hairFull && (walking || sit || !clothesDefault || body.id.indexOf("-hair-") < 0);
+  const key = `${body.id}|${needSwap ? hairFull!.id : "keep"}|${view}|${frame}|${sit ? 1 : 0}|${walking ? 1 : 0}`;
   const hit = composeCache.get(key);
   if (hit) return { id: key, src: hit };
 
@@ -352,12 +335,9 @@ function compose(fig: Figure, dir: 0 | 1 | 2 | 3, walking: boolean, sit: boolean
   const ctx = out.getContext("2d")!;
   ctx.drawImage(body.src, 0, 0);
 
-  if (needHair && hair !== "spike") {
-    const layer = spr(layerName) || spr(layerAlt);
-    if (layer) {
-      const scalp = spr(`${g}-hair-buzz-se`) || spr(`${g}-se-idle`);
-      overlayHair(out, layer, scalp);
-    }
+  if (needSwap && hairFull) {
+    const extra = spr(`${g}-hair-${hair}-${view}-layer`) || spr(`${g}-hair-${hair}-se-layer`);
+    applyHair(out, hairFull.src, extra);
   }
 
   composeCache.set(key, out);
@@ -443,12 +423,11 @@ export function drawAvatarIso(
   const walking = !!opts.walking;
   const dance = !!opts.dance;
   const sit = !!opts.sit && !walking;
-  const frame = dance ? Math.floor(t * 8) % 4 : walking ? Math.floor((opts.dist || 0) * 2) % 4 : 0;
+  const frame = dance ? Math.floor(t * 8) % 4 : walking ? Math.floor((opts.dist || 0) * 3) % 2 : 0;
   const made = compose(f, dir, walking, sit, frame);
   const destH = sit ? AVATAR_DRAW_H - 10 : AVATAR_DRAW_H;
   const destW = Math.round((destH * SPRITE_W) / SPRITE_H);
-  const stride = walking && (frame % 2 === 1);
-  const bob = dance ? (frame % 2 === 0 ? -3 : 0) : stride ? -2 : 0;
+  const bob = dance ? (frame % 2 === 0 ? -3 : 0) : walking ? (frame % 2 === 0 ? 0 : -3) : 0;
   const dx = Math.round(sx - destW / 2);
   const dy = Math.round(sy - destH + 12 + bob);
   if (!made) return;

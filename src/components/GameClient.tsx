@@ -1,6 +1,6 @@
 "use client";
 
-import { CharacterPreview, FigureEditor } from "@/components/CharacterPreview";
+import { FigureEditor } from "@/components/CharacterPreview";
 import { FurnIcon } from "@/components/FurnIcon";
 import { LayoutPreview } from "@/components/LayoutPreview";
 import { CATALOG, furn } from "@/lib/catalog";
@@ -546,11 +546,8 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
       )}
 
       {panel === "look" && (
-        <Hud title="Look" onClose={() => setPanel(null)}>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <CharacterPreview figure={look} size={220} />
-            <FigureEditor figure={look} onChange={setLook} />
-          </div>
+        <Hud title="Look" onClose={() => setPanel(null)} wide>
+          <FigureEditor figure={look} onChange={setLook} />
           <button
             className="btn-sol mt-3 w-full"
             onClick={async () => {

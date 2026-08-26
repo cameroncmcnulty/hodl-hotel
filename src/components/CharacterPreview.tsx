@@ -17,11 +17,77 @@ import {
   TOP_CUTS,
   TOPS,
 } from "@/lib/game/avatar";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
-export function CharacterPreview({ figure, size = 260 }: { figure: Figure; size?: number }) {
+const DIRS: (0 | 1 | 2 | 3)[] = [1, 0, 3, 2];
+
+function wrap(v: number, max: number) {
+  const n = max + 1;
+  return ((v % n) + n) % n;
+}
+
+function ArrowBtn({ onClick, label }: { onClick: () => void; label: string }) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      onClick={onClick}
+      className="grid h-9 w-8 shrink-0 place-items-center rounded bg-[#c9c9c9] text-[#333] shadow-inner hover:bg-white active:bg-[#bbb]"
+    >
+      {label === "prev" ? <ChevronLeft size={18} /> : <ChevronRight size={18} />}
+    </button>
+  );
+}
+
+function PartIcon({ kind, color }: { kind: string; color: string }) {
+  return (
+    <span
+      className="grid h-10 w-10 place-items-center rounded-md border border-black/20 bg-white"
+      title={kind}
+      style={{ boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.6)" }}
+    >
+      {kind === "hair" && (
+        <svg viewBox="0 0 24 24" width="22" height="22">
+          <path d="M6 14c0-6 3-11 6-11s6 5 6 11c0 2-1 3-3 3H9c-2 0-3-1-3-3z" fill={color} stroke="#222" strokeWidth="1" />
+          <path d="M8 8c1-2 2-3 4-3" fill="none" stroke="#fff" strokeWidth="1" opacity="0.5" />
+        </svg>
+      )}
+      {kind === "skin" && (
+        <svg viewBox="0 0 24 24" width="22" height="22">
+          <circle cx="12" cy="10" r="6" fill={color} stroke="#222" strokeWidth="1" />
+          <ellipse cx="12" cy="20" rx="5" ry="3" fill={color} stroke="#222" strokeWidth="1" />
+        </svg>
+      )}
+      {kind === "shirt" && (
+        <svg viewBox="0 0 24 24" width="22" height="22">
+          <path d="M4 8l5-3 3 2 3-2 5 3-2 4v8H6V12L4 8z" fill={color} stroke="#222" strokeWidth="1" />
+        </svg>
+      )}
+      {kind === "pants" && (
+        <svg viewBox="0 0 24 24" width="22" height="22">
+          <path d="M7 4h10l-1 6-2 10H13l-1-8-1 8H10L8 10 7 4z" fill={color} stroke="#222" strokeWidth="1" />
+        </svg>
+      )}
+      {kind === "shoes" && (
+        <svg viewBox="0 0 24 24" width="22" height="22">
+          <path d="M3 15h12l6 2v3H3v-5z" fill={color} stroke="#222" strokeWidth="1" />
+        </svg>
+      )}
+    </span>
+  );
+}
+
+export function CharacterPreview({
+  figure,
+  size = 240,
+  dir = 1,
+}: {
+  figure: Figure;
+  size?: number;
+  dir?: 0 | 1 | 2 | 3;
+}) {
   const ref = useRef<HTMLCanvasElement>(null);
   const [tick, setTick] = useState(0);
-  const [back, setBack] = useState(false);
   useEffect(() => {
     loadAvatars().then(() => setTick((n) => n + 1));
   }, []);
@@ -32,77 +98,40 @@ export function CharacterPreview({ figure, size = 260 }: { figure: Figure; size?
     if (!ctx) return;
     ctx.imageSmoothingEnabled = false;
     ctx.clearRect(0, 0, size, size);
-    ctx.fillStyle = "#8ee0c4";
+    ctx.fillStyle = "#d8d4cc";
     ctx.fillRect(0, 0, size, size);
-    for (let i = 0; i < 8; i++) {
+    for (let i = 0; i < 9; i++) {
       ctx.beginPath();
-      ctx.moveTo(size / 2, 40 + i * 18);
-      ctx.lineTo(size / 2 + 36, 58 + i * 18);
-      ctx.lineTo(size / 2, 76 + i * 18);
-      ctx.lineTo(size / 2 - 36, 58 + i * 18);
+      ctx.moveTo(size / 2, 28 + i * 16);
+      ctx.lineTo(size / 2 + 32, 44 + i * 16);
+      ctx.lineTo(size / 2, 60 + i * 16);
+      ctx.lineTo(size / 2 - 32, 44 + i * 16);
       ctx.closePath();
-      ctx.fillStyle = i % 2 ? "#4db7ea" : "#3aa6dc";
+      ctx.fillStyle = i % 2 ? "#c8c4bc" : "#b8b4ac";
       ctx.fill();
     }
-    drawAvatarFront(ctx, clampFigure(figure), size / 2, size * 0.92, 5, back ? 2 : 1);
-  }, [figure, size, tick, back]);
-  return (
-    <div className="grid gap-2">
-      <canvas ref={ref} width={size} height={size} className="rounded-2xl" style={{ imageRendering: "pixelated" }} />
-      <div className="flex gap-2">
-        <button type="button" className={`flex-1 rounded-md border px-2 py-1 text-xs ${!back ? "border-mint text-white" : "border-white/20 text-white/60"}`} onClick={() => setBack(false)}>
-          Front
-        </button>
-        <button type="button" className={`flex-1 rounded-md border px-2 py-1 text-xs ${back ? "border-mint text-white" : "border-white/20 text-white/60"}`} onClick={() => setBack(true)}>
-          Back
-        </button>
-      </div>
-    </div>
-  );
+    drawAvatarFront(ctx, clampFigure(figure), size / 2, size * 0.94, 5, dir);
+  }, [figure, size, tick, dir]);
+  return <canvas ref={ref} width={size} height={size} className="rounded-md" style={{ imageRendering: "pixelated" }} />;
 }
 
 export function FigureEditor({ figure, onChange }: { figure: Figure; onChange: (f: Figure) => void }) {
   const f = clampFigure(figure);
-  const row = (label: string, key: keyof Figure, max: number, swatches?: string[]) => (
-    <label className="block text-xs uppercase tracking-wide text-white/60">
-      {label}
-      <div className="mt-1 flex items-center gap-2">
-        <input
-          type="range"
-          min={0}
-          max={max}
-          value={Number(f[key] ?? 0)}
-          className="w-full"
-          onChange={(e) => onChange({ ...f, [key]: Number(e.target.value) })}
-        />
-        {swatches ? (
-          <span className="h-5 w-5 rounded-md border border-white/20" style={{ background: swatches[Number(f[key] ?? 0)] }} />
-        ) : (
-          <span className="w-16 text-right text-white/80">
-            {key === "hair"
-              ? HAIR_STYLES[f.hair]
-              : key === "acc"
-                ? ACC[f.acc]
-                : key === "topCut"
-                  ? TOP_CUTS[f.topCut ?? 0]
-                  : key === "botCut"
-                    ? BOT_CUTS[f.botCut ?? 0]
-                    : f[key]}
-          </span>
-        )}
-      </div>
-    </label>
-  );
+  const [dirI, setDirI] = useState(0);
+  const dir = DIRS[dirI];
+  const cycle = (key: keyof Figure, max: number, delta: number) => {
+    onChange({ ...f, [key]: wrap(Number(f[key] ?? 0) + delta, max) });
+  };
 
   return (
-    <div className="grid gap-3">
-      <div className="flex gap-2">
+    <div className="overflow-hidden rounded-xl border-2 border-[#8a8a8a] bg-[#d0d0d0] text-[#222]">
+      <div className="flex gap-2 bg-[#3a3a3a] p-2">
         {GENDERS.map((label, i) => (
           <button
             key={label}
             type="button"
-            className={`flex-1 rounded-lg border px-3 py-1.5 text-sm capitalize ${
-              (f.gender ?? 0) === i ? "border-mint bg-mint/20 text-white" : "border-white/15 text-white/70"
+            className={`flex-1 rounded px-3 py-1 text-sm capitalize ${
+              (f.gender ?? 0) === i ? "bg-[#14F195] font-bold text-[#111]" : "bg-[#555] text-white"
             }`}
             onClick={() => onChange({ ...f, gender: i })}
           >
@@ -110,15 +139,94 @@ export function FigureEditor({ figure, onChange }: { figure: Figure; onChange: (
           </button>
         ))}
       </div>
-      {row("Skin", "skin", SKIN.length - 1, SKIN)}
-      {row("Hair style", "hair", HAIR_STYLES.length - 1)}
-      {row("Hair color", "hairColor", HAIR_C.length - 1, HAIR_C)}
-      {row("Top", "topCut", TOP_CUTS.length - 1)}
-      {row("Top color", "top", TOPS.length - 1, TOPS)}
-      {row("Bottoms", "botCut", BOT_CUTS.length - 1)}
-      {row("Bottom color", "bottom", BOTTOMS.length - 1, BOTTOMS)}
-      {row("Shoes", "shoes", SHOES.length - 1, SHOES)}
-      {row("Extra", "acc", ACC.length - 1)}
+
+      <div
+        className="grid items-stretch"
+        style={{ gridTemplateColumns: "minmax(132px,1fr) minmax(180px,1.2fr) minmax(132px,1fr)" }}
+      >
+        <div className="grid grid-rows-5">
+          {[
+            {
+              kind: "hair",
+              color: HAIR_C[f.hairColor],
+              prev: () => cycle("hair", HAIR_STYLES.length - 1, -1),
+              next: () => cycle("hair", HAIR_STYLES.length - 1, 1),
+              label: HAIR_STYLES[f.hair],
+            },
+            {
+              kind: "skin",
+              color: SKIN[f.skin],
+              prev: () => cycle("gender", GENDERS.length - 1, -1),
+              next: () => cycle("gender", GENDERS.length - 1, 1),
+              label: GENDERS[f.gender ?? 0],
+            },
+            {
+              kind: "shirt",
+              color: TOPS[f.top],
+              prev: () => cycle("topCut", TOP_CUTS.length - 1, -1),
+              next: () => cycle("topCut", TOP_CUTS.length - 1, 1),
+              label: TOP_CUTS[f.topCut ?? 0],
+            },
+            {
+              kind: "pants",
+              color: BOTTOMS[f.bottom],
+              prev: () => cycle("botCut", BOT_CUTS.length - 1, -1),
+              next: () => cycle("botCut", BOT_CUTS.length - 1, 1),
+              label: BOT_CUTS[f.botCut ?? 0],
+            },
+            {
+              kind: "shoes",
+              color: SHOES[f.shoes],
+              prev: () => cycle("acc", ACC.length - 1, -1),
+              next: () => cycle("acc", ACC.length - 1, 1),
+              label: ACC[f.acc],
+            },
+          ].map((row, i) => (
+            <div key={row.kind} className={`flex items-center justify-end gap-1 px-1 py-1.5 ${i % 2 ? "bg-[#e8e8e8]" : "bg-[#f4f4f4]"}`}>
+              <ArrowBtn label="prev" onClick={row.prev} />
+              <PartIcon kind={row.kind} color={row.color} />
+              <ArrowBtn label="next" onClick={row.next} />
+            </div>
+          ))}
+        </div>
+
+        <div className="flex flex-col items-center justify-center bg-[#cfcfcf] py-2">
+          <CharacterPreview figure={f} size={220} dir={dir} />
+          <div className="mt-1 flex items-center gap-2">
+            <ArrowBtn label="prev" onClick={() => setDirI((i) => wrap(i - 1, DIRS.length - 1))} />
+            <span className="min-w-[52px] text-center text-xs font-bold uppercase tracking-wide text-[#333]">
+              {dir === 1 || dir === 0 ? "Front" : "Back"}
+            </span>
+            <ArrowBtn label="next" onClick={() => setDirI((i) => wrap(i + 1, DIRS.length - 1))} />
+          </div>
+        </div>
+
+        <div className="grid grid-rows-5">
+          {[
+            { swatch: HAIR_C[f.hairColor], prev: () => cycle("hairColor", HAIR_C.length - 1, -1), next: () => cycle("hairColor", HAIR_C.length - 1, 1) },
+            { swatch: SKIN[f.skin], prev: () => cycle("skin", SKIN.length - 1, -1), next: () => cycle("skin", SKIN.length - 1, 1) },
+            { swatch: TOPS[f.top], prev: () => cycle("top", TOPS.length - 1, -1), next: () => cycle("top", TOPS.length - 1, 1) },
+            { swatch: BOTTOMS[f.bottom], prev: () => cycle("bottom", BOTTOMS.length - 1, -1), next: () => cycle("bottom", BOTTOMS.length - 1, 1) },
+            { swatch: SHOES[f.shoes], prev: () => cycle("shoes", SHOES.length - 1, -1), next: () => cycle("shoes", SHOES.length - 1, 1) },
+          ].map((row, i) => (
+            <div key={i} className={`flex items-center gap-1 px-1 py-1.5 ${i % 2 ? "bg-[#e8e8e8]" : "bg-[#f4f4f4]"}`}>
+              <ArrowBtn label="prev" onClick={row.prev} />
+              <span className="h-10 w-10 rounded-md border border-black/30" style={{ background: row.swatch }} />
+              <ArrowBtn label="next" onClick={row.next} />
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
+}
+
+export function LookStudio({
+  figure,
+  onChange,
+}: {
+  figure: Figure;
+  onChange: (f: Figure) => void;
+}) {
+  return <FigureEditor figure={figure} onChange={onChange} />;
 }
