@@ -5,7 +5,7 @@ import { moderate } from "../moderate";
 import { dropOccupant, findRoom, findUser, liveRoom, loadDB, log, occupantCount, pruneLive, saveDB } from "../store";
 import type { Figure, Item, Occupant, Placed, User } from "../types";
 import { clampFigure } from "./avatar";
-import { astar, blockedSet, canPlaceFurn } from "./path";
+import { astar, blockedSet, canPlaceFurn, dirTowards } from "./path";
 
 export type Action =
   | { type: "join"; roomId: string; password?: string }
@@ -147,7 +147,7 @@ export function applyAction(userId: string, action: Action) {
   if (action.type === "ping") {
     if (typeof action.x === "number") occ.x = action.x;
     if (typeof action.y === "number") occ.y = action.y;
-    if (action.dir !== undefined) occ.dir = action.dir;
+    if (action.dir !== undefined && !occ.sitUid) occ.dir = action.dir;
     if (action.dance !== undefined) occ.dance = action.dance;
     const rx = Math.round(occ.x);
     const ry = Math.round(occ.y);
@@ -185,11 +185,16 @@ export function applyAction(userId: string, action: Action) {
     const path = astar(room.layoutId, room.furniture, Math.round(occ.x), Math.round(occ.y), action.x, action.y);
     occ.path = path;
     occ.sitUid = undefined;
+    if (path.length) occ.dir = dirTowards(occ.x, occ.y, path[0].x, path[0].y);
+    else occ.dir = dirTowards(occ.x, occ.y, action.x, action.y);
     const sit = room.furniture.find((p) => {
       const def = furn(p.catalogId);
       return def?.sittable && p.x === action.x && p.y === action.y;
     });
-    if (sit) occ.sitUid = sit.uid;
+    if (sit) {
+      occ.sitUid = sit.uid;
+      occ.dir = sit.rot;
+    }
     return snapshot(here.roomId, userId);
   }
 

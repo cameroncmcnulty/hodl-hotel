@@ -5,12 +5,12 @@ import { FurnIcon } from "@/components/FurnIcon";
 import { LayoutPreview } from "@/components/LayoutPreview";
 import { CATALOG, furn } from "@/lib/catalog";
 import { CATS } from "@/lib/catalog";
-import { FREE_LAYOUT_IDS, layoutById, PREMIUM_LAYOUTS, USER_LAYOUTS } from "@/lib/layouts";
+import { FREE_LAYOUT_IDS, layoutById, PREMIUM_LAYOUTS, USER_LAYOUTS, walkable } from "@/lib/layouts";
 import { COIN_PACKS } from "@/lib/constants";
 import { drawRoom, tileAt } from "@/lib/game/draw";
-import { canPlaceFurn } from "@/lib/game/path";
+import { astar, canPlaceFurn } from "@/lib/game/path";
 import { iso } from "@/lib/game/iso";
-import { motAt, setPath, tickMot, type Mot } from "@/lib/game/motion";
+import { face, motAt, setPath, tickMot, type Mot } from "@/lib/game/motion";
 import { clampFigure, loadAvatars } from "@/lib/game/avatar";
 import { loadSprites, spriteCache } from "@/lib/game/sprites";
 import type { Ad, ChatLine, Figure, Occupant, Placed, Room } from "@/lib/types";
@@ -74,6 +74,9 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
   const spritesRef = useRef<Record<string, HTMLCanvasElement>>({});
   const motions = useRef<Record<string, Mot>>({});
   const lastTs = useRef(typeof performance !== "undefined" ? performance.now() : 0);
+  const keys = useRef(new Set<string>());
+  const snapRef = useRef(snap);
+  snapRef.current = snap;
 
   const furnKey = (snap?.room.furniture || []).map((f) => f.catalogId).join(",");
   useEffect(() => {
@@ -101,14 +104,41 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
           m = motAt(o.x, o.y, o.dir);
           motions.current[o.userId] = m;
         }
-        if (o.path?.length) setPath(m, o.path);
+        if (o.userId === me.id && m.queue.length) {
+          /* keep optimistic local path */
+        } else if (o.path?.length) setPath(m, o.path);
         else if (o.userId !== me.id && Math.hypot(o.x - m.x, o.y - m.y) > 0.45) {
           setPath(m, [{ x: o.x, y: o.y }]);
         }
+        if (o.userId !== me.id && !m.queue.length) m.dir = o.dir;
       }
     }
     return j;
   }, []);
+
+  const walkTo = useCallback(
+    (tx: number, ty: number) => {
+      const s = snapRef.current;
+      if (!s?.room) {
+        act({ type: "walk", x: tx, y: ty });
+        return;
+      }
+      const m = motions.current[meState.id] || motAt(tx, ty);
+      motions.current[meState.id] = m;
+      const sx = Math.round(m.x);
+      const sy = Math.round(m.y);
+      if (sx === tx && sy === ty) {
+        face(m, tx, ty);
+        act({ type: "walk", x: tx, y: ty });
+        return;
+      }
+      const path = astar(s.room.layoutId, s.room.furniture, sx, sy, tx, ty);
+      if (path.length) setPath(m, path);
+      else face(m, tx, ty);
+      act({ type: "walk", x: tx, y: ty });
+    },
+    [act, meState.id]
+  );
 
   useEffect(() => {
     act({ type: "join", roomId: homeRoomId });
@@ -122,38 +152,43 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
     const id = setInterval(() => {
       const m = motions.current[meState.id];
       act({ type: "ping", x: m?.x, y: m?.y, dir: m?.dir });
-    }, 700);
+    }, 280);
     return () => clearInterval(id);
   }, [act, snap?.room?.id]);
 
   useEffect(() => {
+    const stepOf = (k: string): [number, number] | null => {
+      const map: Record<string, [number, number]> = {
+        ArrowUp: [0, -1],
+        ArrowDown: [0, 1],
+        ArrowLeft: [-1, 0],
+        ArrowRight: [1, 0],
+        w: [0, -1],
+        a: [-1, 0],
+        s: [0, 1],
+        d: [1, 0],
+      };
+      return map[k] || map[k.toLowerCase()] || null;
+    };
     const onKey = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement).tagName;
       if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
       if (e.key === " ") {
         e.preventDefault();
         act({ type: "dance" });
+        return;
       }
-      const m = motions.current[meState.id];
-      const you = snap?.occupants.find((o) => o.userId === meState.id);
-      if (you || m) {
-        const step: Record<string, [number, number]> = {
-          ArrowUp: [0, -1],
-          ArrowDown: [0, 1],
-          ArrowLeft: [-1, 0],
-          ArrowRight: [1, 0],
-          w: [0, -1],
-          a: [-1, 0],
-          s: [0, 1],
-          d: [1, 0],
-        };
-        const delta = step[e.key] || step[e.key.toLowerCase()];
-        if (delta) {
-          e.preventDefault();
-          const x = Math.round(m?.x ?? you?.x ?? 0);
-          const y = Math.round(m?.y ?? you?.y ?? 0);
-          act({ type: "walk", x: x + delta[0], y: y + delta[1] });
-        }
+      const delta = stepOf(e.key);
+      if (delta) {
+        e.preventDefault();
+        keys.current.add(e.key.length === 1 ? e.key.toLowerCase() : e.key);
+        if (e.repeat) return;
+        const m = motions.current[meState.id];
+        if (m?.moving) return;
+        const x = Math.round(m?.x ?? 0);
+        const y = Math.round(m?.y ?? 0);
+        walkTo(x + delta[0], y + delta[1]);
+        return;
       }
       if ((e.key === "r" || e.key === "R") && place) {
         setPlace({ ...place, rot: (((place.rot + 1) % 4) as 0 | 1 | 2 | 3) });
@@ -164,9 +199,17 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
         setMenu(null);
       }
     };
+    const onUp = (e: KeyboardEvent) => {
+      keys.current.delete(e.key);
+      keys.current.delete(e.key.toLowerCase());
+    };
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [act, place, snap, meState.id]);
+    window.addEventListener("keyup", onUp);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("keyup", onUp);
+    };
+  }, [act, place, meState.id, walkTo]);
 
   useEffect(() => {
     let raf = 0;
@@ -191,6 +234,23 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
           ctx.imageSmoothingEnabled = false;
           ctx.fillStyle = "#050508";
           ctx.fillRect(0, 0, w, h);
+          const meMot = motions.current[meState.id];
+          if (meMot && !meMot.moving && keys.current.size) {
+            let dx = 0;
+            let dy = 0;
+            const held = keys.current;
+            if (held.has("w") || held.has("ArrowUp")) dy -= 1;
+            if (held.has("s") || held.has("ArrowDown")) dy += 1;
+            if (held.has("a") || held.has("ArrowLeft")) dx -= 1;
+            if (held.has("d") || held.has("ArrowRight")) dx += 1;
+            if (dx || dy) {
+              const nx = Math.round(meMot.x) + dx;
+              const ny = Math.round(meMot.y) + dy;
+              const layout = layoutById(s.room.layoutId);
+              if (walkable(layout, nx, ny)) walkTo(nx, ny);
+              else face(meMot, nx, ny);
+            }
+          }
           for (const o of s.occupants) {
             if (!motions.current[o.userId]) motions.current[o.userId] = motAt(o.x, o.y, o.dir);
             tickMot(motions.current[o.userId], dt);
@@ -198,13 +258,21 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
           const vis = s.occupants.map((o) => {
             const m = motions.current[o.userId];
             if (!m) return o;
-            return { ...o, x: m.x, y: m.y, dir: m.dir, moving: m.moving, dist: m.dist, sitUid: m.moving ? undefined : o.sitUid };
+            return {
+              ...o,
+              x: m.x,
+              y: m.y,
+              dir: !m.moving && o.sitUid ? o.dir : m.dir,
+              moving: m.moving,
+              dist: m.dist,
+              sitUid: m.moving ? undefined : o.sitUid,
+            };
           });
           const you = vis.find((o) => o.userId === meState.id);
           if (you) {
             const p = iso(you.x + 0.5, you.y + 0.5);
-            cam.current.x += (w / 2 - p.sx - cam.current.x) * 0.18;
-            cam.current.y += (h / 2 - p.sy - cam.current.y) * 0.18;
+            cam.current.x += (w / 2 - p.sx - cam.current.x) * 0.28;
+            cam.current.y += (h / 2 - p.sy - cam.current.y) * 0.28;
           }
           const gdef = place ? furn(place.catalogId) : undefined;
           drawRoom(ctx, {
@@ -240,7 +308,7 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
     };
     raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
-  }, [snap, hover, place, meState.id]);
+  }, [snap, hover, place, meState.id, walkTo]);
 
   function localTile(e: React.MouseEvent) {
     const r = canvasRef.current!.getBoundingClientRect();
@@ -423,7 +491,7 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
             }
             return;
           }
-          act({ type: "walk", x: t.x, y: t.y });
+          walkTo(t.x, t.y);
         }}
       />
       </div>

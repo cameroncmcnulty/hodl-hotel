@@ -450,7 +450,7 @@ export function drawRoom(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
           ctx.font = "12px Tahoma, sans-serif";
           const mw = Math.min(200, ctx.measureText(msg).width + 16);
           const bx = snap(p.sx - mw / 2);
-          const by = snap(p.sy - 108);
+          const by = snap(p.sy - AVATAR_NAME_LIFT - 26);
           ctx.fillStyle = "#fff";
           ctx.strokeStyle = "#222";
           ctx.lineWidth = 2;

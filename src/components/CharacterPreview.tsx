@@ -44,7 +44,7 @@ export function CharacterPreview({ figure, size = 260 }: { figure: Figure; size?
       ctx.fillStyle = i % 2 ? "#4db7ea" : "#3aa6dc";
       ctx.fill();
     }
-    drawAvatarFront(ctx, clampFigure(figure), size / 2, size * 0.92, 5, back ? 3 : 0);
+    drawAvatarFront(ctx, clampFigure(figure), size / 2, size * 0.92, 5, back ? 2 : 1);
   }, [figure, size, tick, back]);
   return (
     <div className="grid gap-2">

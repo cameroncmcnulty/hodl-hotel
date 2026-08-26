@@ -74,12 +74,12 @@ function loadImage(src: string) {
 export function loadAvatars() {
   if (!loadPromise) {
     loadPromise = (async () => {
-      const man = (await fetch("/art/avatars/manifest.json")
+      const man = (await fetch("/art/avatars/manifest.json?v=7")
         .then((r) => r.json())
         .catch(() => [])) as string[];
       await Promise.all(
         man.map(async (file) => {
-          const img = await loadImage(`/art/avatars/${file}`);
+          const img = await loadImage(`/art/avatars/${file}?v=7`);
           if (!img) return;
           const c = document.createElement("canvas");
           c.width = img.width;
@@ -162,14 +162,14 @@ function recolor(src: HTMLCanvasElement, fig: Figure, id: string) {
       g = d[i + 1],
       b = d[i + 2];
     const yn = y / h;
-    if (isHairPx(r, g, b) && yn < 0.48) {
+    if (fig.hairColor !== 0 && isHairPx(r, g, b) && yn < 0.52) {
       const t = tint(r, g, b, hairT);
       d[i] = t[0];
       d[i + 1] = t[1];
       d[i + 2] = t[2];
       continue;
     }
-    if (isSkinPx(r, g, b)) {
+    if (fig.skin !== 1 && isSkinPx(r, g, b)) {
       const t = tint(r, g, b, skinT);
       d[i] = t[0];
       d[i + 1] = t[1];
@@ -179,21 +179,21 @@ function recolor(src: HTMLCanvasElement, fig: Figure, id: string) {
     if (isPurplePx(r, g, b)) continue;
     const mx = Math.max(r, g, b);
     const mn = Math.min(r, g, b);
-    if (yn > 0.74 && mn > 165 && mx - mn < 55) {
+    if (fig.shoes !== 0 && yn > 0.74 && mn > 165 && mx - mn < 55) {
       const t = tint(r, g, b, shoeT);
       d[i] = t[0];
       d[i + 1] = t[1];
       d[i + 2] = t[2];
       continue;
     }
-    if (yn > 0.5 && yn < 0.82 && mx < 90) {
+    if (fig.bottom !== 0 && yn > 0.5 && yn < 0.82 && mx < 90) {
       const t = tint(r, g, b, botT);
       d[i] = t[0];
       d[i + 1] = t[1];
       d[i + 2] = t[2];
       continue;
     }
-    if (yn > 0.3 && yn < 0.62 && !isSkinPx(r, g, b) && !isHairPx(r, g, b)) {
+    if (fig.top !== 0 && yn > 0.3 && yn < 0.62 && !isSkinPx(r, g, b) && !isHairPx(r, g, b)) {
       if (mx < 95 || (mn > 150 && yn < 0.58) || (r > 140 && g > 120 && b > 90 && yn < 0.56)) {
         const t = tint(r, g, b, topT);
         d[i] = t[0];
@@ -219,8 +219,9 @@ function viewOf(dir: 0 | 1 | 2 | 3) {
   return dir === 2 || dir === 3 ? "ne" : "se";
 }
 
+/** Unflipped 3/4 faces SW (+y). Flip for SE (+x) and NE (-y). */
 function flipOf(dir: 0 | 1 | 2 | 3) {
-  return dir === 1 || dir === 2;
+  return dir === 0 || dir === 3;
 }
 
 function spr(id: string) {
@@ -250,8 +251,14 @@ function pickBody(fig: Figure, dir: 0 | 1 | 2 | 3, walking: boolean, sit: boolea
   if (sit) return firstSpr([`${g}-se-sit`, `${g}-se-idle`]);
 
   if (walking && defaultFit) {
-    const w = firstSpr([`${g}-${view}-walk${frame % 2}`, `${g}-${view}-idle`]);
-    if (w) return w;
+    const stride = frame % 4 === 1 || frame % 4 === 3;
+    if (stride) {
+      const which = frame % 4 === 3 ? 1 : 0;
+      const w = firstSpr([`${g}-${view}-walk${which}`, `${g}-${view}-walk0`, `${g}-${view}-walk1`]);
+      if (w) return w;
+    }
+    const plant = firstSpr([`${g}-${view}-idle`]);
+    if (plant) return plant;
   }
 
   if (bot !== "pants") {
@@ -436,13 +443,14 @@ export function drawAvatarIso(
   const walking = !!opts.walking;
   const dance = !!opts.dance;
   const sit = !!opts.sit && !walking;
-  const frame = dance ? Math.floor(t * 8) % 4 : walking ? Math.floor((opts.dist || 0) * 4) % 4 : 0;
+  const frame = dance ? Math.floor(t * 8) % 4 : walking ? Math.floor((opts.dist || 0) * 2) % 4 : 0;
   const made = compose(f, dir, walking, sit, frame);
   const destH = sit ? AVATAR_DRAW_H - 10 : AVATAR_DRAW_H;
   const destW = Math.round((destH * SPRITE_W) / SPRITE_H);
-  const bob = dance ? (frame % 2 === 0 ? -3 : 0) : walking && made ? (frame % 2 === 0 ? 0 : -3) : 0;
+  const stride = walking && (frame % 2 === 1);
+  const bob = dance ? (frame % 2 === 0 ? -3 : 0) : stride ? -2 : 0;
   const dx = Math.round(sx - destW / 2);
-  const dy = Math.round(sy - destH + 10 + bob);
+  const dy = Math.round(sy - destH + 12 + bob);
   if (!made) return;
   blit(ctx, recolor(made.src, f, made.id), dx, dy, destW, destH, flipOf(dir));
   if (dir === 0 || dir === 1) drawAcc(ctx, f, dx, dy, destW, destH);
