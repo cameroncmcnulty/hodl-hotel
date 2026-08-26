@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { Figure } from "@/lib/types";
 import {
-  ACC,
   BOTTOMS,
   botsFor,
   clampFigure,
@@ -173,9 +172,9 @@ export function FigureEditor({ figure, onChange }: { figure: Figure; onChange: (
             {
               kind: "shoes",
               color: SHOES[f.shoes],
-              prev: () => cycle("acc", ACC.length - 1, -1),
-              next: () => cycle("acc", ACC.length - 1, 1),
-              label: ACC[f.acc],
+              prev: () => cycle("shoes", SHOES.length - 1, -1),
+              next: () => cycle("shoes", SHOES.length - 1, 1),
+              label: "shoes",
             },
           ].map((row, i) => (
             <div key={row.kind} className={`flex items-center justify-end gap-1 px-1 py-1.5 ${i % 2 ? "bg-[#e8e8e8]" : "bg-[#f4f4f4]"}`}>

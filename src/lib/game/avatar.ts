@@ -22,9 +22,9 @@ export const SHOES = ["#f4f4f6", "#111111", "#9945FF", "#ff6b5a", "#2ec4b6", "#f
 export const HAIR_BOY = ["spike", "buzz", "mohawk", "undercut", "crop", "side"];
 export const HAIR_GIRL = ["long", "bob", "pony", "bun", "curl", "bangs", "twin"];
 export const TOP_BOY = ["hoodie", "tee", "jacket", "sweater", "tank", "shirt"];
-export const TOP_GIRL = ["hoodie", "tee", "jacket", "sweater", "tank", "blouse"];
-export const BOT_BOY = ["pants", "shorts", "cargo"];
-export const BOT_GIRL = ["pants", "shorts", "skirt", "dress"];
+export const TOP_GIRL = ["hoodie", "crop", "blouse", "cardi", "cami", "wrap"];
+export const BOT_BOY = ["pants", "shorts", "cargo", "joggers", "jeans"];
+export const BOT_GIRL = ["pants", "shorts", "skirt", "dress", "leggings", "pleat"];
 export const HAIR_STYLES = HAIR_BOY;
 export const TOP_CUTS = TOP_BOY;
 export const BOT_CUTS = BOT_GIRL;
@@ -94,12 +94,12 @@ function loadImage(src: string) {
 export function loadAvatars() {
   if (!loadPromise) {
     loadPromise = (async () => {
-      const man = (await fetch("/art/avatars/manifest.json?v=9")
+      const man = (await fetch("/art/avatars/manifest.json?v=10")
         .then((r) => r.json())
         .catch(() => [])) as string[];
       await Promise.all(
         man.map(async (file) => {
-          const img = await loadImage(`/art/avatars/${file}?v=9`);
+          const img = await loadImage(`/art/avatars/${file}?v=10`);
           if (!img) return;
           const c = document.createElement("canvas");
           c.width = img.width;
@@ -144,7 +144,10 @@ function isHairPx(r: number, g: number, b: number) {
 }
 
 function isSkinPx(r: number, g: number, b: number) {
-  return r > 125 && g > 75 && b > 40 && r > g && g >= b - 12 && r - b > 22 && b < 190 && g < 205;
+  if (isPurplePx(r, g, b)) return false;
+  if (r < 70 || g < 35) return false;
+  if (r > 252 && g > 252 && b > 252) return false;
+  return r > g - 4 && g >= b - 14 && r - b > 12 && g < 230 && b < 210 && r < 256;
 }
 
 function isPurplePx(r: number, g: number, b: number) {
@@ -179,14 +182,14 @@ function recolor(src: HTMLCanvasElement, fig: Figure, id: string) {
       g = d[i + 1],
       b = d[i + 2];
     const yn = y / h;
-    if (fig.hairColor !== 0 && isLooseHair(r, g, b) && yn < 0.55) {
+    if (isLooseHair(r, g, b) && yn < 0.55) {
       const t = tint(r, g, b, hairT);
       d[i] = t[0];
       d[i + 1] = t[1];
       d[i + 2] = t[2];
       continue;
     }
-    if (fig.skin !== 1 && isSkinPx(r, g, b)) {
+    if (isSkinPx(r, g, b)) {
       const t = tint(r, g, b, skinT);
       d[i] = t[0];
       d[i + 1] = t[1];
@@ -302,23 +305,32 @@ function isLooseHair(r: number, g: number, b: number) {
   return false;
 }
 
-/** Erase baked hair, then stamp ONLY the isolated hair layer — never another outfit. */
-function stampHairLayer(body: HTMLCanvasElement, layer: HTMLCanvasElement, buzz: HTMLCanvasElement | null) {
+/** Erase baked hair using the idle hair mask, then stamp ONLY the isolated hair layer. */
+function stampHairLayer(
+  body: HTMLCanvasElement,
+  layer: HTMLCanvasElement,
+  idleMask: HTMLCanvasElement | null,
+  buzz: HTMLCanvasElement | null
+) {
   const ctx = body.getContext("2d")!;
   const bd = ctx.getImageData(0, 0, body.width, body.height);
   const ld = layer.getContext("2d")!.getImageData(0, 0, layer.width, layer.height);
+  const md = idleMask ? idleMask.getContext("2d")!.getImageData(0, 0, idleMask.width, idleMask.height) : null;
   const zd = buzz ? buzz.getContext("2d")!.getImageData(0, 0, buzz.width, buzz.height) : null;
   const w = body.width;
   const h = body.height;
   const b = bd.data;
   const l = ld.data;
+  const msk = md?.data;
   const z = zd?.data;
   const head = Math.floor(h * 0.4);
   const mark = new Uint8Array(w * h);
-  for (let y = 0; y < head; y++) {
+  for (let y = 0; y < Math.min(h, idleMask ? idleMask.height : head); y++) {
     for (let x = 0; x < w; x++) {
       const i = (y * w + x) * 4;
-      if (b[i + 3] > 12 && isLooseHair(b[i], b[i + 1], b[i + 2])) mark[y * w + x] = 1;
+      const maskHit = msk && y < idleMask!.height && x < idleMask!.width && msk[i + 3] > 20;
+      const colorHit = y < head && b[i + 3] > 12 && isLooseHair(b[i], b[i + 1], b[i + 2]);
+      if (maskHit || colorHit) mark[y * w + x] = 1;
     }
   }
   const grown = new Uint8Array(mark);
@@ -336,7 +348,7 @@ function stampHairLayer(body: HTMLCanvasElement, layer: HTMLCanvasElement, buzz:
       if (!grown[y * w + x]) continue;
       const i = (y * w + x) * 4;
       const zi = z ? i : -1;
-      if (z && zi >= 0 && z[zi + 3] > 12 && y < h * 0.38) {
+      if (z && zi >= 0 && z[zi + 3] > 12 && y < h * 0.34 && (isSkinPx(z[zi], z[zi + 1], z[zi + 2]) || isLooseHair(z[zi], z[zi + 1], z[zi + 2]))) {
         b[i] = z[zi];
         b[i + 1] = z[zi + 1];
         b[i + 2] = z[zi + 2];
@@ -374,15 +386,11 @@ function compose(fig: Figure, dir: 0 | 1 | 2 | 3, walking: boolean, sit: boolean
   const top = topName(fig);
   const bot = botName(fig);
   const defHair = defaultHairName(fig.gender ?? 0);
-  const clothesDefault = top === "hoodie" && bot === "pants";
   const body = pickBody(fig, dir, walking, sit, frame);
   if (!body) return null;
 
   const usingHairBody = body.id.includes(`-hair-${hair}-`);
-  const layer =
-    spr(`${g}-hair-${hair}-${view}-layer`) ||
-    spr(`${g}-hair-${hair}-se-layer`) ||
-    (hair === defHair ? spr(`${g}-${view}-idle-layer`) : null);
+  const layer = spr(`${g}-hair-${hair}-${view}-layer`) || spr(`${g}-hair-${hair}-se-layer`);
   const needLayer = hair !== defHair && !usingHairBody && !!layer;
 
   const key = `${body.id}|${needLayer ? "L" + hair + view : "raw"}|${frame}`;
@@ -395,8 +403,9 @@ function compose(fig: Figure, dir: 0 | 1 | 2 | 3, walking: boolean, sit: boolean
   out.getContext("2d")!.drawImage(body.src, 0, 0);
 
   if (needLayer && layer) {
+    const idleMask = spr(`${g}-${view}-idle-layer`) || spr(`${g}-se-idle-layer`);
     const buzz = spr(`${g}-hair-buzz-se`) || spr(`${g}-se-idle`);
-    stampHairLayer(out, layer, buzz);
+    stampHairLayer(out, layer, idleMask, buzz);
   }
 
   composeCache.set(key, out);
@@ -420,37 +429,6 @@ function blit(ctx: CanvasRenderingContext2D, src: HTMLCanvasElement, dx: number,
   }
 }
 
-function drawAcc(ctx: CanvasRenderingContext2D, fig: Figure, dx: number, dy: number, dw: number, dh: number) {
-  if (!fig.acc) return;
-  const x = dx + dw * 0.5;
-  const y = dy + dh * 0.27;
-  ctx.save();
-  ctx.imageSmoothingEnabled = false;
-  if (fig.acc === 1 || fig.acc === 2) {
-    ctx.fillStyle = fig.acc === 2 ? "#111214" : "rgba(40,50,60,0.85)";
-    ctx.fillRect(x - dw * 0.16, y, dw * 0.12, dh * 0.05);
-    ctx.fillRect(x + dw * 0.02, y, dw * 0.12, dh * 0.05);
-    ctx.fillRect(x - dw * 0.04, y + dh * 0.015, dw * 0.08, dh * 0.012);
-    if (fig.acc === 1) {
-      ctx.fillStyle = "rgba(170,215,230,0.45)";
-      ctx.fillRect(x - dw * 0.14, y + 1, dw * 0.08, dh * 0.03);
-      ctx.fillRect(x + dw * 0.04, y + 1, dw * 0.08, dh * 0.03);
-    }
-  } else if (fig.acc === 3) {
-    ctx.fillStyle = "#222";
-    ctx.beginPath();
-    ctx.arc(x - dw * 0.2, y, dw * 0.07, 0, Math.PI * 2);
-    ctx.arc(x + dw * 0.2, y, dw * 0.07, 0, Math.PI * 2);
-    ctx.fill();
-  } else if (fig.acc === 7) {
-    ctx.fillStyle = "#ff6b5a";
-    ctx.beginPath();
-    ctx.arc(x + dw * 0.16, dy + dh * 0.16, dw * 0.06, 0, Math.PI * 2);
-    ctx.fill();
-  }
-  ctx.restore();
-}
-
 export function drawAvatarFront(ctx: CanvasRenderingContext2D, fig: Figure, cx: number, cy: number, scale = 4, dir: 0 | 1 | 2 | 3 = 0) {
   const f = clampFigure(fig);
   const made = compose(f, dir, false, false, 0);
@@ -464,7 +442,6 @@ export function drawAvatarFront(ctx: CanvasRenderingContext2D, fig: Figure, cx: 
     return;
   }
   blit(ctx, recolor(made.src, f, made.id), dx, dy, destW, destH, flipOf(dir));
-  if (dir === 0 || dir === 1) drawAcc(ctx, f, dx, dy, destW, destH);
 }
 
 export type AvatarDrawOpts = { dance?: boolean; walking?: boolean; sit?: boolean; dist?: number };
@@ -491,7 +468,6 @@ export function drawAvatarIso(
   const dy = Math.round(sy - destH + 12 + bob);
   if (!made) return;
   blit(ctx, recolor(made.src, f, made.id), dx, dy, destW, destH, flipOf(dir));
-  if (dir === 0 || dir === 1) drawAcc(ctx, f, dx, dy, destW, destH);
 }
 
 export function shade(hex: string, amt: number) {

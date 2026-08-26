@@ -81,6 +81,14 @@ const MAP = {
   "143.jpg": "f-hair-twin-se",
   "142.jpg": "f-hair-twin-ne",
   "140.jpg": "f-top-blouse-se",
+  "148.jpg": "f-top-crop-se",
+  "151.jpg": "f-top-cardi-se",
+  "154.jpg": "f-top-cami-se",
+  "147.jpg": "f-top-wrap-se",
+  "150.jpg": "f-bot-leggings-se",
+  "152.jpg": "f-bot-pleat-se",
+  "153.jpg": "m-bot-joggers-se",
+  "149.jpg": "m-bot-jeans-se",
 };
 
 function isMagenta(r, g, b) {
