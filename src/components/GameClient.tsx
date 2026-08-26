@@ -3,8 +3,7 @@
 import { FigureEditor } from "@/components/CharacterPreview";
 import { FurnIcon } from "@/components/FurnIcon";
 import { LayoutPreview } from "@/components/LayoutPreview";
-import { CATALOG, furn } from "@/lib/catalog";
-import { CATS } from "@/lib/catalog";
+import { CATALOG, CATS, furn, RARITY_LABEL, RARITY_TONE, type Rarity } from "@/lib/catalog";
 import { FREE_LAYOUT_IDS, layoutById, PREMIUM_LAYOUTS, USER_LAYOUTS, walkable } from "@/lib/layouts";
 import { COIN_PACKS } from "@/lib/constants";
 import { drawRoom, tileAt } from "@/lib/game/draw";
@@ -588,15 +587,24 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
 
       {panel === "shop" && (
         <Hud title="Furniture shop" onClose={() => setPanel(null)} wide>
-          <div className="mb-3 flex flex-wrap gap-1">
+          <div className="mb-2 flex flex-wrap gap-1">
             {[...CATS, "plans"].map((c) => (
-              <button key={c} className={`rounded-full px-2 py-1 text-xs ${shopCat === c ? "bg-mint text-ink" : "bg-white/10"}`} onClick={() => setShopCat(c)}>
+              <button key={c} className={`rounded-full px-2 py-1 text-xs capitalize ${shopCat === c ? "bg-mint text-ink" : "bg-white/10"}`} onClick={() => setShopCat(c)}>
                 {c}
               </button>
             ))}
           </div>
+          {shopCat !== "plans" && (
+            <div className="mb-2 flex flex-wrap gap-1 text-[9px] font-bold uppercase tracking-wide">
+              {(["uncommon", "rare", "elite", "gold", "crypto"] as Rarity[]).map((r) => (
+                <span key={r} className={`rounded-full px-1.5 py-0.5 ${RARITY_TONE[r]}`}>
+                  {RARITY_LABEL[r]}
+                </span>
+              ))}
+            </div>
+          )}
           {shopCat === "plans" ? (
-            <div className="grid max-h-[52vh] grid-cols-2 gap-2 overflow-auto">
+            <div className="grid max-h-[56vh] grid-cols-2 gap-2 overflow-auto">
               {[...USER_LAYOUTS, ...PREMIUM_LAYOUTS].map((l) => (
                 <div key={l.id} className="rounded-xl border border-white/10 bg-black/25 p-2">
                   <LayoutPreview layoutId={l.id} />
@@ -617,21 +625,33 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
               ))}
             </div>
           ) : (
-          <div className="grid max-h-[52vh] grid-cols-2 gap-2 overflow-auto md:grid-cols-3">
-            {CATALOG.filter((f) => f.category === shopCat && f.id !== "ad_board").map((f) => (
+          <div className="grid max-h-[56vh] grid-cols-2 gap-2 overflow-auto md:grid-cols-3">
+            {CATALOG.filter((f) => f.category === shopCat && f.id !== "ad_board")
+              .slice()
+              .sort((a, b) => a.price - b.price)
+              .map((f) => {
+                const rarity = (f.rarity || (f.rare ? "rare" : "common")) as Rarity;
+                return (
               <div key={f.id} className="rounded-xl border border-white/10 bg-black/25 p-2">
-                <div className="overflow-hidden rounded-lg border border-white/10 bg-[#7ec8ea]">
+                <div className="relative overflow-hidden rounded-lg border border-white/10 bg-[#7ec8ea]">
                   <FurnIcon id={f.id} className="h-28 w-full" />
+                  {rarity !== "common" && (
+                    <span className={`absolute left-1.5 top-1.5 rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide ${RARITY_TONE[rarity]}`}>
+                      {RARITY_LABEL[rarity]}
+                    </span>
+                  )}
                 </div>
-                <div className="mt-1.5 font-semibold leading-tight">
-                  {f.name} {f.rare && <span className="text-gold">rare</span>}
+                <div className="mt-1.5 font-semibold leading-tight">{f.name}</div>
+                <div className="text-[10px] text-white/45">
+                  {f.w}×{f.d} tile{f.w * f.d > 1 ? "s" : ""} · {f.sittable ? "sit" : f.walkable ? "walk" : f.slot === "wall" ? "wall" : "place"}
                 </div>
                 <div className="text-xs text-white/60">{f.desc}</div>
                 <button className="btn-sol mt-2 w-full text-xs" onClick={() => buy(f.id)}>
-                  {f.price === 0 ? "Free" : `${f.price} coins`}
+                  {f.price === 0 ? "Free" : `${f.price.toLocaleString()} coins`}
                 </button>
               </div>
-            ))}
+                );
+              })}
           </div>
           )}
         </Hud>
@@ -840,7 +860,7 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
 
 function Hud({ title, onClose, children, wide }: { title: string; onClose: () => void; children: React.ReactNode; wide?: boolean }) {
   return (
-    <div className={`absolute left-1/2 top-24 z-40 max-h-[70vh] -translate-x-1/2 overflow-auto p-4 panel ${wide ? "w-[min(720px,94vw)]" : "w-[min(420px,94vw)]"}`}>
+    <div className={`absolute left-1/2 top-24 z-40 max-h-[70vh] -translate-x-1/2 overflow-auto p-4 panel ${wide ? "w-[min(860px,94vw)]" : "w-[min(420px,94vw)]"}`}>
       <div className="mb-3 flex items-center justify-between">
         <h2 className="font-display text-lg">{title}</h2>
         <button onClick={onClose}><X size={16} /></button>

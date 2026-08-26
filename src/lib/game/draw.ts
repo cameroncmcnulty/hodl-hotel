@@ -2,7 +2,7 @@ import type { FurnDef } from "../catalog";
 import { furn, footprint } from "../catalog";
 import type { Ad, Occupant, Placed, Room } from "../types";
 import { layoutById, isDance, isOutdoor, isStair, isWater, tileH, walkable } from "../layouts";
-import { iso, TW, TH } from "./iso";
+import { iso, TW, TH, ZH } from "./iso";
 import type { Layout } from "../layouts";
 import { AVATAR_NAME_LIFT, drawAvatarIso, shade } from "./avatar";
 
@@ -147,20 +147,45 @@ function drawSprite(
   y: number,
   w: number,
   d: number,
-  z = 0
+  z = 0,
+  h = 1,
+  wall = false,
+  flip = false
 ) {
-  const near = iso(x + w, y + d, z);
-  const destW = Math.max(8, (w + d) * (TW / 2));
-  const destH = destW * (spr.height / Math.max(1, spr.width));
   ctx.imageSmoothingEnabled = false;
-  ctx.save();
-  ctx.globalAlpha = 0.18;
-  ctx.fillStyle = "#1a1020";
-  ctx.beginPath();
-  ctx.ellipse(snap(near.sx), snap(near.sy - 4), destW * 0.28, TH * 0.18, 0, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.restore();
-  ctx.drawImage(spr, snap(near.sx - destW / 2), snap(near.sy - destH), destW, destH);
+  const destW = Math.max(8, (w + d) * (TW / 2));
+  const aspectH = destW * (spr.height / Math.max(1, spr.width));
+  const destH = Math.max(12, h < 0.2 ? aspectH : Math.max(aspectH, h * ZH * 1.8));
+  if (wall) {
+    const hang = iso(x + w * 0.5, y + 0.08, z + 2.15);
+    const wallW = Math.max(18, w * TW * 0.42);
+    const wallH = Math.max(22, h * ZH * 0.95);
+    ctx.drawImage(spr, snap(hang.sx - wallW / 2), snap(hang.sy - wallH), wallW, wallH);
+    return;
+  }
+  const near = iso(x + w, y + d, z);
+  const cx = snap(near.sx);
+  const foot = snap(near.sy);
+  if (h >= 0.2) {
+    ctx.save();
+    ctx.globalAlpha = 0.16;
+    ctx.fillStyle = "#1a1020";
+    ctx.beginPath();
+    ctx.ellipse(cx, foot - 3, destW * 0.26, TH * 0.16, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+  const dx = snap(cx - destW / 2);
+  const dy = snap(foot - destH);
+  if (flip) {
+    ctx.save();
+    ctx.translate(cx, 0);
+    ctx.scale(-1, 1);
+    ctx.drawImage(spr, snap(-destW / 2), dy, destW, destH);
+    ctx.restore();
+  } else {
+    ctx.drawImage(spr, dx, dy, destW, destH);
+  }
 }
 
 export function drawFurniture(
@@ -174,7 +199,9 @@ export function drawFurniture(
   const { w, d } = footprint(def, p.rot);
   const spr = sprites?.[def.id];
   if (spr && spr.width > 4) {
-    drawSprite(ctx, spr, p.x, p.y, w, d, z);
+    const wall = def.slot === "wall";
+    const flip = !wall && (p.rot === 1 || p.rot === 2);
+    drawSprite(ctx, spr, p.x, p.y, w, d, z, def.h, wall, flip);
     return;
   }
   const c = def.colors;

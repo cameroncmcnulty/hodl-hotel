@@ -1,7 +1,7 @@
 import { CATALOG } from "../catalog";
 
 export const SPRITE_SRC: Record<string, string> = Object.fromEntries(
-  CATALOG.filter((f) => f.shape !== "rug" && f.id !== "ad_board").map((f) => [f.id, `/art/furn/${f.id}.png`])
+  CATALOG.filter((f) => f.id !== "ad_board").map((f) => [f.id, `/art/furn/${f.id}.png`])
 );
 
 function isMagenta(r: number, g: number, b: number) {
@@ -108,8 +108,8 @@ export function loadSprite(id: string) {
   if (cache[id]) return Promise.resolve(cache[id]);
   if (id in inflight) return inflight[id];
   inflight[id] = (async () => {
-    const png = await loadImage(`/art/furn/${id}.png`);
-    const img = png || (await loadImage(`/art/furn/${id}.jpg`));
+    const png = await loadImage(`/art/furn/${id}.png?v=12`);
+    const img = png || (await loadImage(`/art/furn/${id}.jpg?v=12`));
     if (!img) return null;
     const canvas = keyAndTrim(img);
     if (canvas.width > 4) cache[id] = canvas;
