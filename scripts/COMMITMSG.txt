@@ -1,1 +1,1 @@
-Pixel-doll avatars: 12 hairs, shirt/pants cuts, walk frames, same sprite from creation to room.
+45-degree pixel dolls with denser hair, clothes shading, and isometric stance.

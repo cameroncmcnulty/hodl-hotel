@@ -43,6 +43,22 @@ export class Pix {
     for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) this.set(x + i, y + j, c);
   }
 
+  /** 3-tone clothing/skin block: light left+top, mid, dark right+bottom. */
+  block(x: number, y: number, w: number, h: number, hex: string) {
+    const lit = mix(hex, 32);
+    const mid = rgb(hex);
+    const dim = mix(hex, -38);
+    for (let j = 0; j < h; j++) {
+      for (let i = 0; i < w; i++) {
+        let c = mid;
+        if (i <= 1 || j === 0) c = lit;
+        if (i >= w - 2 || j === h - 1) c = dim;
+        if (i === 0 && j === 0) c = lit;
+        this.set(x + i, y + j, c);
+      }
+    }
+  }
+
   disc(cx: number, cy: number, rx: number, ry: number, c: [number, number, number]) {
     const rx2 = rx * rx;
     const ry2 = ry * ry;
