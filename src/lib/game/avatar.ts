@@ -38,256 +38,231 @@ export function clampFigure(f: Partial<Figure> | undefined): Figure {
   };
 }
 
-const W = 44;
-const H = 72;
+/** Native doll size: ~Habbo proportions, 3/4 at 45°. Scaled up with nearest-neighbor. */
+const W = 32;
+const H = 52;
 const cache = new Map<string, HTMLCanvasElement>();
 
-function tuft(p: Pix, x: number, y: number, col: string) {
-  p.block(x, y, 4, 5, col);
-  p.rect(x + 1, y - 2, 2, 3, mix(col, -20));
+function hairCap(p: Pix, hx: number, hy: number, col: string, extra = 0) {
+  p.disc(hx, hy - 2, 8 + extra, 7 + extra, rgb(col));
+  p.rect(hx - 6, hy - 8, 13, 4, mix(col, 22));
 }
 
 function hairBack(p: Pix, hx: number, hy: number, style: number, col: string, back: boolean) {
   const c = rgb(col);
-  const d = mix(col, -42);
-  const lit = mix(col, 28);
+  const d = mix(col, -40);
+  const lit = mix(col, 24);
   if (style === 0) {
-    p.disc(hx + 1, hy - 2, 10, 8, c);
-    p.rect(hx - 6, hy - 8, 14, 4, lit);
+    hairCap(p, hx, hy, col);
   } else if (style === 1) {
-    p.disc(hx + 1, hy - 3, 11, 9, c);
-    p.rect(hx - 5, hy - 12, 12, 5, c);
-    p.rect(hx - 3, hy - 14, 8, 3, lit);
+    hairCap(p, hx, hy, col, 1);
+    p.rect(hx - 4, hy - 11, 9, 4, c);
+    p.rect(hx - 2, hy - 12, 5, 2, lit);
   } else if (style === 2) {
-    p.disc(hx + 1, hy - 2, 12, 11, c);
-    p.disc(hx - 10, hy + 3, 6, 8, c);
-    p.disc(hx + 11, hy + 2, 6, 9, c);
-    p.rect(hx - 8, hy - 10, 18, 5, lit);
+    hairCap(p, hx, hy, col, 1);
+    p.disc(hx - 8, hy + 2, 4, 6, c);
+    p.disc(hx + 8, hy + 1, 4, 7, c);
+    p.rect(hx - 7, hy - 9, 15, 4, lit);
   } else if (style === 3) {
-    p.disc(hx + 1, hy - 1, 11, 8, c);
-    for (const [ox, oy, h] of [
-      [-7, -14, 8],
-      [-3, -17, 10],
-      [1, -18, 11],
-      [5, -16, 9],
-      [8, -13, 7],
+    hairCap(p, hx, hy, col);
+    for (const [ox, oy, hh] of [
+      [-5, -12, 6],
+      [-2, -14, 8],
+      [1, -15, 8],
+      [4, -13, 7],
     ] as [number, number, number][]) {
-      p.rect(hx + ox, hy + oy, 3, h, c);
-      p.rect(hx + ox + 1, hy + oy, 1, 2, lit);
+      p.rect(hx + ox, hy + oy, 2, hh, c);
+      p.set(hx + ox + 1, hy + oy, lit);
     }
   } else if (style === 4) {
-    p.disc(hx - 8, hy - 5, 7, 7, c);
-    p.disc(hx + 8, hy - 6, 7, 7, c);
-    p.disc(hx, hy - 10, 7, 7, c);
-    p.disc(hx + 1, hy - 2, 11, 9, c);
-    p.rect(hx - 2, hy - 12, 4, 3, lit);
+    p.disc(hx - 6, hy - 4, 5, 5, c);
+    p.disc(hx + 6, hy - 5, 5, 5, c);
+    p.disc(hx, hy - 8, 5, 5, c);
+    hairCap(p, hx, hy, col);
   } else if (style === 5) {
-    p.block(hx - 11, hy - 9, 24, 10, col);
-    p.rect(hx - 7, hy - 14, 16, 6, d);
-    p.rect(hx - 5, hy - 16, 12, 3, mix(col, 20));
-    p.disc(hx + 1, hy - 2, 11, 6, c);
+    p.block(hx - 8, hy - 8, 17, 8, col);
+    p.rect(hx - 5, hy - 12, 11, 5, d);
+    p.rect(hx - 4, hy - 13, 9, 2, lit);
+    hairCap(p, hx, hy + 1, col);
   } else if (style === 6) {
-    p.disc(hx + 1, hy - 2, 12, 10, c);
-    p.block(hx - 13, hy + 2, 6, 22, col);
-    p.block(hx + 9, hy + 1, 6, 24, col);
-    p.rect(hx - 12, hy + 20, 5, 4, d);
-    p.rect(hx + 10, hy + 22, 5, 4, d);
+    hairCap(p, hx, hy, col, 1);
+    p.block(hx - 9, hy + 1, 4, 14, col);
+    p.block(hx + 6, hy + 1, 4, 15, col);
+    p.rect(hx - 9, hy + 13, 4, 3, d);
+    p.rect(hx + 6, hy + 14, 4, 3, d);
   } else if (style === 7) {
-    p.disc(hx + 1, hy - 1, 10, 7, c);
-    p.block(hx - 3, hy - 22, 8, 18, col);
-    p.rect(hx - 2, hy - 24, 6, 3, lit);
-    p.rect(hx - 1, hy - 8, 6, 4, d);
+    hairCap(p, hx, hy, col);
+    p.block(hx - 2, hy - 16, 5, 12, col);
+    p.rect(hx - 1, hy - 17, 3, 2, lit);
   } else if (style === 8) {
-    p.disc(hx + 1, hy - 2, 11, 9, c);
-    p.rect(hx - 6, hy - 9, 14, 4, lit);
+    hairCap(p, hx, hy, col);
     if (back) {
-      p.block(hx - 2, hy + 8, 5, 14, col);
-      p.disc(hx, hy + 22, 4, 5, c);
+      p.block(hx - 1, hy + 6, 3, 11, col);
+      p.disc(hx, hy + 16, 3, 3, c);
     } else {
-      p.block(hx + 11, hy + 2, 5, 16, col);
-      p.disc(hx + 13, hy + 18, 4, 5, c);
+      p.block(hx + 8, hy + 1, 3, 12, col);
+      p.disc(hx + 9, hy + 13, 3, 3, c);
     }
   } else if (style === 9) {
-    p.disc(hx + 1, hy - 2, 11, 9, c);
-    const bx = back ? hx : hx + 9;
-    p.disc(bx, hy - 12, 6, 6, c);
-    p.disc(bx, hy - 14, 5, 4, d);
-    p.rect(bx - 1, hy - 8, 3, 4, c);
+    hairCap(p, hx, hy, col);
+    const bx = back ? hx : hx + 7;
+    p.disc(bx, hy - 10, 4, 4, c);
+    p.disc(bx, hy - 11, 3, 3, d);
   } else if (style === 10) {
-    p.disc(hx + 1, hy - 3, 13, 11, c);
-    tuft(p, hx - 14, hy - 2, col);
-    tuft(p, hx + 12, hy - 4, col);
-    tuft(p, hx - 12, hy - 8, col);
-    p.rect(hx - 8, hy - 12, 16, 5, lit);
+    hairCap(p, hx, hy, col, 2);
+    p.rect(hx - 9, hy - 3, 3, 6, c);
+    p.rect(hx + 7, hy - 4, 3, 6, c);
+    p.rect(hx - 6, hy - 10, 13, 4, lit);
   } else {
-    p.disc(hx + 1, hy - 2, 11, 9, c);
-    p.block(hx - 11, hy - 6, 24, 5, col);
-    p.rect(hx - 9, hy - 8, 20, 3, d);
+    hairCap(p, hx, hy, col);
+    p.block(hx - 8, hy - 5, 17, 4, col);
+    p.rect(hx - 7, hy - 6, 15, 2, d);
   }
 }
 
 function hairFront(p: Pix, hx: number, hy: number, style: number, col: string, back: boolean) {
   if (back) return;
   const c = rgb(col);
-  const d = mix(col, -30);
   if (style === 1 || style === 2 || style === 4 || style === 10) {
-    p.rect(hx - 6, hy - 7, 15, 4, c);
-    p.rect(hx - 5, hy - 5, 5, 4, d);
-    p.rect(hx + 4, hy - 6, 6, 3, c);
+    p.rect(hx - 5, hy - 6, 11, 3, c);
+    p.rect(hx - 4, hy - 4, 4, 3, mix(col, -28));
   }
   if (style === 6) {
-    p.rect(hx - 8, hy - 6, 7, 5, c);
-    p.rect(hx + 3, hy - 6, 7, 5, c);
+    p.rect(hx - 6, hy - 5, 5, 4, c);
+    p.rect(hx + 2, hy - 5, 5, 4, c);
   }
-  if (style === 8 || style === 9) p.rect(hx - 5, hy - 6, 12, 3, c);
-  if (style === 0) p.rect(hx - 5, hy - 8, 12, 3, c);
+  if (style === 0 || style === 8 || style === 9) p.rect(hx - 4, hy - 7, 9, 2, c);
 }
 
-function paintDoll(
-  fig: Figure,
-  back: boolean,
-  frame: number,
-  sit: boolean,
-  dance: boolean
-) {
+function paintDoll(fig: Figure, back: boolean, frame: number, sit: boolean, dance: boolean) {
   const p = new Pix(W, H);
   const skin = SKIN[fig.skin];
   const hair = HAIR_C[fig.hairColor];
   const top = TOPS[fig.top];
-  const bot = BOTTOMS[fig.bottom];
+  const botc = BOTTOMS[fig.bottom];
   const shoe = SHOES[fig.shoes];
   const cut = fig.topCut ?? 0;
   const bcut = fig.botCut ?? 0;
-  const hx = 22;
-  const hy = 18;
+  const hx = 16;
+  const hy = 14;
   const bob = dance ? (frame % 2 === 0 ? -2 : 0) : 0;
   const walk = frame % 4;
-  const farKick = walk === 1 ? 3 : walk === 3 ? -2 : 0;
-  const nearKick = walk === 3 ? 3 : walk === 1 ? -2 : 0;
+  const farK = walk === 1 ? 2 : walk === 3 ? -1 : 0;
+  const nearK = walk === 3 ? 2 : walk === 1 ? -1 : 0;
 
   hairBack(p, hx, hy + bob, fig.hair, hair, back);
 
-  p.discShade(hx, hy + bob, 10, 11, skin);
-  p.block(hx - 12, hy + bob, 4, 6, skin);
-  p.block(hx + 9, hy + 1 + bob, 4, 6, skin);
+  p.discShade(hx, hy + bob, 8, 9, skin);
+  p.rect(hx - 5, hy + 4 + bob, 11, 5, rgb(skin));
+  p.rect(hx - 4, hy + 6 + bob, 9, 3, mix(skin, -18));
+  p.rect(hx - 9, hy + 1 + bob, 3, 4, rgb(skin));
+  p.rect(hx + 7, hy + 1 + bob, 3, 4, rgb(skin));
+  p.rect(hx - 9, hy + 2 + bob, 2, 2, mix(skin, -22));
 
   hairFront(p, hx, hy + bob, fig.hair, hair, back);
 
   if (!back) {
-    p.rect(hx - 5, hy - 4 + bob, 4, 1, mix(skin, -55));
-    p.rect(hx + 3, hy - 4 + bob, 4, 1, mix(skin, -55));
-    p.rect(hx - 4, hy - 1 + bob, 4, 4, [252, 252, 252]);
-    p.rect(hx + 4, hy - 1 + bob, 4, 4, [252, 252, 252]);
-    p.rect(hx - 3, hy + bob, 2, 2, [18, 12, 22]);
-    p.rect(hx + 5, hy + bob, 2, 2, [18, 12, 22]);
-    p.rect(hx + 6, hy - 1 + bob, 1, 1, [255, 255, 255]);
-    p.rect(hx - 4, hy + 4 + bob, 3, 1, mix(skin, 22));
-    p.rect(hx + 5, hy + 4 + bob, 3, 1, mix(skin, 22));
-    p.rect(hx, hy + 6 + bob, 4, 1, mix(skin, -42));
-    p.rect(hx + 1, hy + 7 + bob, 2, 1, mix(skin, -28));
+    p.rect(hx - 4, hy - 3 + bob, 3, 1, mix(skin, -50));
+    p.rect(hx + 2, hy - 3 + bob, 3, 1, mix(skin, -50));
+    p.rect(hx - 3, hy - 1 + bob, 3, 3, [250, 250, 252]);
+    p.rect(hx + 3, hy - 1 + bob, 3, 3, [250, 250, 252]);
+    p.rect(hx - 2, hy + bob, 2, 2, [22, 14, 24]);
+    p.rect(hx + 4, hy + bob, 2, 2, [22, 14, 24]);
+    p.set(hx + 5, hy - 1 + bob, [255, 255, 255]);
+    p.rect(hx - 4, hy + 3 + bob, 2, 1, mix(skin, 20));
+    p.rect(hx + 4, hy + 3 + bob, 2, 1, mix(skin, 20));
+    p.rect(hx, hy + 5 + bob, 3, 1, mix(skin, -38));
     if (fig.acc === 1) {
-      p.rect(hx - 6, hy - 3 + bob, 6, 5, [28, 28, 32]);
-      p.rect(hx + 3, hy - 3 + bob, 6, 5, [28, 28, 32]);
-      p.rect(hx - 5, hy - 2 + bob, 4, 3, [160, 210, 230]);
-      p.rect(hx + 4, hy - 2 + bob, 4, 3, [160, 210, 230]);
+      p.rect(hx - 5, hy - 2 + bob, 5, 4, [30, 30, 34]);
+      p.rect(hx + 2, hy - 2 + bob, 5, 4, [30, 30, 34]);
+      p.rect(hx - 4, hy - 1 + bob, 3, 2, [170, 215, 230]);
+      p.rect(hx + 3, hy - 1 + bob, 3, 2, [170, 215, 230]);
     }
-    if (fig.acc === 2) p.block(hx - 10, hy - 3 + bob, 22, 4, "#111111");
+    if (fig.acc === 2) p.block(hx - 8, hy - 2 + bob, 17, 3, "#111111");
   }
   if (fig.acc === 3) {
-    p.disc(hx - 12, hy - 1 + bob, 4, 4, [36, 36, 40]);
-    p.disc(hx + 12, hy - 1 + bob, 4, 4, [36, 36, 40]);
-    p.rect(hx - 8, hy - 6 + bob, 16, 2, mix("#14F195", 0));
+    p.disc(hx - 9, hy + bob, 3, 3, [40, 40, 44]);
+    p.disc(hx + 9, hy + bob, 3, 3, [40, 40, 44]);
   }
-  if (fig.acc === 6) p.block(hx - 10, hy - 8 + bob, 22, 4, "#14F195");
-  if (fig.acc === 7) p.disc(hx + 10, hy - 10 + bob, 4, 4, rgb("#ff6b5a"));
+  if (fig.acc === 6) p.block(hx - 8, hy - 6 + bob, 17, 3, "#14F195");
+  if (fig.acc === 7) p.disc(hx + 8, hy - 8 + bob, 3, 3, rgb("#ff6b5a"));
 
-  p.block(hx - 2, 28 + bob, 5, 4, skin);
+  p.block(hx - 1, 23 + bob, 3, 3, skin);
 
-  const farArmX = 8;
-  const nearArmX = 31;
-  const armY = 32 + bob + (dance ? -4 : 0);
-  p.block(farArmX, armY, 5, 14, skin);
-  p.rect(farArmX, armY + 13, 5, 3, mix(skin, -22));
-  p.rect(farArmX + 1, armY + 15, 4, 2, mix(skin, -10));
+  const armY = 26 + bob + (dance ? -3 : 0);
+  p.block(hx - 10, armY, 3, 10, skin);
+  p.rect(hx - 10, armY + 9, 3, 2, mix(skin, -18));
 
-  const ty = 31 + bob;
+  const ty = 25 + bob;
   if (cut === 1) {
-    p.block(hx - 10, ty - 2, 22, 16, top);
-    p.rect(hx - 4, ty + 2, 3, 7, [245, 245, 248]);
-    p.rect(hx + 2, ty + 2, 3, 7, [245, 245, 248]);
-    p.disc(hx + 1, hy + 8 + bob, 9, 5, rgb(top));
-    p.rect(hx - 8, ty - 2, 18, 4, mix(top, 24));
+    p.block(hx - 7, ty - 1, 15, 12, top);
+    p.rect(hx - 2, ty + 2, 2, 5, [242, 242, 245]);
+    p.rect(hx + 2, ty + 2, 2, 5, [242, 242, 245]);
+    p.disc(hx, hy + 7 + bob, 7, 4, rgb(top));
+    p.rect(hx - 6, ty - 1, 13, 3, mix(top, 22));
   } else if (cut === 2) {
-    p.block(hx - 9, ty, 20, 14, top);
-    p.rect(hx - 6, ty + 2, 14, 10, [248, 248, 248]);
-    p.block(hx - 10, ty - 2, 6, 14, top);
-    p.block(hx + 6, ty - 2, 6, 14, top);
-    p.rect(hx - 5, ty + 1, 12, 2, mix(top, 18));
+    p.block(hx - 6, ty, 13, 11, top);
+    p.rect(hx - 4, ty + 2, 9, 7, [246, 246, 248]);
+    p.block(hx - 7, ty - 1, 4, 11, top);
+    p.block(hx + 4, ty - 1, 4, 11, top);
   } else if (cut === 3) {
-    p.block(hx - 8, ty + 2, 18, 12, top);
-    p.rect(hx - 9, ty, 4, 6, rgb(skin));
-    p.rect(hx + 7, ty, 4, 6, rgb(skin));
-    p.rect(hx - 7, ty + 2, 16, 3, mix(top, 26));
+    p.block(hx - 6, ty + 2, 13, 9, top);
+    p.rect(hx - 7, ty, 3, 5, rgb(skin));
+    p.rect(hx + 5, ty, 3, 5, rgb(skin));
+    p.rect(hx - 5, ty + 2, 11, 2, mix(top, 24));
   } else if (cut === 4) {
-    p.block(hx - 11, ty - 2, 24, 17, top);
-    p.rect(hx - 9, ty, 20, 4, mix(top, 22));
-    p.rect(hx - 3, ty + 8, 8, 2, mix(top, -28));
+    p.block(hx - 8, ty - 1, 17, 13, top);
+    p.rect(hx - 7, ty, 15, 3, mix(top, 20));
   } else if (cut === 5) {
-    p.block(hx - 9, ty, 20, 15, top);
-    p.rect(hx - 2, ty + 4, 7, 2, mix(top, -40));
-    p.rect(hx - 8, ty, 18, 3, mix(top, 20));
+    p.block(hx - 6, ty, 13, 11, top);
+    p.rect(hx - 1, ty + 3, 4, 2, mix(top, -36));
+    p.rect(hx - 5, ty, 11, 2, mix(top, 18));
   } else {
-    p.block(hx - 9, ty, 20, 15, top);
-    p.rect(hx - 8, ty, 18, 4, mix(top, 28));
-    p.rect(hx - 8, ty + 12, 18, 2, mix(top, -24));
-    p.block(farArmX, armY + 1, 6, 6, top);
-    p.block(nearArmX, armY + 2, 6, 6, top);
+    p.block(hx - 6, ty, 13, 11, top);
+    p.rect(hx - 5, ty, 11, 3, mix(top, 26));
+    p.block(hx - 10, armY + 1, 4, 4, top);
+    p.block(hx + 7, armY + 1, 4, 4, top);
   }
 
-  p.block(nearArmX, armY + 1, 5, 14, skin);
-  p.rect(nearArmX, armY + 14, 5, 3, mix(skin, -22));
-  p.rect(nearArmX, armY + 16, 5, 2, mix(skin, -8));
+  p.block(hx + 7, armY + 1, 3, 10, skin);
+  p.rect(hx + 7, armY + 10, 3, 2, mix(skin, -18));
 
-  if (fig.acc === 4) p.block(hx - 7, ty - 2, 16, 5, "#ff6b5a");
-  if (fig.acc === 5) p.block(hx - 6, ty + 5, 14, 10, "#3d2a18");
+  if (fig.acc === 4) p.block(hx - 5, ty - 1, 11, 4, "#ff6b5a");
+  if (fig.acc === 5) p.block(hx - 4, ty + 3, 9, 7, "#3d2a18");
 
-  const hip = sit ? 46 + bob : 46 + bob;
-  const farLegX = 12 + (sit ? 0 : farKick);
-  const nearLegX = 23 + (sit ? 0 : nearKick);
-  const legH = sit ? 8 : 16;
+  const hip = 36 + bob;
+  const farX = 11 + (sit ? 0 : farK);
+  const nearX = 16 + (sit ? 0 : nearK);
+  const legH = sit ? 6 : 10;
   if (bcut === 2) {
-    p.block(hx - 9, hip, 20, 10, bot);
-    p.rect(hx - 8, hip, 18, 3, mix(bot, 22));
-    p.block(farLegX, hip + 9, 6, sit ? 4 : 8, skin);
-    p.block(nearLegX, hip + 10, 6, sit ? 4 : 8, skin);
+    p.block(hx - 6, hip, 13, 7, botc);
+    p.rect(hx - 5, hip, 11, 2, mix(botc, 20));
+    p.block(farX, hip + 6, 4, sit ? 3 : 5, skin);
+    p.block(nearX, hip + 7, 4, sit ? 3 : 5, skin);
   } else if (bcut === 1) {
-    p.block(farLegX - 1, hip, 7, 9, bot);
-    p.block(nearLegX - 1, hip + 1, 7, 9, bot);
-    p.block(farLegX, hip + 9, 6, 7, skin);
-    p.block(nearLegX, hip + 10, 6, 7, skin);
+    p.block(farX, hip, 5, 6, botc);
+    p.block(nearX, hip + 1, 5, 6, botc);
+    p.block(farX, hip + 6, 4, 5, skin);
+    p.block(nearX, hip + 7, 4, 5, skin);
   } else if (bcut === 3) {
-    p.block(farLegX - 1, hip, 8, legH, bot);
-    p.block(nearLegX - 1, hip + 1, 8, legH, bot);
-    p.rect(farLegX - 1, hip + 5, 8, 2, mix(bot, -32));
-    p.rect(nearLegX - 1, hip + 6, 8, 2, mix(bot, -32));
+    p.block(farX, hip, 5, legH, botc);
+    p.block(nearX, hip + 1, 5, legH, botc);
+    p.rect(farX, hip + 4, 5, 1, mix(botc, -30));
+    p.rect(nearX, hip + 5, 5, 1, mix(botc, -30));
   } else {
-    p.block(farLegX - 1, hip, 7, legH, bot);
-    p.block(nearLegX - 1, hip + 1, 7, legH, bot);
-    p.rect(farLegX, hip, 5, 4, mix(bot, 20));
-    p.rect(nearLegX, hip + 1, 5, 4, mix(bot, 20));
-    p.rect(farLegX, hip + legH - 3, 5, 2, mix(bot, -28));
-    p.rect(nearLegX, hip + legH - 2, 5, 2, mix(bot, -28));
+    p.block(farX, hip, 5, legH, botc);
+    p.block(nearX, hip + 1, 5, legH, botc);
+    p.rect(farX + 1, hip, 3, 3, mix(botc, 18));
+    p.rect(nearX + 1, hip + 1, 3, 3, mix(botc, 18));
   }
 
-  const shoeY = sit ? 60 + bob : 63 + bob;
-  p.block(farLegX - 1 + (sit ? 0 : farKick), shoeY, 8, 5, shoe);
-  p.block(nearLegX - 1 + (sit ? 0 : nearKick), shoeY + 2, 8, 5, shoe);
-  p.rect(farLegX + (sit ? 0 : farKick), shoeY, 6, 1, mix(shoe, 36));
-  p.rect(nearLegX + (sit ? 0 : nearKick), shoeY + 2, 6, 1, mix(shoe, 36));
-  p.rect(farLegX + 4 + (sit ? 0 : farKick), shoeY + 3, 3, 1, mix(shoe, -40));
-  p.rect(nearLegX + 4 + (sit ? 0 : nearKick), shoeY + 5, 3, 1, mix(shoe, -40));
+  const shoeY = sit ? 46 + bob : 46 + bob;
+  p.block(farX + farK, shoeY, 6, 4, shoe);
+  p.block(nearX + nearK, shoeY + 1, 6, 4, shoe);
+  p.rect(farX + 1 + farK, shoeY, 4, 1, mix(shoe, 32));
+  p.rect(nearX + 1 + nearK, shoeY + 1, 4, 1, mix(shoe, 32));
 
-  p.outline([14, 8, 20]);
+  p.outline([16, 10, 22]);
   return p;
 }
 
@@ -318,9 +293,9 @@ function raster(fig: Figure, dir: 0 | 1 | 2 | 3, frame: number, sit: boolean, da
   return out;
 }
 
-export function drawAvatarFront(ctx: CanvasRenderingContext2D, fig: Figure, cx: number, cy: number, scale = 3) {
+export function drawAvatarFront(ctx: CanvasRenderingContext2D, fig: Figure, cx: number, cy: number, scale = 4) {
   const spr = raster(fig, 0, 0, false, false);
-  const s = Math.max(2, Math.round(scale));
+  const s = Math.max(3, Math.round(scale));
   ctx.imageSmoothingEnabled = false;
   ctx.drawImage(spr, Math.round(cx - (W * s) / 2), Math.round(cy - H * s * 0.72), W * s, H * s);
 }
@@ -343,7 +318,7 @@ export function drawAvatarIso(
   const spr = raster(fig, dir, frame, sit, dance);
   const scale = 2;
   ctx.imageSmoothingEnabled = false;
-  ctx.drawImage(spr, Math.round(sx - (W * scale) / 2), Math.round(sy - H * scale + 18), W * scale, H * scale);
+  ctx.drawImage(spr, Math.round(sx - (W * scale) / 2), Math.round(sy - H * scale + 16), W * scale, H * scale);
 }
 
 export function shade(hex: string, amt: number) {

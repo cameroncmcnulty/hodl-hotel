@@ -38,7 +38,7 @@ export function CharacterPreview({ figure, size = 220 }: { figure: Figure; size?
       ctx.fillStyle = i % 2 ? "#4db7ea" : "#3aa6dc";
       ctx.fill();
     }
-    drawAvatarFront(ctx, clampFigure(figure), size / 2, size * 0.78, 3);
+    drawAvatarFront(ctx, clampFigure(figure), size / 2, size * 0.78, 4);
   }, [figure, size]);
   return <canvas ref={ref} width={size} height={size} className="rounded-2xl" />;
 }
