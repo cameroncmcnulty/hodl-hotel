@@ -94,12 +94,12 @@ function loadImage(src: string) {
 export function loadAvatars() {
   if (!loadPromise) {
     loadPromise = (async () => {
-      const man = (await fetch("/art/avatars/manifest.json?v=10")
+      const man = (await fetch("/art/avatars/manifest.json?v=12")
         .then((r) => r.json())
         .catch(() => [])) as string[];
       await Promise.all(
         man.map(async (file) => {
-          const img = await loadImage(`/art/avatars/${file}?v=10`);
+          const img = await loadImage(`/art/avatars/${file}?v=12`);
           if (!img) return;
           const c = document.createElement("canvas");
           c.width = img.width;
@@ -297,6 +297,10 @@ function pickBody(fig: Figure, dir: 0 | 1 | 2 | 3, walking: boolean, sit: boolea
   return firstSpr([`${g}-${view}-idle`, `${g}-se-idle`]);
 }
 
+function hairZone(fig: Figure) {
+  return fig.gender === 1 ? 0.58 : 0.46;
+}
+
 function isLooseHair(r: number, g: number, b: number) {
   if (isSkinPx(r, g, b)) return false;
   if (r > 200 && g > 200 && b > 200) return false;
@@ -305,72 +309,110 @@ function isLooseHair(r: number, g: number, b: number) {
   return false;
 }
 
-/** Erase baked hair using the idle hair mask, then stamp ONLY the isolated hair layer. */
-function stampHairLayer(
-  body: HTMLCanvasElement,
-  layer: HTMLCanvasElement,
-  idleMask: HTMLCanvasElement | null,
-  buzz: HTMLCanvasElement | null
-) {
+/** Keep only teal/cyan hair pixels — never face, hoodie, or clothes. */
+function extractHairOnly(src: HTMLCanvasElement, zone: number) {
+  const out = document.createElement("canvas");
+  out.width = src.width;
+  out.height = src.height;
+  const ctx = out.getContext("2d")!;
+  ctx.drawImage(src, 0, 0);
+  const img = ctx.getImageData(0, 0, out.width, out.height);
+  const d = img.data;
+  const maxY = Math.floor(out.height * zone);
+  for (let y = 0; y < out.height; y++) {
+    for (let x = 0; x < out.width; x++) {
+      const i = (y * out.width + x) * 4;
+      if (y > maxY || d[i + 3] < 16 || isSkinPx(d[i], d[i + 1], d[i + 2]) || !isLooseHair(d[i], d[i + 1], d[i + 2])) {
+        d[i + 3] = 0;
+      }
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+  return out;
+}
+
+function sampleScalp(body: HTMLCanvasElement): [number, number, number] {
+  const ctx = body.getContext("2d")!;
+  const img = ctx.getImageData(0, 0, body.width, body.height);
+  const d = img.data;
+  const y0 = Math.floor(body.height * 0.26);
+  const y1 = Math.floor(body.height * 0.38);
+  const x0 = Math.floor(body.width * 0.35);
+  const x1 = Math.floor(body.width * 0.65);
+  let r = 0,
+    g = 0,
+    b = 0,
+    n = 0;
+  for (let y = y0; y < y1; y++) {
+    for (let x = x0; x < x1; x++) {
+      const i = (y * body.width + x) * 4;
+      if (d[i + 3] > 20 && isSkinPx(d[i], d[i + 1], d[i + 2])) {
+        r += d[i];
+        g += d[i + 1];
+        b += d[i + 2];
+        n++;
+      }
+    }
+  }
+  if (!n) return [240, 196, 160];
+  return [(r / n) | 0, (g / n) | 0, (b / n) | 0];
+}
+
+/** Erase baked hair (spikes AND long girl hair), fill scalp, stamp hair-only pixels. */
+function stampHairLayer(body: HTMLCanvasElement, hairSrc: HTMLCanvasElement, zone: number) {
   const ctx = body.getContext("2d")!;
   const bd = ctx.getImageData(0, 0, body.width, body.height);
-  const ld = layer.getContext("2d")!.getImageData(0, 0, layer.width, layer.height);
-  const md = idleMask ? idleMask.getContext("2d")!.getImageData(0, 0, idleMask.width, idleMask.height) : null;
-  const zd = buzz ? buzz.getContext("2d")!.getImageData(0, 0, buzz.width, buzz.height) : null;
+  const hd = hairSrc.getContext("2d")!.getImageData(0, 0, hairSrc.width, hairSrc.height);
   const w = body.width;
   const h = body.height;
   const b = bd.data;
-  const l = ld.data;
-  const msk = md?.data;
-  const z = zd?.data;
-  const head = Math.floor(h * 0.4);
+  const hair = hd.data;
+  const maxY = Math.min(h - 1, Math.floor(h * zone));
   const mark = new Uint8Array(w * h);
-  for (let y = 0; y < Math.min(h, idleMask ? idleMask.height : head); y++) {
+  for (let y = 0; y <= maxY; y++) {
     for (let x = 0; x < w; x++) {
       const i = (y * w + x) * 4;
-      const maskHit = msk && y < idleMask!.height && x < idleMask!.width && msk[i + 3] > 20;
-      const colorHit = y < head && b[i + 3] > 12 && isLooseHair(b[i], b[i + 1], b[i + 2]);
-      if (maskHit || colorHit) mark[y * w + x] = 1;
+      if (b[i + 3] > 12 && isLooseHair(b[i], b[i + 1], b[i + 2])) mark[y * w + x] = 1;
     }
   }
   const grown = new Uint8Array(mark);
-  for (let pass = 0; pass < 3; pass++) {
+  for (let pass = 0; pass < 2; pass++) {
     const cur = Uint8Array.from(grown);
-    for (let y = 1; y < head - 1; y++) {
+    for (let y = 1; y < maxY; y++) {
       for (let x = 1; x < w - 1; x++) {
         const p = y * w + x;
         if (cur[p] || cur[p - 1] || cur[p + 1] || cur[p - w] || cur[p + w]) grown[p] = 1;
       }
     }
   }
-  for (let y = 0; y < head; y++) {
+  const scalp = sampleScalp(body);
+  const scalpY = Math.floor(h * 0.34);
+  for (let y = 0; y <= maxY; y++) {
     for (let x = 0; x < w; x++) {
       if (!grown[y * w + x]) continue;
       const i = (y * w + x) * 4;
-      const zi = z ? i : -1;
-      if (z && zi >= 0 && z[zi + 3] > 12 && y < h * 0.34 && (isSkinPx(z[zi], z[zi + 1], z[zi + 2]) || isLooseHair(z[zi], z[zi + 1], z[zi + 2]))) {
-        b[i] = z[zi];
-        b[i + 1] = z[zi + 1];
-        b[i + 2] = z[zi + 2];
-        b[i + 3] = z[zi + 3];
-      } else if (isSkinPx(b[i], b[i + 1], b[i + 2])) {
-        /* keep face */
+      if (isSkinPx(b[i], b[i + 1], b[i + 2])) continue;
+      if (y < scalpY) {
+        b[i] = scalp[0];
+        b[i + 1] = scalp[1];
+        b[i + 2] = scalp[2];
+        b[i + 3] = 255;
       } else {
         b[i + 3] = 0;
       }
     }
   }
-  const lw = layer.width;
-  const lh = layer.height;
-  for (let y = 0; y < Math.min(h, lh); y++) {
-    for (let x = 0; x < Math.min(w, lw); x++) {
+  const hw = hairSrc.width;
+  const hh = hairSrc.height;
+  for (let y = 0; y < Math.min(h, hh); y++) {
+    for (let x = 0; x < Math.min(w, hw); x++) {
       const i = (y * w + x) * 4;
-      const li = (y * lw + x) * 4;
-      if (l[li + 3] > 16 && (y < head || isLooseHair(l[li], l[li + 1], l[li + 2]))) {
-        b[i] = l[li];
-        b[i + 1] = l[li + 1];
-        b[i + 2] = l[li + 2];
-        b[i + 3] = l[li + 3];
+      const hi = (y * hw + x) * 4;
+      if (hair[hi + 3] > 16 && isLooseHair(hair[hi], hair[hi + 1], hair[hi + 2])) {
+        b[i] = hair[hi];
+        b[i + 1] = hair[hi + 1];
+        b[i + 2] = hair[hi + 2];
+        b[i + 3] = hair[hi + 3];
       }
     }
   }
@@ -383,17 +425,13 @@ function compose(fig: Figure, dir: 0 | 1 | 2 | 3, walking: boolean, sit: boolean
   const g = gKey(fig);
   const view = viewOf(dir);
   const hair = hairName(fig);
-  const top = topName(fig);
-  const bot = botName(fig);
   const defHair = defaultHairName(fig.gender ?? 0);
   const body = pickBody(fig, dir, walking, sit, frame);
   if (!body) return null;
 
   const usingHairBody = body.id.includes(`-hair-${hair}-`);
-  const layer = spr(`${g}-hair-${hair}-${view}-layer`) || spr(`${g}-hair-${hair}-se-layer`);
-  const needLayer = hair !== defHair && !usingHairBody && !!layer;
-
-  const key = `${body.id}|${needLayer ? "L" + hair + view : "raw"}|${frame}`;
+  const needHair = hair !== defHair && !usingHairBody;
+  const key = `${g}|${body.id}|${hair}|${needHair ? "H" : "raw"}|${view}|${frame}`;
   const hit = composeCache.get(key);
   if (hit) return { id: key, src: hit };
 
@@ -402,14 +440,16 @@ function compose(fig: Figure, dir: 0 | 1 | 2 | 3, walking: boolean, sit: boolean
   out.height = body.src.height;
   out.getContext("2d")!.drawImage(body.src, 0, 0);
 
-  if (needLayer && layer) {
-    const idleMask = spr(`${g}-${view}-idle-layer`) || spr(`${g}-se-idle-layer`);
-    const buzz = spr(`${g}-hair-buzz-se`) || spr(`${g}-se-idle`);
-    stampHairLayer(out, layer, idleMask, buzz);
+  if (needHair) {
+    const zone = hairZone(fig);
+    const full = spr(`${g}-hair-${hair}-${view}`) || spr(`${g}-hair-${hair}-se`);
+    const layer = spr(`${g}-hair-${hair}-${view}-layer`) || spr(`${g}-hair-${hair}-se-layer`);
+    const src = full || layer;
+    if (src) stampHairLayer(out, extractHairOnly(src, zone), zone);
   }
 
   composeCache.set(key, out);
-  if (composeCache.size > 160) {
+  if (composeCache.size > 180) {
     const first = composeCache.keys().next().value;
     if (first) composeCache.delete(first);
   }

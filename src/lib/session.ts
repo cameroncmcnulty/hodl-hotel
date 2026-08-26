@@ -32,11 +32,12 @@ export function readSession(token: string | undefined | null): { u: string; exp:
 
 export async function setSessionCookie(userId: string) {
   const jar = await cookies();
+  const secure = process.env.COOKIE_SECURE === "true" || (process.env.NODE_ENV === "production" && process.env.COOKIE_SECURE !== "false");
   jar.set(COOKIE, signSession(userId), {
     httpOnly: true,
     sameSite: "lax",
     path: "/",
-    secure: process.env.NODE_ENV === "production",
+    secure,
     maxAge: 14 * 24 * 3600,
   });
 }

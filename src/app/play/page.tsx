@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 export default function PlayPage() {
   const [data, setData] = useState<any>(null);
   useEffect(() => {
-    fetch("/api/auth/me")
+    fetch("/api/auth/me", { credentials: "include" })
       .then((r) => r.json())
       .then((j) => {
         if (!j.user) location.href = "/login";

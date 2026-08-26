@@ -2,6 +2,17 @@ import { isStair, layoutById, tileH, walkable } from "../layouts";
 import type { Placed } from "../types";
 import { furn, footprint } from "../catalog";
 
+export function furnAt(furniture: Placed[], x: number, y: number) {
+  for (let i = furniture.length - 1; i >= 0; i--) {
+    const p = furniture[i];
+    const def = furn(p.catalogId);
+    if (!def) continue;
+    const { w, d } = footprint(def, p.rot);
+    if (x >= p.x && x < p.x + w && y >= p.y && y < p.y + d) return p;
+  }
+  return undefined;
+}
+
 export function canPlaceFurn(
   room: { layoutId: string; furniture: Placed[] },
   defId: string,

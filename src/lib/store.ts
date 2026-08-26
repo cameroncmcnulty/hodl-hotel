@@ -19,7 +19,11 @@ function resolveDataDir() {
 }
 
 const dataDir = resolveDataDir();
-const FILES = [join(dataDir, "db.json"), join("/tmp", "hodl-hotel-db.json")];
+const FILES = [
+  join(dataDir, "db.json"),
+  join(process.cwd(), "data", "db.json"),
+  join("/tmp", "hodl-hotel-db.json"),
+];
 
 function empty(): DB {
   return {
@@ -58,21 +62,29 @@ function filePath() {
 
 export function loadDB(): DB {
   if (cache) return cache;
+  const found: { f: string; db: DB }[] = [];
   for (const f of FILES) {
     try {
-      if (existsSync(f)) {
-        cache = JSON.parse(readFileSync(f, "utf8")) as DB;
-        bootstrap(cache);
-        return cache;
-      }
+      if (existsSync(f)) found.push({ f, db: JSON.parse(readFileSync(f, "utf8")) as DB });
     } catch {
       /* */
     }
+  }
+  if (found.length) {
+    found.sort((a, b) => (b.db.users?.length || 0) - (a.db.users?.length || 0));
+    cache = found[0].db;
+    bootstrap(cache);
+    return cache;
   }
   cache = empty();
   bootstrap(cache);
   saveDB(cache);
   return cache;
+}
+
+export function reloadDB(): DB {
+  cache = null;
+  return loadDB();
 }
 
 function bootstrap(db: DB) {
@@ -116,12 +128,19 @@ function bootstrap(db: DB) {
 export function saveDB(db: DB) {
   cache = db;
   const json = JSON.stringify(db);
-  const f = filePath();
-  try {
-    writeFileSync(f, json);
-  } catch {
+  let wrote = false;
+  for (const f of FILES) {
     try {
-      writeFileSync(FILES[1], json);
+      mkdirSync(join(f, ".."), { recursive: true });
+      writeFileSync(f, json);
+      wrote = true;
+    } catch {
+      /* try next */
+    }
+  }
+  if (!wrote) {
+    try {
+      writeFileSync(filePath(), json);
     } catch {
       /* */
     }

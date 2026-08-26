@@ -11,7 +11,7 @@ export function FurnIcon({ id, className }: { id: string; className?: string }) 
 
   useEffect(() => {
     let alive = true;
-    const paint = (sprites: Record<string, HTMLCanvasElement> = {}) => {
+    const paint = (spr?: HTMLCanvasElement | null) => {
       const c = ref.current;
       if (!alive || !c) return;
       const def = furn(id);
@@ -23,27 +23,29 @@ export function FurnIcon({ id, className }: { id: string; className?: string }) 
       c.width = W;
       c.height = H;
       ctx.imageSmoothingEnabled = false;
-      ctx.clearRect(0, 0, W, H);
-      ctx.fillStyle = "#8fd4f2";
+      ctx.fillStyle = "#7ec8ea";
       ctx.fillRect(0, 0, W, H);
+      if (spr && spr.width > 4) {
+        const pad = 10;
+        const scale = Math.min((W - pad * 2) / spr.width, (H - pad * 2) / spr.height);
+        const dw = Math.max(8, spr.width * scale);
+        const dh = Math.max(8, spr.height * scale);
+        ctx.drawImage(spr, Math.round((W - dw) / 2), Math.round((H - dh) / 2), dw, dh);
+        return;
+      }
       const { w, d } = footprint(def, 0);
       const spanX = ((w + d) * TW) / 2 + 8;
       const spanY = ((w + d) * TH) / 2 + def.h * ZH + 24;
       const scale = Math.min(0.95, (W - 16) / spanX, (H - 20) / spanY);
       const foot = iso(w, d);
       ctx.setTransform(scale, 0, 0, scale, W / 2 - foot.sx * scale, H * 0.9 - foot.sy * scale);
-      drawFurniture(
-        ctx,
-        def,
-        { uid: "icon", catalogId: id, x: 0, y: 0, rot: 0, ownerId: "" },
-        0.4,
-        sprites
-      );
+      drawFurniture(ctx, def, { uid: "icon", catalogId: id, x: 0, y: 0, rot: 0, ownerId: "" }, 0.4, {});
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
     };
-    paint({});
+    paint(null);
     loadSprite(id).then((spr) => {
-      if (!alive || !spr) return;
-      paint({ [id]: spr });
+      if (!alive) return;
+      paint(spr);
     });
     return () => {
       alive = false;

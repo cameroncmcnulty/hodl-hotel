@@ -7,7 +7,7 @@ import { CATALOG, CATS, furn, RARITY_LABEL, RARITY_TONE, type Rarity } from "@/l
 import { FREE_LAYOUT_IDS, layoutById, PREMIUM_LAYOUTS, USER_LAYOUTS, walkable } from "@/lib/layouts";
 import { COIN_PACKS } from "@/lib/constants";
 import { drawRoom, tileAt } from "@/lib/game/draw";
-import { astar, canPlaceFurn } from "@/lib/game/path";
+import { astar, canPlaceFurn, furnAt } from "@/lib/game/path";
 import { iso } from "@/lib/game/iso";
 import { face, motAt, setPath, tickMot, type Mot } from "@/lib/game/motion";
 import { clampFigure, loadAvatars } from "@/lib/game/avatar";
@@ -89,9 +89,31 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
     loadAvatars();
   }, []);
 
+  useEffect(() => {
+    if (panel !== "shop") return;
+    const ids = CATALOG.filter((f) => f.category === shopCat && f.id !== "ad_board").map((f) => f.id);
+    loadSprites(ids).then((s) => {
+      spritesRef.current = { ...spritesRef.current, ...s };
+    });
+  }, [panel, shopCat]);
+
   const act = useCallback(async (body: { type: string; [k: string]: unknown }) => {
-    const res = await fetch("/api/game", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
-    const j = await res.json();
+    const res = await fetch("/api/game", {
+      method: "POST",
+      credentials: "include",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const j = await res.json().catch(() => ({ error: "Bad response" }));
+    if (res.status === 401 || /sign in|session expired/i.test(String(j.error || ""))) {
+      if (body.type !== "ping") {
+        setStatus("Session expired — sending you to login");
+        setTimeout(() => {
+          location.href = "/login";
+        }, 900);
+      }
+      return j;
+    }
     if (j.error && body.type !== "ping") setStatus(j.error);
     if (j.room) {
       if (body.type === "join") motions.current = {};
@@ -142,7 +164,7 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
   useEffect(() => {
     act({ type: "join", roomId: homeRoomId });
     return () => {
-      fetch("/api/game", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ type: "leave" }) });
+      fetch("/api/game", { method: "POST", credentials: "include", headers: { "content-type": "application/json" }, body: JSON.stringify({ type: "leave" }) });
     };
   }, [act, homeRoomId]);
 
@@ -326,13 +348,14 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
 
   useEffect(() => {
     if (!status) return;
-    const t = setTimeout(() => setStatus(""), 2800);
+    const t = setTimeout(() => setStatus(""), 4500);
     return () => clearTimeout(t);
   }, [status]);
 
   async function refreshMe() {
-    const j = await fetch("/api/auth/me").then((r) => r.json());
+    const j = await fetch("/api/auth/me", { credentials: "include" }).then((r) => r.json());
     if (j.user) setMe((prev) => ({ ...prev, ...j.user }));
+    return j.user as Me | null;
   }
 
   async function openNav() {
@@ -353,7 +376,7 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
   }
 
   async function buyPlan(id: string) {
-    const res = await fetch("/api/shop", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ layoutId: id }) });
+    const res = await fetch("/api/shop", { method: "POST", credentials: "include", headers: { "content-type": "application/json" }, body: JSON.stringify({ layoutId: id }) });
     const j = await res.json();
     if (j.error) setStatus(j.error);
     else {
@@ -374,13 +397,31 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
   }
 
   async function buy(id: string) {
-    const res = await fetch("/api/shop", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ catalogId: id }) });
-    const j = await res.json();
-    if (j.error) setStatus(j.error);
-    else {
-      setStatus(`Bought ${j.item.name}`);
-      refreshMe();
+    const def = furn(id);
+    if (def && meState.coins < def.price) {
+      setStatus(`Need ${def.price.toLocaleString()} coins — you have ${meState.coins.toLocaleString()}`);
+      return;
     }
+    const res = await fetch("/api/shop", {
+      method: "POST",
+      credentials: "include",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ catalogId: id }),
+    });
+    const j = await res.json().catch(() => ({ error: "Shop is down" }));
+    if (res.status === 401 || /sign in|session expired/i.test(String(j.error || ""))) {
+      setStatus("Session expired — sending you to login");
+      setTimeout(() => {
+        location.href = "/login";
+      }, 900);
+      return;
+    }
+    if (j.error) {
+      setStatus(j.error);
+      return;
+    }
+    if (j.user) setMe((prev) => ({ ...prev, ...j.user }));
+    setStatus(j.message || `Purchase successful — ${j.item?.name || "item"} is in your backpack.`);
   }
 
   async function buyCoins(packId: string) {
@@ -475,7 +516,7 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
           e.preventDefault();
           if (!snap) return;
           const t = localTile(e);
-          const furnHit = snap.room.furniture.find((p) => p.x === t.x && p.y === t.y);
+          const furnHit = furnAt(snap.room.furniture, t.x, t.y);
           const userHit = snap.occupants.find((o) => Math.round(o.x) === t.x && Math.round(o.y) === t.y && o.userId !== meState.id);
           setMenu({ x: e.clientX, y: e.clientY, furn: furnHit, user: userHit });
         }}
@@ -483,9 +524,19 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
           setMenu(null);
           const t = localTile(e);
           if (place) {
+            if (snap?.room.ownerId === null) {
+              setStatus("Hotel rooms are curated — taking you to your suite.");
+              await joinRoom(homeRoomId);
+              return;
+            }
+            if (snap?.room.ownerId && snap.room.ownerId !== meState.id) {
+              setStatus("Only you can decorate your own suite.");
+              return;
+            }
             const j = await act({ type: "place", uid: place.uid, x: t.x, y: t.y, rot: place.rot });
             if (!j.error) {
               setPlace(null);
+              setStatus("Placed. Right-click to move, rotate, or pick up.");
               refreshMe();
             }
             return;
@@ -539,8 +590,29 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
       </div>
 
       {status && (
-        <div className="absolute left-1/2 top-20 -translate-x-1/2 rounded-xl bg-black/70 px-4 py-2 text-sm" onClick={() => setStatus("")}>
+        <div className="absolute left-1/2 top-20 z-50 -translate-x-1/2 rounded-xl bg-black/80 px-4 py-2 text-sm shadow-lg" onClick={() => setStatus("")}>
           {status}
+        </div>
+      )}
+
+      {place && (
+        <div className="absolute bottom-24 left-1/2 z-40 flex -translate-x-1/2 items-center gap-2 rounded-xl border border-white/15 bg-night/95 px-3 py-2 text-sm">
+          <span className="max-w-[40vw] truncate text-white/80">Placing {furn(place.catalogId)?.name}</span>
+          <button
+            className="rounded bg-white/10 px-2 py-1"
+            onClick={() => setPlace({ ...place, rot: (((place.rot + 3) % 4) as 0 | 1 | 2 | 3) })}
+          >
+            ↶
+          </button>
+          <button
+            className="rounded bg-white/10 px-2 py-1"
+            onClick={() => setPlace({ ...place, rot: (((place.rot + 1) % 4) as 0 | 1 | 2 | 3) })}
+          >
+            ↷
+          </button>
+          <button className="rounded bg-coral/80 px-2 py-1 text-white" onClick={() => setPlace(null)}>
+            Cancel
+          </button>
         </div>
       )}
 
@@ -569,7 +641,16 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
             {meState.backpack.map((slot, i) => (
               <button
                 key={i}
-                onClick={() => slot && setPlace({ uid: slot.uid, catalogId: slot.catalogId, rot: 0 })}
+                onClick={async () => {
+                  if (!slot) return;
+                  if (snap?.room.ownerId !== meState.id) {
+                    setStatus("Opening your suite to place furniture…");
+                    await joinRoom(homeRoomId);
+                  }
+                  setPlace({ uid: slot.uid, catalogId: slot.catalogId, rot: 0 });
+                  setPanel(null);
+                  setStatus("Rotate with ← → or R, then click a floor tile to place.");
+                }}
                 className={`flex aspect-square flex-col items-center justify-center overflow-hidden rounded-xl border text-[9px] leading-tight ${slot ? "border-mint/40 bg-[#8fd4f2]/20" : "border-white/10 bg-black/30"}`}
               >
                 {slot ? (
@@ -581,7 +662,7 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
               </button>
             ))}
           </div>
-          <p className="mt-2 text-xs text-white/50">Click an item, then click the floor to place. R rotates in place mode (keyboard).</p>
+          <p className="mt-2 text-xs text-white/50">Click an item to hold it, rotate, then click the floor. Right-click placed furniture to move or pick it up.</p>
         </Hud>
       )}
 
@@ -647,7 +728,7 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
                 </div>
                 <div className="text-xs text-white/60">{f.desc}</div>
                 <button className="btn-sol mt-2 w-full text-xs" onClick={() => buy(f.id)}>
-                  {f.price === 0 ? "Free" : `${f.price.toLocaleString()} coins`}
+                  {f.price === 0 ? "Get free" : meState.coins < f.price ? `Need ${f.price.toLocaleString()}c` : `Buy · ${f.price.toLocaleString()}c`}
                 </button>
               </div>
                 );
@@ -827,7 +908,29 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
               {furn(menu.furn.catalogId)?.use === "dice" && <Btn onClick={() => { act({ type: "use", uid: menu.furn!.uid }); setMenu(null); }}>Roll</Btn>}
               {furn(menu.furn.catalogId)?.sittable && <Btn onClick={() => { act({ type: "use", uid: menu.furn!.uid }); setMenu(null); }}>Sit</Btn>}
               <Btn onClick={() => { act({ type: "rotate", uid: menu.furn!.uid }); setMenu(null); }}>Rotate</Btn>
-              <Btn onClick={() => { act({ type: "pickup", uid: menu.furn!.uid }).then(refreshMe); setMenu(null); }}>Pick up</Btn>
+              <Btn
+                onClick={async () => {
+                  const p = menu.furn!;
+                  const j = await act({ type: "pickup", uid: p.uid });
+                  setMenu(null);
+                  if (j.error) return;
+                  await refreshMe();
+                  setPlace({ uid: p.uid, catalogId: p.catalogId, rot: p.rot });
+                  setStatus("Moving — rotate, then click a new tile.");
+                }}
+              >
+                Move
+              </Btn>
+              <Btn
+                onClick={async () => {
+                  await act({ type: "pickup", uid: menu.furn!.uid });
+                  setMenu(null);
+                  refreshMe();
+                  setStatus("Picked up — it's back in your backpack.");
+                }}
+              >
+                Pick up
+              </Btn>
               {furn(menu.furn.catalogId)?.use === "frame" && (
                 <Btn onClick={async () => {
                   const w = prompt("Wallet address that holds the NFT (or leave blank to use linked wallet)");

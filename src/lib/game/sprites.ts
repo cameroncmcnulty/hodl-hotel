@@ -20,47 +20,45 @@ function keyAndTrim(img: HTMLImageElement) {
   ctx.drawImage(img, 0, 0);
   const data = ctx.getImageData(0, 0, c.width, c.height);
   const d = data.data;
-  let hasAlpha = false;
-  for (let i = 3; i < d.length; i += 4) {
-    if (d[i] < 250) {
-      hasAlpha = true;
-      break;
-    }
-  }
-  if (!hasAlpha) {
-    const w = c.width;
-    const h = c.height;
-    const keyed = new Uint8Array(w * h);
-    const stack: number[] = [];
-    const tryKey = (x: number, y: number) => {
-      if (x < 0 || y < 0 || x >= w || y >= h) return;
-      const i = y * w + x;
-      if (keyed[i]) return;
-      const o = i * 4;
-      if (!isMagenta(d[o], d[o + 1], d[o + 2])) return;
+  const w = c.width;
+  const h = c.height;
+  const keyed = new Uint8Array(w * h);
+  const stack: number[] = [];
+  const tryKey = (x: number, y: number) => {
+    if (x < 0 || y < 0 || x >= w || y >= h) return;
+    const i = y * w + x;
+    if (keyed[i]) return;
+    const o = i * 4;
+    if (d[o + 3] < 8) {
       keyed[i] = 1;
-      d[o + 3] = 0;
-      stack.push(i);
-    };
-    for (let x = 0; x < w; x++) {
-      tryKey(x, 0);
-      tryKey(x, h - 1);
+      return;
     }
-    for (let y = 0; y < h; y++) {
-      tryKey(0, y);
-      tryKey(w - 1, y);
-    }
-    while (stack.length) {
-      const i = stack.pop()!;
-      const x = i % w;
-      const y = (i / w) | 0;
-      tryKey(x - 1, y);
-      tryKey(x + 1, y);
-      tryKey(x, y - 1);
-      tryKey(x, y + 1);
-    }
-    ctx.putImageData(data, 0, 0);
+    if (!isMagenta(d[o], d[o + 1], d[o + 2])) return;
+    keyed[i] = 1;
+    d[o + 3] = 0;
+    stack.push(i);
+  };
+  for (let x = 0; x < w; x++) {
+    tryKey(x, 0);
+    tryKey(x, h - 1);
   }
+  for (let y = 0; y < h; y++) {
+    tryKey(0, y);
+    tryKey(w - 1, y);
+  }
+  while (stack.length) {
+    const i = stack.pop()!;
+    const x = i % w;
+    const y = (i / w) | 0;
+    tryKey(x - 1, y);
+    tryKey(x + 1, y);
+    tryKey(x, y - 1);
+    tryKey(x, y + 1);
+  }
+  for (let i = 0; i < d.length; i += 4) {
+    if (d[i + 3] > 8 && isMagenta(d[i], d[i + 1], d[i + 2])) d[i + 3] = 0;
+  }
+  ctx.putImageData(data, 0, 0);
 
   const trimmed = ctx.getImageData(0, 0, c.width, c.height);
   const td = trimmed.data;
@@ -108,8 +106,8 @@ export function loadSprite(id: string) {
   if (cache[id]) return Promise.resolve(cache[id]);
   if (id in inflight) return inflight[id];
   inflight[id] = (async () => {
-    const png = await loadImage(`/art/furn/${id}.png?v=12`);
-    const img = png || (await loadImage(`/art/furn/${id}.jpg?v=12`));
+    const png = await loadImage(`/art/furn/${id}.png?v=13`);
+    const img = png || (await loadImage(`/art/furn/${id}.jpg?v=13`));
     if (!img) return null;
     const canvas = keyAndTrim(img);
     if (canvas.width > 4) cache[id] = canvas;

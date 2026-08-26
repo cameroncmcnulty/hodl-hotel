@@ -3,7 +3,7 @@ import { CATALOG, furn } from "@/lib/catalog";
 import { BACKPACK_SLOTS } from "@/lib/constants";
 import { FREE_LAYOUT_IDS, PREMIUM_LAYOUTS } from "@/lib/layouts";
 import { sessionUserId } from "@/lib/session";
-import { findUser, loadDB, log, publicUser, saveDB } from "@/lib/store";
+import { findUser, loadDB, log, publicUser, reloadDB, saveDB } from "@/lib/store";
 
 export async function GET() {
   return NextResponse.json({ catalog: CATALOG, plans: PREMIUM_LAYOUTS.map((l) => ({ id: l.id, name: l.name, blurb: l.blurb, price: l.price })) });
@@ -11,10 +11,14 @@ export async function GET() {
 
 export async function POST(req: Request) {
   const id = await sessionUserId();
-  if (!id) return NextResponse.json({ error: "Sign in" }, { status: 401 });
-  const db = loadDB();
-  const u = findUser(db, id);
-  if (!u) return NextResponse.json({ error: "Sign in" }, { status: 401 });
+  if (!id) return NextResponse.json({ error: "Session expired. Log in again." }, { status: 401 });
+  let db = loadDB();
+  let u = findUser(db, id);
+  if (!u) {
+    db = reloadDB();
+    u = findUser(db, id);
+  }
+  if (!u) return NextResponse.json({ error: "Session expired. Log in again." }, { status: 401 });
   const body = await req.json().catch(() => ({}));
   if (body.layoutId) {
     const layout = PREMIUM_LAYOUTS.find((l) => l.id === body.layoutId);
@@ -63,5 +67,9 @@ export async function POST(req: Request) {
   log(db, "buy", `${u.username} bought ${n}× ${def.name}`);
   saveDB(db);
   void BACKPACK_SLOTS;
-  return NextResponse.json({ user: publicUser(u), item: def });
+  return NextResponse.json({
+    user: publicUser(u),
+    item: def,
+    message: `Purchase successful — ${def.name} is in your backpack.`,
+  });
 }

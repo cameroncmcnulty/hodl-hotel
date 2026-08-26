@@ -2,10 +2,10 @@ import { BACKPACK_SLOTS, CHAT_MAX, HISTORY_LIMIT, TRADE_SLOTS } from "../constan
 import { furn, footprint } from "../catalog";
 import { FREE_LAYOUT_IDS, layoutById, walkable, isDance } from "../layouts";
 import { moderate } from "../moderate";
-import { dropOccupant, findRoom, findUser, liveRoom, loadDB, log, occupantCount, pruneLive, saveDB } from "../store";
+import { dropOccupant, findRoom, findUser, liveRoom, loadDB, log, occupantCount, pruneLive, reloadDB, saveDB } from "../store";
 import type { Figure, Item, Occupant, Placed, User } from "../types";
 import { clampFigure } from "./avatar";
-import { astar, blockedSet, canPlaceFurn, dirTowards } from "./path";
+import { astar, blockedSet, canPlaceFurn, dirTowards, furnAt } from "./path";
 
 export type Action =
   | { type: "join"; roomId: string; password?: string }
@@ -70,9 +70,13 @@ export function snapshot(roomId: string, viewerId: string) {
 }
 
 export function applyAction(userId: string, action: Action) {
-  const db = loadDB();
-  const u = findUser(db, userId);
-  if (!u) return { error: "Not signed in" };
+  let db = loadDB();
+  let u = findUser(db, userId);
+  if (!u) {
+    db = reloadDB();
+    u = findUser(db, userId);
+  }
+  if (!u) return { error: "Session expired. Log in again." };
   if (u.bannedUntil && new Date(u.bannedUntil) > new Date()) return { error: "Account suspended" };
 
   pruneLive();
@@ -156,13 +160,10 @@ export function applyAction(userId: string, action: Action) {
       if (Math.hypot(occ.x - last.x, occ.y - last.y) < 0.2) occ.path = [];
     }
     occ.sitUid = undefined;
-    const sit = room.furniture.find((p) => {
-      const def = furn(p.catalogId);
-      return def?.sittable && p.x === rx && p.y === ry;
-    });
-    if (sit && !occ.path.length) occ.sitUid = sit.uid;
-    const stepped = room.furniture.find((p) => p.x === rx && p.y === ry && furn(p.catalogId)?.use === "teleport");
-    if (stepped?.pairId) {
+    const sit = furnAt(room.furniture, rx, ry);
+    if (sit && furn(sit.catalogId)?.sittable && !occ.path.length) occ.sitUid = sit.uid;
+    const stepped = furnAt(room.furniture, rx, ry);
+    if (stepped && furn(stepped.catalogId)?.use === "teleport" && stepped.pairId) {
       const dest = db.rooms
         .flatMap((r) => r.furniture.map((f) => ({ r, f })))
         .find(({ f }) => f.pairId === stepped.pairId && f.uid !== stepped.uid);
@@ -187,11 +188,8 @@ export function applyAction(userId: string, action: Action) {
     occ.sitUid = undefined;
     if (path.length) occ.dir = dirTowards(occ.x, occ.y, path[0].x, path[0].y);
     else occ.dir = dirTowards(occ.x, occ.y, action.x, action.y);
-    const sit = room.furniture.find((p) => {
-      const def = furn(p.catalogId);
-      return def?.sittable && p.x === action.x && p.y === action.y;
-    });
-    if (sit) {
+    const sit = furnAt(room.furniture, action.x, action.y);
+    if (sit && furn(sit.catalogId)?.sittable) {
       occ.sitUid = sit.uid;
       occ.dir = sit.rot;
     }
@@ -219,8 +217,8 @@ export function applyAction(userId: string, action: Action) {
   }
 
   if (action.type === "place") {
-    if (room.ownerId !== userId && room.ownerId !== null) return { error: "Only the host can decorate" };
-    if (room.ownerId === null) return { error: "Hotel rooms are curated" };
+    if (room.ownerId === null) return { error: "Hotel rooms are curated — place furniture in your own suite" };
+    if (room.ownerId !== userId) return { error: "Only you can decorate your suite" };
     const slot = u.backpack.findIndex((s) => s?.uid === action.uid);
     const item = slot >= 0 ? u.backpack[slot] : null;
     if (!item) return { error: "Item not in backpack" };

@@ -4,7 +4,7 @@ import { sessionUserId } from "@/lib/session";
 
 export async function GET(req: Request) {
   const id = await sessionUserId();
-  if (!id) return NextResponse.json({ error: "Sign in" }, { status: 401 });
+  if (!id) return NextResponse.json({ error: "Session expired. Log in again." }, { status: 401 });
   const roomId = new URL(req.url).searchParams.get("roomId") || "";
   if (!roomId) return NextResponse.json({ error: "roomId" }, { status: 400 });
   return NextResponse.json(snapshot(roomId, id));
@@ -12,7 +12,7 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   const id = await sessionUserId();
-  if (!id) return NextResponse.json({ error: "Sign in" }, { status: 401 });
+  if (!id) return NextResponse.json({ error: "Session expired. Log in again." }, { status: 401 });
   const body = await req.json().catch(() => ({}));
   const result = applyAction(id, body);
   const failed = "error" in result && result.error && body.type !== "ping";

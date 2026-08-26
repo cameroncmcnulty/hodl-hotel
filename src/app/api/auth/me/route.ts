@@ -1,12 +1,16 @@
 import { NextResponse } from "next/server";
 import { sessionUserId } from "@/lib/session";
-import { findUser, loadDB, occupantCount, publicUser } from "@/lib/store";
+import { findUser, loadDB, occupantCount, publicUser, reloadDB } from "@/lib/store";
 
 export async function GET() {
   const id = await sessionUserId();
   if (!id) return NextResponse.json({ user: null });
-  const db = loadDB();
-  const u = findUser(db, id);
+  let db = loadDB();
+  let u = findUser(db, id);
+  if (!u) {
+    db = reloadDB();
+    u = findUser(db, id);
+  }
   if (!u) return NextResponse.json({ user: null });
   return NextResponse.json({
     user: { ...publicUser(u), email: u.email },
