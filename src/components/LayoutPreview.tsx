@@ -72,7 +72,7 @@ export function LayoutPreview({ layoutId }: { layoutId: string }) {
       c.height = VH;
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.imageSmoothingEnabled = false;
-      ctx.fillStyle = "#7ec8ea";
+      ctx.fillStyle = "#050508";
       ctx.fillRect(0, 0, VW, VH);
       const furniture: Placed[] = (SAMPLES[layoutId] || [])
         .filter((s) => furn(s.id) && walkable(layout, s.x, s.y))
@@ -123,7 +123,7 @@ export function LayoutPreview({ layoutId }: { layoutId: string }) {
       ref={ref}
       width={VW}
       height={VH}
-      className="h-36 w-full rounded-lg bg-[#7ec8ea] sm:h-40"
+      className="h-36 w-full rounded-lg bg-[#050508] sm:h-40"
       style={{ imageRendering: "pixelated" }}
     />
   );

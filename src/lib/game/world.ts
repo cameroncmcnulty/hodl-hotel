@@ -4,7 +4,7 @@ import { FREE_LAYOUT_IDS, layoutById, walkable, isDance } from "../layouts";
 import { moderate } from "../moderate";
 import { dropOccupant, findRoom, findUser, liveRoom, loadDB, log, occupantCount, pruneLive, saveDB } from "../store";
 import type { Item, Occupant, Placed, User } from "../types";
-import { astar, blockedSet } from "./path";
+import { astar, blockedSet, canPlaceFurn } from "./path";
 
 export type Action =
   | { type: "join"; roomId: string; password?: string }
@@ -44,23 +44,7 @@ function firstFreeSlot(u: User) {
 }
 
 function canPlace(room: { layoutId: string; furniture: Placed[] }, defId: string, x: number, y: number, rot: 0 | 1 | 2 | 3) {
-  const def = furn(defId);
-  if (!def) return false;
-  const layout = layoutById(room.layoutId);
-  const { w, d } = footprint(def, rot);
-  for (let dy = 0; dy < d; dy++) {
-    for (let dx = 0; dx < w; dx++) {
-      if (!walkable(layout, x + dx, y + dy) && def.slot === "floor") return false;
-    }
-  }
-  if (def.walkable || def.slot === "wall") return true;
-  const blocked = blockedSet(room.layoutId, room.furniture);
-  for (let dy = 0; dy < d; dy++) {
-    for (let dx = 0; dx < w; dx++) {
-      if (blocked.has(`${x + dx},${y + dy}`)) return false;
-    }
-  }
-  return true;
+  return canPlaceFurn(room, defId, x, y, rot);
 }
 
 export function snapshot(roomId: string, viewerId: string) {

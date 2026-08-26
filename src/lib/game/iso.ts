@@ -20,7 +20,7 @@ export function depth(x: number, y: number, z = 0) {
 }
 
 /** Screen-space AABB of a layout including walls and floor thickness. */
-export function layoutIsoBounds(layout: { w: number; h: number }, wallH = 3.8) {
+export function layoutIsoBounds(layout: { w: number; h: number }, wallH = 7.4) {
   const corners = [
     iso(0, 0, wallH),
     iso(layout.w, 0, wallH),

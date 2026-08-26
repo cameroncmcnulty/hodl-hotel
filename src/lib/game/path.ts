@@ -1,4 +1,4 @@
-import { layoutById, walkable } from "../layouts";
+import { isStair, layoutById, tileH, walkable } from "../layouts";
 import type { Placed } from "../types";
 import { furn, footprint } from "../catalog";
 
@@ -16,6 +16,7 @@ export function canPlaceFurn(
   for (let dy = 0; dy < d; dy++) {
     for (let dx = 0; dx < w; dx++) {
       if (!walkable(layout, x + dx, y + dy) && def.slot === "floor") return false;
+      if (isStair(layout, x + dx, y + dy) && def.slot === "floor" && !def.walkable) return false;
     }
   }
   if (def.walkable || def.slot === "wall") return true;
@@ -103,6 +104,12 @@ export function astar(
       if (nx < 0 || ny < 0 || nx >= layout.w || ny >= layout.h) continue;
       const nk = key(nx, ny);
       if (blocked.has(nk) && nk !== goal && nk !== start) continue;
+      const h1 = tileH(layout, cx, cy);
+      const h2 = tileH(layout, nx, ny);
+      const stepOk =
+        Math.abs(h1 - h2) < 0.2 ||
+        ((isStair(layout, cx, cy) || isStair(layout, nx, ny)) && Math.abs(h1 - h2) <= 0.75);
+      if (!stepOk) continue;
       const ng = (g.get(cur) ?? 0) + 1;
       if (ng < (g.get(nk) ?? Infinity)) {
         came.set(nk, cur);

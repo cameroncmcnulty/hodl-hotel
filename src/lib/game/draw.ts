@@ -1,8 +1,9 @@
 import type { FurnDef } from "../catalog";
 import { furn, footprint } from "../catalog";
 import type { Ad, Occupant, Placed, Room } from "../types";
-import { layoutById, isDance, isOutdoor, isWater, walkable } from "../layouts";
+import { layoutById, isDance, isOutdoor, isStair, isWater, tileH, walkable } from "../layouts";
 import { iso, TW, TH } from "./iso";
+import type { Layout } from "../layouts";
 import { drawAvatarIso, shade } from "./avatar";
 
 function snap(n: number) {
@@ -11,16 +12,32 @@ function snap(n: number) {
 
 export type Cam = { x: number; y: number };
 
-export function tileAt(cam: Cam, mx: number, my: number) {
+export function tileAt(cam: Cam, mx: number, my: number, layout?: Layout) {
   const sx = mx - cam.x;
   const sy = my - cam.y;
-  const x = (sx / (TW / 2) + sy / (TH / 2)) / 2;
-  const y = (sy / (TH / 2) - sx / (TW / 2)) / 2;
-  return { x: Math.floor(x), y: Math.floor(y) };
+  if (!layout) {
+    const x = (sx / (TW / 2) + sy / (TH / 2)) / 2;
+    const y = (sy / (TH / 2) - sx / (TW / 2)) / 2;
+    return { x: Math.floor(x), y: Math.floor(y) };
+  }
+  let best = { x: 0, y: 0 };
+  let bestD = Infinity;
+  for (let y = 0; y < layout.h; y++) {
+    for (let x = 0; x < layout.w; x++) {
+      if (!walkable(layout, x, y) && !isWater(layout, x, y)) continue;
+      const p = iso(x + 0.5, y + 0.5, tileH(layout, x, y));
+      const d = (p.sx - sx) * (p.sx - sx) + (p.sy - sy) * (p.sy - sy);
+      if (d < bestD) {
+        bestD = d;
+        best = { x, y };
+      }
+    }
+  }
+  return best;
 }
 
-function diamond(ctx: CanvasRenderingContext2D, x: number, y: number, fill: string, stroke = "#2a1810") {
-  const p = iso(x, y);
+function diamond(ctx: CanvasRenderingContext2D, x: number, y: number, fill: string, stroke = "#2a1810", z = 0) {
+  const p = iso(x, y, z);
   const t = { x: snap(p.sx), y: snap(p.sy) };
   const r = { x: snap(p.sx + TW / 2), y: snap(p.sy + TH / 2) };
   const b = { x: snap(p.sx), y: snap(p.sy + TH) };
@@ -50,8 +67,8 @@ function diamond(ctx: CanvasRenderingContext2D, x: number, y: number, fill: stri
 
 const EDGE = 12;
 
-function floorDrop(ctx: CanvasRenderingContext2D, x: number, y: number, east: boolean, south: boolean, dark: string, mid: string) {
-  const p = iso(x, y);
+function floorDrop(ctx: CanvasRenderingContext2D, x: number, y: number, east: boolean, south: boolean, dark: string, mid: string, z = 0) {
+  const p = iso(x, y, z);
   const r = { sx: snap(p.sx + TW / 2), sy: snap(p.sy + TH / 2) };
   const b = { sx: snap(p.sx), sy: snap(p.sy + TH) };
   const l = { sx: snap(p.sx - TW / 2), sy: snap(p.sy + TH / 2) };
@@ -88,49 +105,39 @@ function cube(
   void b2;
 }
 
-function poly(ctx: CanvasRenderingContext2D, pts: { sx: number; sy: number }[], fill: string) {
+function poly(ctx: CanvasRenderingContext2D, pts: { sx: number; sy: number }[], fill: string, stroke = true) {
   ctx.beginPath();
   ctx.moveTo(snap(pts[0].sx), snap(pts[0].sy));
   for (let i = 1; i < pts.length; i++) ctx.lineTo(snap(pts[i].sx), snap(pts[i].sy));
   ctx.closePath();
   ctx.fillStyle = fill;
   ctx.fill();
-  ctx.strokeStyle = "rgba(20,10,30,0.55)";
-  ctx.lineWidth = 1;
-  ctx.stroke();
+  if (stroke) {
+    ctx.strokeStyle = "rgba(20,10,30,0.35)";
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  }
 }
 
-function pane(
-  ctx: CanvasRenderingContext2D,
-  pts: { sx: number; sy: number }[],
-  glass: string
-) {
-  poly(ctx, pts, glass);
+const WALL_H = 7.4;
+
+function wallRunN(ctx: CanvasRenderingContext2D, x0: number, x1: number, y: number, z: number, paper: string) {
+  const top = z + WALL_H;
+  poly(ctx, [iso(x0, y, top), iso(x1 + 1, y, top), iso(x1 + 1, y, z), iso(x0, y, z)], paper, false);
+  poly(ctx, [iso(x0, y, top), iso(x1 + 1, y, top), iso(x1 + 1, y, top - 0.35), iso(x0, y, top - 0.35)], "#d4b45a", false);
+  poly(ctx, [iso(x0, y, z + 0.42), iso(x1 + 1, y, z + 0.42), iso(x1 + 1, y, z), iso(x0, y, z)], "#7a4e28", false);
+  const mid = z + WALL_H * 0.55;
+  poly(ctx, [iso(x0, y, mid), iso(x1 + 1, y, mid), iso(x1 + 1, y, mid - 0.08), iso(x0, y, mid - 0.08)], shade(paper, -12), false);
 }
 
-function wallN(ctx: CanvasRenderingContext2D, x: number, y: number, color: string, paper: string) {
-  const h = 4.2;
-  poly(ctx, [iso(x, y, h), iso(x + 1, y, h), iso(x + 1, y, 0), iso(x, y, 0)], paper);
-  poly(ctx, [iso(x, y, 0.38), iso(x + 1, y, 0.38), iso(x + 1, y, 0), iso(x, y, 0)], "#b07a38");
-  poly(ctx, [iso(x, y, h), iso(x + 1, y, h), iso(x + 1, y, h - 0.32), iso(x, y, h - 0.32)], "#e8c04a");
-  pane(ctx, [iso(x + 0.16, y, 2.7), iso(x + 0.48, y, 2.7), iso(x + 0.48, y, 1.85), iso(x + 0.16, y, 1.85)], "#8fe4ff");
-  pane(ctx, [iso(x + 0.52, y, 2.7), iso(x + 0.84, y, 2.7), iso(x + 0.84, y, 1.85), iso(x + 0.52, y, 1.85)], "#7ed7f8");
-  pane(ctx, [iso(x + 0.16, y, 1.78), iso(x + 0.48, y, 1.78), iso(x + 0.48, y, 1.05), iso(x + 0.16, y, 1.05)], "#7ed7f8");
-  pane(ctx, [iso(x + 0.52, y, 1.78), iso(x + 0.84, y, 1.78), iso(x + 0.84, y, 1.05), iso(x + 0.52, y, 1.05)], "#6ec8ea");
-  void color;
-}
-
-function wallW(ctx: CanvasRenderingContext2D, x: number, y: number, color: string, paper: string) {
-  const h = 4.2;
-  const left = shade(paper, -26);
-  poly(ctx, [iso(x, y, h), iso(x, y + 1, h), iso(x, y + 1, 0), iso(x, y, 0)], left);
-  poly(ctx, [iso(x, y, 0.38), iso(x, y + 1, 0.38), iso(x, y + 1, 0), iso(x, y, 0)], "#8a5a28");
-  poly(ctx, [iso(x, y, h), iso(x, y + 1, h), iso(x, y + 1, h - 0.32), iso(x, y, h - 0.32)], "#c9a227");
-  pane(ctx, [iso(x, y + 0.16, 2.7), iso(x, y + 0.48, 2.7), iso(x, y + 0.48, 1.85), iso(x, y + 0.16, 1.85)], "#6ec8ea");
-  pane(ctx, [iso(x, y + 0.52, 2.7), iso(x, y + 0.84, 2.7), iso(x, y + 0.84, 1.85), iso(x, y + 0.52, 1.85)], "#5eb8dc");
-  pane(ctx, [iso(x, y + 0.16, 1.78), iso(x, y + 0.48, 1.78), iso(x, y + 0.48, 1.05), iso(x, y + 0.16, 1.05)], "#5eb8dc");
-  pane(ctx, [iso(x, y + 0.52, 1.78), iso(x, y + 0.84, 1.78), iso(x, y + 0.84, 1.05), iso(x, y + 0.52, 1.05)], "#4ea8cc");
-  void color;
+function wallRunW(ctx: CanvasRenderingContext2D, x: number, y0: number, y1: number, z: number, paper: string) {
+  const top = z + WALL_H;
+  const left = shade(paper, -22);
+  poly(ctx, [iso(x, y0, top), iso(x, y1 + 1, top), iso(x, y1 + 1, z), iso(x, y0, z)], left, false);
+  poly(ctx, [iso(x, y0, top), iso(x, y1 + 1, top), iso(x, y1 + 1, top - 0.35), iso(x, y0, top - 0.35)], "#c49a3a", false);
+  poly(ctx, [iso(x, y0, z + 0.42), iso(x, y1 + 1, z + 0.42), iso(x, y1 + 1, z), iso(x, y0, z)], "#5c3818", false);
+  const mid = z + WALL_H * 0.55;
+  poly(ctx, [iso(x, y0, mid), iso(x, y1 + 1, mid), iso(x, y1 + 1, mid - 0.08), iso(x, y0, mid - 0.08)], shade(paper, -30), false);
 }
 
 function drawSprite(
@@ -139,9 +146,10 @@ function drawSprite(
   x: number,
   y: number,
   w: number,
-  d: number
+  d: number,
+  z = 0
 ) {
-  const near = iso(x + w, y + d);
+  const near = iso(x + w, y + d, z);
   const destW = Math.max(8, (w + d) * (TW / 2));
   const destH = destW * (spr.height / Math.max(1, spr.width));
   ctx.imageSmoothingEnabled = false;
@@ -160,12 +168,13 @@ export function drawFurniture(
   def: FurnDef,
   p: Placed,
   t: number,
-  sprites?: Record<string, HTMLCanvasElement>
+  sprites?: Record<string, HTMLCanvasElement>,
+  z = 0
 ) {
   const { w, d } = footprint(def, p.rot);
   const spr = sprites?.[def.id];
   if (spr && spr.width > 4) {
-    drawSprite(ctx, spr, p.x, p.y, w, d);
+    drawSprite(ctx, spr, p.x, p.y, w, d, z);
     return;
   }
   const c = def.colors;
@@ -279,12 +288,11 @@ export function drawRoom(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
   ctx.translate(cam.x, cam.y);
   ctx.imageSmoothingEnabled = false;
 
-  const paper = layout.paper || "#8ee0c4";
-  const wall = paper;
-  const floorA = layout.floorA || "#4db7ea";
-  const floorB = layout.floorB || "#3aa6dc";
+  const paper = layout.paper || "#e6d7bc";
+  const floorA = layout.floorA || "#c9a36e";
+  const floorB = layout.floorB || "#b8925c";
 
-  const tiles: { x: number; y: number; fill: string }[] = [];
+  const tiles: { x: number; y: number; fill: string; z: number }[] = [];
   for (let y = 0; y < layout.h; y++) {
     for (let x = 0; x < layout.w; x++) {
       const tile = walkable(layout, x, y) || isWater(layout, x, y);
@@ -295,39 +303,90 @@ export function drawRoom(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
         fill = flash === 0 ? "#ff4fd8" : flash === 1 ? "#45f0ff" : "#9945FF";
       } else if (isWater(layout, x, y)) fill = (x + y) % 2 === 0 ? "#3ec6e0" : "#2aa8c8";
       else if (isOutdoor(layout, x, y)) fill = (x + y) % 2 === 0 ? "#cfe88a" : "#b5d46a";
-      tiles.push({ x, y, fill });
+      tiles.push({ x, y, fill, z: tileH(layout, x, y) });
     }
   }
   for (const tile of tiles) {
-    const eastOpen = !walkable(layout, tile.x + 1, tile.y) && !isWater(layout, tile.x + 1, tile.y);
-    const southOpen = !walkable(layout, tile.x, tile.y + 1) && !isWater(layout, tile.x, tile.y + 1);
+    if (tile.z > 0.05 && !isStair(layout, tile.x, tile.y)) {
+      cube(ctx, tile.x, tile.y, 0, 1, 1, tile.z, shade(tile.fill, -18), shade(tile.fill, -40), shade(tile.fill, -28));
+    }
+    if (isStair(layout, tile.x, tile.y)) {
+      for (let i = 0; i < 4; i++) {
+        cube(ctx, tile.x + 0.06, tile.y + 0.06, i * 0.15, 0.88, 0.88, 0.15, shade(tile.fill, 8 - i * 6), shade(tile.fill, -30), shade(tile.fill, -18));
+      }
+    }
+    const ez = tileH(layout, tile.x + 1, tile.y);
+    const sz = tileH(layout, tile.x, tile.y + 1);
+    const eastOpen = (!walkable(layout, tile.x + 1, tile.y) && !isWater(layout, tile.x + 1, tile.y)) || ez + 0.15 < tile.z;
+    const southOpen = (!walkable(layout, tile.x, tile.y + 1) && !isWater(layout, tile.x, tile.y + 1)) || sz + 0.15 < tile.z;
     if (eastOpen || southOpen) {
-      floorDrop(ctx, tile.x, tile.y, eastOpen, southOpen, shade(tile.fill, -50), shade(tile.fill, -32));
+      floorDrop(ctx, tile.x, tile.y, eastOpen, southOpen, shade(tile.fill, -50), shade(tile.fill, -32), tile.z);
     }
   }
   for (const tile of tiles) {
-    diamond(ctx, tile.x, tile.y, tile.fill, "#1a140c");
+    diamond(ctx, tile.x, tile.y, tile.fill, "#2a1c10", tile.z);
   }
-  for (const tile of tiles) {
-    if (!walkable(layout, tile.x, tile.y - 1) && !isWater(layout, tile.x, tile.y - 1)) wallN(ctx, tile.x, tile.y, wall, paper);
-    if (!walkable(layout, tile.x - 1, tile.y) && !isWater(layout, tile.x - 1, tile.y)) wallW(ctx, tile.x, tile.y, wall, paper);
+
+  for (let y = 0; y < layout.h; y++) {
+    let x = 0;
+    while (x < layout.w) {
+      const z = tileH(layout, x, y);
+      const here = walkable(layout, x, y) || isWater(layout, x, y);
+      const nBlocked = !walkable(layout, x, y - 1) && !isWater(layout, x, y - 1);
+      if (here && nBlocked) {
+        let x1 = x;
+        while (
+          x1 + 1 < layout.w &&
+          (walkable(layout, x1 + 1, y) || isWater(layout, x1 + 1, y)) &&
+          !walkable(layout, x1 + 1, y - 1) &&
+          !isWater(layout, x1 + 1, y - 1) &&
+          Math.abs(tileH(layout, x1 + 1, y) - z) < 0.05
+        )
+          x1++;
+        wallRunN(ctx, x, x1, y, z, paper);
+        x = x1 + 1;
+      } else x++;
+    }
+  }
+  for (let x = 0; x < layout.w; x++) {
+    let y = 0;
+    while (y < layout.h) {
+      const z = tileH(layout, x, y);
+      const here = walkable(layout, x, y) || isWater(layout, x, y);
+      const wBlocked = !walkable(layout, x - 1, y) && !isWater(layout, x - 1, y);
+      if (here && wBlocked) {
+        let y1 = y;
+        while (
+          y1 + 1 < layout.h &&
+          (walkable(layout, x, y1 + 1) || isWater(layout, x, y1 + 1)) &&
+          !walkable(layout, x - 1, y1 + 1) &&
+          !isWater(layout, x - 1, y1 + 1) &&
+          Math.abs(tileH(layout, x, y1 + 1) - z) < 0.05
+        )
+          y1++;
+        wallRunW(ctx, x, y, y1, z, paper);
+        y = y1 + 1;
+      } else y++;
+    }
   }
 
   if (opts.ghost) {
     const { w, d } = footprint(opts.ghost.def, opts.ghost.rot);
     for (let dy = 0; dy < d; dy++) {
       for (let dx = 0; dx < w; dx++) {
+        const z = tileH(layout, opts.ghost.x + dx, opts.ghost.y + dy);
         diamond(
           ctx,
           opts.ghost.x + dx,
           opts.ghost.y + dy,
           opts.ghost.ok ? "rgba(20,241,149,0.4)" : "rgba(255,70,70,0.4)",
-          opts.ghost.ok ? "#14F195" : "#ff5050"
+          opts.ghost.ok ? "#14F195" : "#ff5050",
+          z
         );
       }
     }
   } else if (opts.hover && walkable(layout, opts.hover.x, opts.hover.y)) {
-    diamond(ctx, opts.hover.x, opts.hover.y, "rgba(20,241,149,0.32)", "#14F195");
+    diamond(ctx, opts.hover.x, opts.hover.y, "rgba(20,241,149,0.32)", "#14F195", tileH(layout, opts.hover.x, opts.hover.y));
   }
 
   type Spr = { depth: number; draw: () => void };
@@ -340,7 +399,7 @@ export function drawRoom(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
     spr.push({
       depth: (p.x + w / 2 + p.y + d / 2) * 1000 + def.h,
       draw: () => {
-        drawFurniture(ctx, def, p, t, opts.sprites);
+        drawFurniture(ctx, def, p, t, opts.sprites, tileH(layout, p.x, p.y));
         if (def.use === "ad" || def.use === "frame") {
           const imgKey =
             def.use === "ad"
@@ -370,7 +429,7 @@ export function drawRoom(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
     spr.push({
       depth: (o.x + o.y) * 1000 + 8,
       draw: () => {
-        const p = iso(o.x + 0.5, o.y + 0.5, 0);
+        const p = iso(o.x + 0.5, o.y + 0.5, tileH(layout, Math.round(o.x), Math.round(o.y)));
         drawAvatarIso(ctx, o.figure, p.sx, p.sy, o.dir, t + o.userId.length, {
           dance: o.dance,
           walking: o.moving,
@@ -422,10 +481,10 @@ export function drawRoom(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
       opts.ghost.def,
       { uid: "g", catalogId: opts.ghost.def.id, x: opts.ghost.x, y: opts.ghost.y, rot: opts.ghost.rot, ownerId: "" },
       t,
-      opts.sprites
+      opts.sprites,
+      tileH(layout, opts.ghost.x, opts.ghost.y)
     );
     ctx.globalAlpha = 1;
-    diamond(ctx, opts.ghost.x, opts.ghost.y, opts.ghost.ok ? "rgba(20,241,149,0.25)" : "rgba(255,80,80,0.3)");
   }
 
   ctx.restore();

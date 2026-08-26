@@ -4,7 +4,7 @@ import { FurnIcon } from "@/components/FurnIcon";
 import { LayoutPreview } from "@/components/LayoutPreview";
 import { CATALOG, furn } from "@/lib/catalog";
 import { CATS } from "@/lib/catalog";
-import { FREE_LAYOUT_IDS, PREMIUM_LAYOUTS, USER_LAYOUTS } from "@/lib/layouts";
+import { FREE_LAYOUT_IDS, layoutById, PREMIUM_LAYOUTS, USER_LAYOUTS } from "@/lib/layouts";
 import { COIN_PACKS } from "@/lib/constants";
 import { drawRoom, tileAt } from "@/lib/game/draw";
 import { canPlaceFurn } from "@/lib/game/path";
@@ -181,7 +181,7 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
             ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
           }
           ctx.imageSmoothingEnabled = false;
-          ctx.fillStyle = "#6ec8f0";
+          ctx.fillStyle = "#050508";
           ctx.fillRect(0, 0, w, h);
           for (const o of s.occupants) {
             if (!motions.current[o.userId]) motions.current[o.userId] = motAt(o.x, o.y, o.dir);
@@ -236,7 +236,8 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
 
   function localTile(e: React.MouseEvent) {
     const r = canvasRef.current!.getBoundingClientRect();
-    return tileAt(cam.current, e.clientX - r.left, e.clientY - r.top);
+    const layout = snap ? layoutById(snap.room.layoutId) : undefined;
+    return tileAt(cam.current, e.clientX - r.left, e.clientY - r.top, layout);
   }
 
   async function joinRoom(id: string, password?: string) {
