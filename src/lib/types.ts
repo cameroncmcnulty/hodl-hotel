@@ -19,6 +19,7 @@ export type Item = {
   pairId?: string;
   nftMint?: string;
   nftUrl?: string;
+  ticker?: string;
 };
 
 export type User = {
@@ -62,6 +63,7 @@ export type Placed = {
   pairId?: string;
   nftMint?: string;
   nftUrl?: string;
+  ticker?: string;
   adSlot?: string;
 };
 

@@ -191,6 +191,44 @@ function drawSprite(
   }
 }
 
+function drawShillboard(ctx: CanvasRenderingContext2D, spr: HTMLCanvasElement, def: FurnDef, p: Placed, z: number) {
+  const { w } = footprint(def, p.rot);
+  const hang = iso(p.x + w * 0.5, p.y + 0.08, z + 2.15);
+  const wallW = Math.max(72, w * TW * 0.86);
+  const wallH = Math.max(32, wallW * (spr.height / Math.max(1, spr.width)));
+  const dx = snap(hang.sx - wallW / 2);
+  const dy = snap(hang.sy - wallH);
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(spr, dx, dy, wallW, wallH);
+  const screen = {
+    x: dx + wallW * 0.16,
+    y: dy + wallH * 0.22,
+    w: wallW * 0.68,
+    h: wallH * 0.52,
+  };
+  const label = "$" + (p.ticker || "");
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(screen.x, screen.y, screen.w, screen.h);
+  ctx.clip();
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  let size = Math.floor(screen.h * 0.62);
+  ctx.font = `bold ${size}px Tahoma, "Courier New", monospace`;
+  while (size > 7 && ctx.measureText(label).width > screen.w * 0.92) {
+    size -= 1;
+    ctx.font = `bold ${size}px Tahoma, "Courier New", monospace`;
+  }
+  const cx = screen.x + screen.w / 2;
+  const cy = screen.y + screen.h / 2 + 0.5;
+  ctx.lineWidth = Math.max(2, Math.round(size / 6));
+  ctx.strokeStyle = "#04140c";
+  ctx.fillStyle = "#14F195";
+  ctx.strokeText(label, cx, cy);
+  ctx.fillText(label, cx, cy);
+  ctx.restore();
+}
+
 export function drawFurniture(
   ctx: CanvasRenderingContext2D,
   def: FurnDef,
@@ -204,6 +242,10 @@ export function drawFurniture(
   if (spr && spr.width > 4) {
     const wall = def.slot === "wall";
     const flip = !wall && (p.rot === 1 || p.rot === 2);
+    if (def.use === "ticker" && wall) {
+      drawShillboard(ctx, spr, def, p, z);
+      return;
+    }
     drawSprite(ctx, spr, p.x, p.y, w, d, z, def.h, wall, flip);
     return;
   }
@@ -274,6 +316,17 @@ export function drawFurniture(
   if (shape === "frame" || shape === "board") {
     cube(ctx, x, y, 0.4, w, 0.2, 1.6, c.top, c.left, c.right);
     cube(ctx, x + 0.08, y + 0.02, 0.55, Math.max(0.3, w - 0.16), 0.12, 1.3, "#111", "#222", "#333");
+    if (def.use === "ticker") {
+      const pos = iso(x + w / 2, y + 0.1, 1.35);
+      const label = "$" + (p.ticker || "");
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.font = "bold 11px Tahoma, monospace";
+      ctx.fillStyle = "#14F195";
+      ctx.fillText(label, pos.sx, pos.sy);
+      ctx.textAlign = "left";
+      ctx.textBaseline = "alphabetic";
+    }
     return;
   }
   if (shape === "disco") {

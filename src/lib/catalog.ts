@@ -1,4 +1,4 @@
-export type FurnUse = "dice" | "teleport" | "frame" | "dance" | "ad" | "arcade" | "sit";
+export type FurnUse = "dice" | "teleport" | "frame" | "dance" | "ad" | "arcade" | "sit" | "ticker";
 export type Rarity = "common" | "uncommon" | "rare" | "elite" | "gold" | "crypto";
 
 export type FurnDef = {
@@ -135,6 +135,7 @@ export const CATALOG: FurnDef[] = [
   F({ id: "satoshi_bust", name: "Founder Bust", desc: "Nobody knows.", category: "crypto", price: 3900, w: 1, d: 1, h: 1.6, rarity: "elite", shape: "orb", colors: { top: "#c4a574", left: "#6d4c2f", right: "#f5c542" } }),
   F({ id: "mining_rig", name: "Mining Rig", desc: "Fans for days.", category: "crypto", price: 780, w: 2, d: 1, h: 1.5, rarity: "rare", shape: "pc", colors: { top: "#111", left: "#14F195", right: "#f7931a" } }),
   F({ id: "laser_eyes", name: "Laser Pedestal", desc: "Eyes on the prize.", category: "crypto", price: 3100, w: 1, d: 1, h: 1.7, rarity: "crypto", shape: "orb", colors: { top: "#f7931a", left: "#111", right: "#14F195" } }),
+  F({ id: "shillboard", name: "Shillboard", desc: "Wall LED ticker. Display a coin — the $ stays put, you type the letters.", category: "crypto", price: 180, w: 2, d: 1, h: 1.6, rarity: "crypto", slot: "wall", use: "ticker", shape: "board", colors: { top: "#14F195", left: "#24143d", right: "#9945FF" } }),
 
   F({ id: "fountain", name: "Courtyard Fountain", desc: "Lobby splash.", category: "decor", price: 180, w: 2, d: 2, h: 1.4, rarity: "uncommon", shape: "fountain", colors: { top: "#7dd3fc", left: "#f5c542", right: "#2ec4b6" } }),
   F({ id: "clock_block", name: "Block Clock", desc: "Always mint o'clock.", category: "decor", price: 28, w: 1, d: 1, h: 1.2, shape: "clock", colors: { top: "#ffffff", left: "#333344", right: "#ff6b5a" } }),

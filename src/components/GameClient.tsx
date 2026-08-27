@@ -63,6 +63,7 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
   const [hover, setHover] = useState<{ x: number; y: number } | null>(null);
   const [menu, setMenu] = useState<{ x: number; y: number; tile?: { x: number; y: number }; furn?: Placed; user?: Occupant } | null>(null);
   const [place, setPlace] = useState<{ uid: string; catalogId: string; rot: 0 | 1 | 2 | 3 } | null>(null);
+  const [tickerEdit, setTickerEdit] = useState<{ uid: string; value: string } | null>(null);
   const [status, setStatus] = useState("");
   const [nav, setNav] = useState<{ popular: Room[]; publicAreas: Room[]; history: Room[]; events: { title: string; roomId: string; desc: string }[] } | null>(null);
   const [social, setSocial] = useState<any>(null);
@@ -240,6 +241,7 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
       if (e.key === "Escape") {
         setPlace(null);
         setMenu(null);
+        setTickerEdit(null);
         setPhone((p) => (p && p !== "home" ? "home" : null));
       }
     };
@@ -1194,6 +1196,49 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
         </PhoneShell>
       )}
 
+      {tickerEdit && (
+        <div className="absolute inset-0 z-50 grid place-items-center bg-black/50 p-4 backdrop-blur-sm" onClick={() => setTickerEdit(null)}>
+          <div className="w-full max-w-sm rounded-3xl border border-white/15 bg-night p-5 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <h2 className="font-display text-lg">Display ticker</h2>
+            <p className="mt-1 text-xs text-white/50">The $ stays on the Shillboard. Type up to 10 letters or numbers after it.</p>
+            <label className="mt-4 flex items-center rounded-2xl border border-white/15 bg-black/40 px-3 py-2 focus-within:border-mint/60">
+              <span className="pr-1 font-display text-xl font-bold text-mint">$</span>
+              <input
+                autoFocus
+                className="min-w-0 flex-1 bg-transparent font-display text-xl font-semibold uppercase tracking-wide text-white outline-none placeholder:text-white/25"
+                value={tickerEdit.value}
+                maxLength={10}
+                placeholder="PURPE"
+                onChange={(e) =>
+                  setTickerEdit({
+                    ...tickerEdit,
+                    value: e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 10),
+                  })
+                }
+              />
+            </label>
+            <p className="mt-2 text-center font-display text-sm text-mint/80">${tickerEdit.value || ""}</p>
+            <div className="mt-4 flex gap-2">
+              <button className="btn-ink flex-1" onClick={() => setTickerEdit(null)}>
+                Cancel
+              </button>
+              <button
+                className="btn-sol flex-1"
+                onClick={async () => {
+                  const j = await act({ type: "setTicker", uid: tickerEdit.uid, ticker: tickerEdit.value });
+                  if (!j.error) {
+                    setTickerEdit(null);
+                    setStatus(`Shillboard set to $${tickerEdit.value || ""}`);
+                  }
+                }}
+              >
+                Display
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {joinTarget && (
         <div className="absolute inset-0 z-50 grid place-items-center bg-black/50 p-4 backdrop-blur-sm" onClick={() => setJoinTarget(null)}>
           <div className="w-full max-w-sm rounded-3xl border border-white/15 bg-night p-5 shadow-2xl" onClick={(e) => e.stopPropagation()}>
@@ -1240,6 +1285,16 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
               )}
               {furn(menu.furn.catalogId)?.use === "teleport" && (
                 <Btn onClick={() => { act({ type: "use", uid: menu.furn!.uid }); setMenu(null); }}>Use pad</Btn>
+              )}
+              {furn(menu.furn.catalogId)?.use === "ticker" && (
+                <Btn
+                  onClick={() => {
+                    setTickerEdit({ uid: menu.furn!.uid, value: (menu.furn!.ticker || "").slice(0, 10) });
+                    setMenu(null);
+                  }}
+                >
+                  Display
+                </Btn>
               )}
               {furn(menu.furn.catalogId)?.use === "frame" && (
                 <Btn

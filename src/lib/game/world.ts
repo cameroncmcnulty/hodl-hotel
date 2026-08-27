@@ -20,8 +20,16 @@ export type Action =
   | { type: "dance"; on?: boolean }
   | { type: "linkPads"; a: string; b: string }
   | { type: "setFrame"; uid: string; nftMint?: string; nftUrl?: string }
+  | { type: "setTicker"; uid: string; ticker?: string }
   | { type: "setLayout"; layoutId: string }
   | { type: "look"; figure: Figure };
+
+export function sanitizeTicker(raw: string) {
+  return String(raw || "")
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "")
+    .slice(0, 10);
+}
 
 function emptyOcc(u: User, x: number, y: number): Occupant {
   return {
@@ -239,6 +247,7 @@ export function applyAction(userId: string, action: Action) {
       pairId: item.pairId,
       nftMint: item.nftMint,
       nftUrl: item.nftUrl,
+      ticker: item.ticker,
     });
     u.backpack[slot] = null;
     bumpQuest(u, "decorator", 1);
@@ -259,6 +268,7 @@ export function applyAction(userId: string, action: Action) {
       pairId: p.pairId,
       nftMint: p.nftMint,
       nftUrl: p.nftUrl,
+      ticker: p.ticker,
     };
     room.furniture = room.furniture.filter((f) => f.uid !== p.uid);
     saveDB(db);
@@ -366,6 +376,7 @@ export function applyAction(userId: string, action: Action) {
           pairId: p.pairId,
           nftMint: p.nftMint,
           nftUrl: p.nftUrl,
+          ticker: p.ticker,
         };
       }
     }
@@ -386,6 +397,18 @@ export function applyAction(userId: string, action: Action) {
     if (furn(p.catalogId)?.use !== "frame") return { error: "Not a frame" };
     p.nftMint = action.nftMint;
     p.nftUrl = action.nftUrl;
+    saveDB(db);
+    return snapshot(here.roomId, userId);
+  }
+
+  if (action.type === "setTicker") {
+    const p = room.furniture.find((f) => f.uid === action.uid);
+    if (!p || room.ownerId !== userId || p.ownerId !== userId) return { error: "You can only edit furniture in your own suite" };
+    if (furn(p.catalogId)?.use !== "ticker") return { error: "Not a Shillboard" };
+    const ticker = sanitizeTicker(action.ticker || "");
+    const { flagged } = moderate(ticker);
+    if (flagged) return { error: "Pick a different ticker" };
+    p.ticker = ticker;
     saveDB(db);
     return snapshot(here.roomId, userId);
   }

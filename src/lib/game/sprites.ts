@@ -106,8 +106,8 @@ export function loadSprite(id: string) {
   if (cache[id]) return Promise.resolve(cache[id]);
   if (id in inflight) return inflight[id];
   inflight[id] = (async () => {
-    const png = await loadImage(`/art/furn/${id}.png?v=13`);
-    const img = png || (await loadImage(`/art/furn/${id}.jpg?v=13`));
+    const png = await loadImage(`/art/furn/${id}.png?v=14`);
+    const img = png || (await loadImage(`/art/furn/${id}.jpg?v=14`));
     if (!img) return null;
     const canvas = keyAndTrim(img);
     if (canvas.width > 4) cache[id] = canvas;
