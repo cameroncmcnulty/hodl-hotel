@@ -1,7 +1,7 @@
 import { dirTowards } from "./path";
 
-/** One tile in ~200ms — snappy hotel-sim walk. */
-export const TILE_MS = 200;
+/** One tile in ~280ms so a full walk0/walk1 step plays. */
+export const TILE_MS = 280;
 
 export type Mot = {
   x: number;
@@ -73,4 +73,5 @@ export function tickMot(m: Mot, dt: number) {
   m.x += (dx / len) * take;
   m.y += (dy / len) * take;
   m.dist += take;
+  if (m.queue.length) m.dir = dirTowards(m.x, m.y, m.queue[0].x, m.queue[0].y);
 }

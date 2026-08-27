@@ -56,7 +56,7 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
   const [panel, setPanel] = useState<string | null>(null);
   const [chat, setChat] = useState("");
   const [hover, setHover] = useState<{ x: number; y: number } | null>(null);
-  const [menu, setMenu] = useState<{ x: number; y: number; furn?: Placed; user?: Occupant } | null>(null);
+  const [menu, setMenu] = useState<{ x: number; y: number; tile?: { x: number; y: number }; furn?: Placed; user?: Occupant } | null>(null);
   const [place, setPlace] = useState<{ uid: string; catalogId: string; rot: 0 | 1 | 2 | 3 } | null>(null);
   const [status, setStatus] = useState("");
   const [nav, setNav] = useState<{ popular: Room[]; publicAreas: Room[]; history: Room[]; events: { title: string; roomId: string; desc: string }[] } | null>(null);
@@ -265,20 +265,33 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
           ctx.fillStyle = "#050508";
           ctx.fillRect(0, 0, w, h);
           const meMot = motions.current[meState.id];
-          if (meMot && !meMot.moving && keys.current.size) {
-            let dx = 0;
-            let dy = 0;
-            const held = keys.current;
-            if (held.has("w") || held.has("ArrowUp")) dy -= 1;
-            if (held.has("s") || held.has("ArrowDown")) dy += 1;
-            if (held.has("a") || held.has("ArrowLeft")) dx -= 1;
-            if (held.has("d") || held.has("ArrowRight")) dx += 1;
-            if (dx || dy) {
-              const nx = Math.round(meMot.x) + dx;
-              const ny = Math.round(meMot.y) + dy;
-              const layout = layoutById(s.room.layoutId);
-              if (walkable(layout, nx, ny)) walkTo(nx, ny);
+          const held = keys.current;
+          let hx = 0;
+          let hy = 0;
+          if (held.has("w") || held.has("ArrowUp")) hy -= 1;
+          if (held.has("s") || held.has("ArrowDown")) hy += 1;
+          if (held.has("a") || held.has("ArrowLeft")) hx -= 1;
+          if (held.has("d") || held.has("ArrowRight")) hx += 1;
+          if (meMot && (hx || hy)) {
+            const layout = layoutById(s.room.layoutId);
+            if (!meMot.moving) {
+              const nx = Math.round(meMot.x) + hx;
+              const ny = Math.round(meMot.y) + hy;
+              if (walkable(layout, nx, ny) || furn(furnAt(s.room.furniture, nx, ny)?.catalogId || "")?.sittable) walkTo(nx, ny);
               else face(meMot, nx, ny);
+            } else if (meMot.queue.length <= 1) {
+              const last = meMot.queue[meMot.queue.length - 1] || { x: Math.round(meMot.x), y: Math.round(meMot.y) };
+              const rem = meMot.queue.length ? Math.hypot(meMot.queue[0].x - meMot.x, meMot.queue[0].y - meMot.y) : 0;
+              if (rem < 0.42) {
+                const nx = last.x + hx;
+                const ny = last.y + hy;
+                if (
+                  (walkable(layout, nx, ny) || furn(furnAt(s.room.furniture, nx, ny)?.catalogId || "")?.sittable) &&
+                  !meMot.queue.some((p) => p.x === nx && p.y === ny)
+                ) {
+                  meMot.queue.push({ x: nx, y: ny });
+                }
+              }
             }
           }
           for (const o of s.occupants) {
@@ -288,21 +301,25 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
           const vis = s.occupants.map((o) => {
             const m = motions.current[o.userId];
             if (!m) return o;
+            const tx = Math.round(m.x);
+            const ty = Math.round(m.y);
+            const seat = !m.moving ? furnAt(s.room.furniture, tx, ty) : undefined;
+            const sitting = !!(seat && furn(seat.catalogId)?.sittable);
             return {
               ...o,
               x: m.x,
               y: m.y,
-              dir: !m.moving && o.sitUid ? o.dir : m.dir,
+              dir: sitting ? seat!.rot : m.dir,
               moving: m.moving,
               dist: m.dist,
-              sitUid: m.moving ? undefined : o.sitUid,
+              sitUid: sitting ? seat!.uid : undefined,
             };
           });
           const you = vis.find((o) => o.userId === meState.id);
           if (you) {
             const p = iso(you.x + 0.5, you.y + 0.5);
-            cam.current.x += (w / 2 - p.sx - cam.current.x) * 0.28;
-            cam.current.y += (h / 2 - p.sy - cam.current.y) * 0.28;
+            cam.current.x += (w / 2 - p.sx - cam.current.x) * 0.2;
+            cam.current.y += (h / 2 - p.sy - cam.current.y) * 0.2;
           }
           const gdef = place ? furn(place.catalogId) : undefined;
           drawRoom(ctx, {
@@ -528,7 +545,7 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
           const t = localTile(e);
           const furnHit = furnAt(snap.room.furniture, t.x, t.y);
           const userHit = snap.occupants.find((o) => Math.round(o.x) === t.x && Math.round(o.y) === t.y && o.userId !== meState.id);
-          setMenu({ x: e.clientX, y: e.clientY, furn: furnHit, user: userHit });
+          setMenu({ x: e.clientX, y: e.clientY, tile: t, furn: furnHit, user: userHit });
         }}
         onClick={async (e) => {
           setMenu(null);
@@ -916,7 +933,17 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
             <>
               <div className="px-2 pb-1 text-xs text-white/50">{furn(menu.furn.catalogId)?.name}</div>
               {furn(menu.furn.catalogId)?.use === "dice" && <Btn onClick={() => { act({ type: "use", uid: menu.furn!.uid }); setMenu(null); }}>Roll</Btn>}
-              {furn(menu.furn.catalogId)?.sittable && <Btn onClick={() => { act({ type: "use", uid: menu.furn!.uid }); setMenu(null); }}>Sit</Btn>}
+              {furn(menu.furn.catalogId)?.sittable && (
+                <Btn
+                  onClick={() => {
+                    const t = menu.tile || { x: menu.furn!.x, y: menu.furn!.y };
+                    walkTo(t.x, t.y);
+                    setMenu(null);
+                  }}
+                >
+                  Sit
+                </Btn>
+              )}
               <Btn onClick={() => { act({ type: "rotate", uid: menu.furn!.uid }); setMenu(null); }}>Rotate</Btn>
               <Btn
                 onClick={async () => {

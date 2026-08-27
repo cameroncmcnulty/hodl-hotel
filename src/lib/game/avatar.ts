@@ -555,13 +555,15 @@ function compose(fig: Figure, dir: 0 | 1 | 2 | 3, walking: boolean, sit: boolean
   out.height = body.src.height;
   out.getContext("2d")!.drawImage(body.src, 0, 0);
 
-  if (customBot) {
-    const b = clothesSpr(g, "bot", bot, view);
-    if (b) copyBand(out, b.src, 0.48, 0.88, false);
-  }
-  if (customTop) {
-    const t = clothesSpr(g, "top", top, view);
-    if (t) copyBand(out, t.src, 0.26, 0.58, true);
+  if (!walking && !sit) {
+    if (customBot) {
+      const b = clothesSpr(g, "bot", bot, view);
+      if (b) copyBand(out, b.src, 0.48, 0.88, false);
+    }
+    if (customTop) {
+      const t = clothesSpr(g, "top", top, view);
+      if (t) copyBand(out, t.src, 0.26, 0.58, true);
+    }
   }
   if (needHair) {
     const full = spr(`${g}-hair-${hair}-${view}`) || spr(`${g}-hair-${hair}-se`);
@@ -621,13 +623,13 @@ export function drawAvatarIso(
   const walking = !!opts.walking;
   const dance = !!opts.dance;
   const sit = !!opts.sit && !walking;
-  const frame = dance ? Math.floor(t * 8) % 4 : walking ? Math.floor((opts.dist || 0) * 3) % 2 : 0;
+  const frame = dance ? Math.floor(t * 8) % 4 : walking ? Math.floor((opts.dist || 0) * 2) % 2 : 0;
   const made = compose(f, dir, walking, sit, frame);
-  const destH = sit ? AVATAR_DRAW_H - 10 : AVATAR_DRAW_H;
+  const destH = sit ? AVATAR_DRAW_H - 14 : AVATAR_DRAW_H;
   const destW = Math.round((destH * SPRITE_W) / SPRITE_H);
-  const bob = dance ? (frame % 2 === 0 ? -3 : 0) : walking ? (frame % 2 === 0 ? 0 : -3) : 0;
+  const bob = dance ? (frame % 2 === 0 ? -3 : 0) : walking ? (frame % 2 === 0 ? 0 : -4) : 0;
   const dx = Math.round(sx - destW / 2);
-  const dy = Math.round(sy - destH + 12 + bob);
+  const dy = Math.round(sy - destH + 12 + bob + (sit ? 10 : 0));
   if (!made) return;
   blit(ctx, recolor(made.src, f, made.id), dx, dy, destW, destH, flipOf(dir));
 }

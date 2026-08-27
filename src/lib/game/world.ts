@@ -161,7 +161,10 @@ export function applyAction(userId: string, action: Action) {
     }
     occ.sitUid = undefined;
     const sit = furnAt(room.furniture, rx, ry);
-    if (sit && furn(sit.catalogId)?.sittable && !occ.path.length) occ.sitUid = sit.uid;
+    if (sit && furn(sit.catalogId)?.sittable && !occ.path.length) {
+      occ.sitUid = sit.uid;
+      occ.dir = sit.rot;
+    }
     const stepped = furnAt(room.furniture, rx, ry);
     if (stepped && furn(stepped.catalogId)?.use === "teleport" && stepped.pairId) {
       const dest = db.rooms
@@ -182,16 +185,17 @@ export function applyAction(userId: string, action: Action) {
 
   if (action.type === "walk") {
     const layout = layoutById(room.layoutId);
-    if (!walkable(layout, action.x, action.y)) return snapshot(here.roomId, userId);
+    const seat = furnAt(room.furniture, action.x, action.y);
+    const sittingThere = !!(seat && furn(seat.catalogId)?.sittable);
+    if (!walkable(layout, action.x, action.y) && !sittingThere) return snapshot(here.roomId, userId);
     const path = astar(room.layoutId, room.furniture, Math.round(occ.x), Math.round(occ.y), action.x, action.y);
     occ.path = path;
     occ.sitUid = undefined;
     if (path.length) occ.dir = dirTowards(occ.x, occ.y, path[0].x, path[0].y);
     else occ.dir = dirTowards(occ.x, occ.y, action.x, action.y);
-    const sit = furnAt(room.furniture, action.x, action.y);
-    if (sit && furn(sit.catalogId)?.sittable) {
-      occ.sitUid = sit.uid;
-      occ.dir = sit.rot;
+    if (sittingThere && !path.length && Math.round(occ.x) === action.x && Math.round(occ.y) === action.y) {
+      occ.sitUid = seat!.uid;
+      occ.dir = seat!.rot;
     }
     return snapshot(here.roomId, userId);
   }

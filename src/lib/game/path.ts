@@ -73,7 +73,9 @@ export function astar(
   const key = (x: number, y: number) => `${x},${y}`;
   const start = key(sx, sy);
   const goal = key(tx, ty);
-  if (blocked.has(goal) && goal !== start) return [] as { x: number; y: number }[];
+  const goalSeat = furnAt(furniture, tx, ty);
+  const sitGoal = !!(goalSeat && furn(goalSeat.catalogId)?.sittable);
+  if (blocked.has(goal) && goal !== start && !sitGoal) return [] as { x: number; y: number }[];
   const open = new Set([start]);
   const came = new Map<string, string>();
   const g = new Map<string, number>([[start, 0]]);
