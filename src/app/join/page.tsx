@@ -83,7 +83,7 @@ export default function JoinPage() {
   return (
     <HotelBackdrop>
       <Wordmark />
-      <main className="relative z-20 mx-auto max-w-3xl px-4 py-24 pb-16 text-white md:ml-auto md:mr-8 md:py-28">
+      <main className="relative z-20 mx-auto max-w-3xl px-3 py-12 pb-16 text-white sm:px-4 md:ml-auto md:mr-8 md:py-24">
       <p className="text-xs uppercase tracking-[0.2em] text-white drop-shadow">Check-in {step + 1} / 4</p>
       <h1 className="font-display text-3xl text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.65)]">Create your guest</h1>
 
@@ -202,7 +202,7 @@ export default function JoinPage() {
       )}
 
       {step === 2 && (
-        <div className="panel mt-6 grid gap-4 bg-[#24143d]/92 p-5 text-white">
+        <div className="panel mt-4 grid gap-3 bg-[#24143d]/92 p-3 text-white sm:p-5">
           <FigureEditor figure={figure} onChange={setFigure} />
           <div className="flex gap-2">
             <button className="btn-ink" onClick={() => setStep(1)}>

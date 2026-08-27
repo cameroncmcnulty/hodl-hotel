@@ -94,12 +94,12 @@ function loadImage(src: string) {
 export function loadAvatars() {
   if (!loadPromise) {
     loadPromise = (async () => {
-      const man = (await fetch("/art/avatars/manifest.json?v=12")
+      const man = (await fetch("/art/avatars/manifest.json?v=14")
         .then((r) => r.json())
         .catch(() => [])) as string[];
       await Promise.all(
         man.map(async (file) => {
-          const img = await loadImage(`/art/avatars/${file}?v=12`);
+          const img = await loadImage(`/art/avatars/${file}?v=14`);
           if (!img) return;
           const c = document.createElement("canvas");
           c.width = img.width;
@@ -182,7 +182,7 @@ function recolor(src: HTMLCanvasElement, fig: Figure, id: string) {
       g = d[i + 1],
       b = d[i + 2];
     const yn = y / h;
-    if (isLooseHair(r, g, b) && yn < 0.55) {
+    if (isLooseHair(r, g, b) && yn < 0.38) {
       const t = tint(r, g, b, hairT);
       d[i] = t[0];
       d[i + 1] = t[1];
@@ -197,6 +197,7 @@ function recolor(src: HTMLCanvasElement, fig: Figure, id: string) {
       continue;
     }
     if (isPurplePx(r, g, b)) continue;
+    if (isLooseHair(r, g, b)) continue;
     const mx = Math.max(r, g, b);
     const mn = Math.min(r, g, b);
     if (fig.shoes !== 0 && yn > 0.74 && mn > 165 && mx - mn < 55) {
@@ -206,15 +207,15 @@ function recolor(src: HTMLCanvasElement, fig: Figure, id: string) {
       d[i + 2] = t[2];
       continue;
     }
-    if (fig.bottom !== 0 && yn > 0.5 && yn < 0.82 && mx < 90) {
+    if (fig.bottom !== 0 && yn > 0.52 && yn < 0.82 && mx < 90) {
       const t = tint(r, g, b, botT);
       d[i] = t[0];
       d[i + 1] = t[1];
       d[i + 2] = t[2];
       continue;
     }
-    if (fig.top !== 0 && yn > 0.3 && yn < 0.62 && !isSkinPx(r, g, b) && !isHairPx(r, g, b)) {
-      if (mx < 95 || (mn > 150 && yn < 0.58) || (r > 140 && g > 120 && b > 90 && yn < 0.56)) {
+    if (fig.top !== 0 && yn > 0.34 && yn < 0.6 && !isSkinPx(r, g, b)) {
+      if (mx < 95 || (mn > 150 && yn < 0.58)) {
         const t = tint(r, g, b, topT);
         d[i] = t[0];
         d[i + 1] = t[1];
@@ -297,20 +298,17 @@ function pickBody(fig: Figure, dir: 0 | 1 | 2 | 3, walking: boolean, sit: boolea
   return firstSpr([`${g}-${view}-idle`, `${g}-se-idle`]);
 }
 
-function hairZone(fig: Figure) {
-  return fig.gender === 1 ? 0.58 : 0.46;
-}
-
 function isLooseHair(r: number, g: number, b: number) {
-  if (isSkinPx(r, g, b)) return false;
-  if (r > 200 && g > 200 && b > 200) return false;
-  if (isPurplePx(r, g, b)) return false;
-  if (g > r + 3 && r < 150 && g > 20 && g + b > r * 1.65) return true;
-  return false;
+  if (isSkinPx(r, g, b) || isPurplePx(r, g, b)) return false;
+  if (r > 190 && g > 190 && b > 190) return false;
+  if (g < 28 || r > 150) return false;
+  if (g <= r + 8) return false;
+  if (b <= r + 2) return false;
+  if (b < g * 0.62) return false;
+  return true;
 }
 
-/** Keep only teal/cyan hair pixels — never face, hoodie, or clothes. */
-function extractHairOnly(src: HTMLCanvasElement, zone: number) {
+function extractHairOnly(src: HTMLCanvasElement) {
   const out = document.createElement("canvas");
   out.width = src.width;
   out.height = src.height;
@@ -318,13 +316,9 @@ function extractHairOnly(src: HTMLCanvasElement, zone: number) {
   ctx.drawImage(src, 0, 0);
   const img = ctx.getImageData(0, 0, out.width, out.height);
   const d = img.data;
-  const maxY = Math.floor(out.height * zone);
-  for (let y = 0; y < out.height; y++) {
-    for (let x = 0; x < out.width; x++) {
-      const i = (y * out.width + x) * 4;
-      if (y > maxY || d[i + 3] < 16 || isSkinPx(d[i], d[i + 1], d[i + 2]) || !isLooseHair(d[i], d[i + 1], d[i + 2])) {
-        d[i + 3] = 0;
-      }
+  for (let i = 0; i < d.length; i += 4) {
+    if (d[i + 3] < 16 || isSkinPx(d[i], d[i + 1], d[i + 2]) || !isLooseHair(d[i], d[i + 1], d[i + 2])) {
+      d[i + 3] = 0;
     }
   }
   ctx.putImageData(img, 0, 0);
@@ -335,10 +329,10 @@ function sampleScalp(body: HTMLCanvasElement): [number, number, number] {
   const ctx = body.getContext("2d")!;
   const img = ctx.getImageData(0, 0, body.width, body.height);
   const d = img.data;
-  const y0 = Math.floor(body.height * 0.26);
-  const y1 = Math.floor(body.height * 0.38);
-  const x0 = Math.floor(body.width * 0.35);
-  const x1 = Math.floor(body.width * 0.65);
+  const y0 = Math.floor(body.height * 0.24);
+  const y1 = Math.floor(body.height * 0.36);
+  const x0 = Math.floor(body.width * 0.38);
+  const x1 = Math.floor(body.width * 0.62);
   let r = 0,
     g = 0,
     b = 0,
@@ -358,8 +352,8 @@ function sampleScalp(body: HTMLCanvasElement): [number, number, number] {
   return [(r / n) | 0, (g / n) | 0, (b / n) | 0];
 }
 
-/** Erase baked hair (spikes AND long girl hair), fill scalp, stamp hair-only pixels. */
-function stampHairLayer(body: HTMLCanvasElement, hairSrc: HTMLCanvasElement, zone: number) {
+/** Erase only teal hair pixels (never clothes), fill the scalp, stamp new hair on top. */
+function stampHairLayer(body: HTMLCanvasElement, hairSrc: HTMLCanvasElement) {
   const ctx = body.getContext("2d")!;
   const bd = ctx.getImageData(0, 0, body.width, body.height);
   const hd = hairSrc.getContext("2d")!.getImageData(0, 0, hairSrc.width, hairSrc.height);
@@ -367,32 +361,18 @@ function stampHairLayer(body: HTMLCanvasElement, hairSrc: HTMLCanvasElement, zon
   const h = body.height;
   const b = bd.data;
   const hair = hd.data;
-  const maxY = Math.min(h - 1, Math.floor(h * zone));
-  const mark = new Uint8Array(w * h);
-  for (let y = 0; y <= maxY; y++) {
-    for (let x = 0; x < w; x++) {
-      const i = (y * w + x) * 4;
-      if (b[i + 3] > 12 && isLooseHair(b[i], b[i + 1], b[i + 2])) mark[y * w + x] = 1;
-    }
-  }
-  const grown = new Uint8Array(mark);
-  for (let pass = 0; pass < 2; pass++) {
-    const cur = Uint8Array.from(grown);
-    for (let y = 1; y < maxY; y++) {
-      for (let x = 1; x < w - 1; x++) {
-        const p = y * w + x;
-        if (cur[p] || cur[p - 1] || cur[p + 1] || cur[p - w] || cur[p + w]) grown[p] = 1;
-      }
-    }
-  }
   const scalp = sampleScalp(body);
-  const scalpY = Math.floor(h * 0.34);
-  for (let y = 0; y <= maxY; y++) {
+  const scalpTop = Math.floor(h * 0.16);
+  const scalpBot = Math.floor(h * 0.34);
+  const scalpL = Math.floor(w * 0.34);
+  const scalpR = Math.floor(w * 0.66);
+  const hairMaxY = Math.floor(h * 0.5);
+  for (let y = 0; y < hairMaxY; y++) {
     for (let x = 0; x < w; x++) {
-      if (!grown[y * w + x]) continue;
       const i = (y * w + x) * 4;
-      if (isSkinPx(b[i], b[i + 1], b[i + 2])) continue;
-      if (y < scalpY) {
+      if (b[i + 3] < 12) continue;
+      if (!isLooseHair(b[i], b[i + 1], b[i + 2])) continue;
+      if (y >= scalpTop && y <= scalpBot && x >= scalpL && x <= scalpR && !isSkinPx(b[i], b[i + 1], b[i + 2])) {
         b[i] = scalp[0];
         b[i + 1] = scalp[1];
         b[i + 2] = scalp[2];
@@ -441,11 +421,10 @@ function compose(fig: Figure, dir: 0 | 1 | 2 | 3, walking: boolean, sit: boolean
   out.getContext("2d")!.drawImage(body.src, 0, 0);
 
   if (needHair) {
-    const zone = hairZone(fig);
     const full = spr(`${g}-hair-${hair}-${view}`) || spr(`${g}-hair-${hair}-se`);
     const layer = spr(`${g}-hair-${hair}-${view}-layer`) || spr(`${g}-hair-${hair}-se-layer`);
     const src = full || layer;
-    if (src) stampHairLayer(out, extractHairOnly(src, zone), zone);
+    if (src) stampHairLayer(out, extractHairOnly(src));
   }
 
   composeCache.set(key, out);
@@ -472,7 +451,7 @@ function blit(ctx: CanvasRenderingContext2D, src: HTMLCanvasElement, dx: number,
 export function drawAvatarFront(ctx: CanvasRenderingContext2D, fig: Figure, cx: number, cy: number, scale = 4, dir: 0 | 1 | 2 | 3 = 0) {
   const f = clampFigure(fig);
   const made = compose(f, dir, false, false, 0);
-  const destH = Math.max(96, Math.round(28 * scale));
+  const destH = Math.max(120, Math.round(36 * scale));
   const destW = Math.round((destH * SPRITE_W) / SPRITE_H);
   const dx = Math.round(cx - destW / 2);
   const dy = Math.round(cy - destH * 0.92);
