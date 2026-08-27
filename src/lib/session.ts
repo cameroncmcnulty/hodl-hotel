@@ -1,5 +1,6 @@
 import { createHmac, timingSafeEqual } from "crypto";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
+import { NextResponse } from "next/server";
 
 const COOKIE = "hodl_session";
 
@@ -17,6 +18,7 @@ export function signSession(userId: string, days = 14) {
 export function readSession(token: string | undefined | null): { u: string; exp: number } | null {
   if (!token || !token.includes(".")) return null;
   const [body, sig] = token.split(".");
+  if (!body || !sig) return null;
   const expect = createHmac("sha256", secret()).update(body).digest("base64url");
   const a = Buffer.from(sig);
   const b = Buffer.from(expect);
@@ -30,16 +32,32 @@ export function readSession(token: string | undefined | null): { u: string; exp:
   }
 }
 
+function cookieOpts() {
+  return {
+    httpOnly: true,
+    sameSite: "lax" as const,
+    path: "/",
+    secure: process.env.NODE_ENV === "production",
+    maxAge: 14 * 24 * 3600,
+  };
+}
+
 export async function setSessionCookie(userId: string) {
   const jar = await cookies();
-  const secure = process.env.COOKIE_SECURE === "true" || (process.env.NODE_ENV === "production" && process.env.COOKIE_SECURE !== "false");
-  jar.set(COOKIE, signSession(userId), {
-    httpOnly: true,
-    sameSite: "lax",
-    path: "/",
-    secure,
-    maxAge: 14 * 24 * 3600,
-  });
+  jar.set(COOKIE, signSession(userId), cookieOpts());
+}
+
+export function attachSession(res: NextResponse, userId: string) {
+  const token = signSession(userId);
+  res.cookies.set(COOKIE, token, cookieOpts());
+  return token;
+}
+
+export function sessionJson(data: Record<string, unknown>, userId: string) {
+  const token = signSession(userId);
+  const res = NextResponse.json({ ...data, token });
+  res.cookies.set(COOKIE, token, cookieOpts());
+  return res;
 }
 
 export async function clearSessionCookie() {
@@ -49,6 +67,7 @@ export async function clearSessionCookie() {
 
 export async function sessionUserId() {
   const jar = await cookies();
-  const parsed = readSession(jar.get(COOKIE)?.value);
-  return parsed?.u || null;
+  const h = await headers();
+  const token = jar.get(COOKIE)?.value || h.get("x-hodl-session") || "";
+  return readSession(token)?.u || null;
 }

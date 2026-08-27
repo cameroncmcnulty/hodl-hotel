@@ -12,6 +12,7 @@ import { iso } from "@/lib/game/iso";
 import { face, motAt, setPath, tickMot, type Mot } from "@/lib/game/motion";
 import { clampFigure, loadAvatars } from "@/lib/game/avatar";
 import { loadSprites, spriteCache } from "@/lib/game/sprites";
+import { api, authInit, clearClientToken } from "@/lib/clientAuth";
 import type { Ad, ChatLine, Figure, Occupant, Placed, Room } from "@/lib/types";
 import {
   Backpack,
@@ -98,20 +99,28 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
   }, [panel, shopCat]);
 
   const act = useCallback(async (body: { type: string; [k: string]: unknown }) => {
-    const res = await fetch("/api/game", {
-      method: "POST",
-      credentials: "include",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(body),
-    });
-    const j = await res.json().catch(() => ({ error: "Bad response" }));
+    const { res, j } = await api("/api/game", { method: "POST", body: JSON.stringify(body) });
     if (res.status === 401 || /sign in|session expired/i.test(String(j.error || ""))) {
-      if (body.type !== "ping") {
-        setStatus("Session expired — sending you to login");
-        setTimeout(() => {
-          location.href = "/login";
-        }, 900);
+      if (body.type === "ping") return j;
+      const me = await api("/api/auth/me");
+      if (me.j?.user) {
+        setMe((prev) => ({ ...prev, ...me.j.user }));
+        if (body.type === "join") {
+          const retry = await api("/api/game", { method: "POST", body: JSON.stringify(body) });
+          if (retry.j?.room) {
+            setSnap(retry.j);
+            setRoomId(retry.j.room.id);
+            return retry.j;
+          }
+        }
+        setStatus("Couldn't save that — try once more.");
+        return j;
       }
+      setStatus("Session expired — sending you to login");
+      setTimeout(() => {
+        clearClientToken();
+        location.href = "/login";
+      }, 900);
       return j;
     }
     if (j.error && body.type !== "ping") setStatus(j.error);
@@ -164,7 +173,7 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
   useEffect(() => {
     act({ type: "join", roomId: homeRoomId });
     return () => {
-      fetch("/api/game", { method: "POST", credentials: "include", headers: { "content-type": "application/json" }, body: JSON.stringify({ type: "leave" }) });
+      fetch("/api/game", authInit({ method: "POST", body: JSON.stringify({ type: "leave" }) }));
     };
   }, [act, homeRoomId]);
 
@@ -353,7 +362,7 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
   }, [status]);
 
   async function refreshMe() {
-    const j = await fetch("/api/auth/me", { credentials: "include" }).then((r) => r.json());
+    const { j } = await api("/api/auth/me");
     if (j.user) setMe((prev) => ({ ...prev, ...j.user }));
     return j.user as Me | null;
   }
@@ -376,8 +385,7 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
   }
 
   async function buyPlan(id: string) {
-    const res = await fetch("/api/shop", { method: "POST", credentials: "include", headers: { "content-type": "application/json" }, body: JSON.stringify({ layoutId: id }) });
-    const j = await res.json();
+    const { j } = await api("/api/shop", { method: "POST", body: JSON.stringify({ layoutId: id }) });
     if (j.error) setStatus(j.error);
     else {
       setStatus(`Unlocked ${j.plan.name}`);
@@ -402,16 +410,17 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
       setStatus(`Need ${def.price.toLocaleString()} coins — you have ${meState.coins.toLocaleString()}`);
       return;
     }
-    const res = await fetch("/api/shop", {
-      method: "POST",
-      credentials: "include",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ catalogId: id }),
-    });
-    const j = await res.json().catch(() => ({ error: "Shop is down" }));
+    const { res, j } = await api("/api/shop", { method: "POST", body: JSON.stringify({ catalogId: id }) });
     if (res.status === 401 || /sign in|session expired/i.test(String(j.error || ""))) {
+      const me = await api("/api/auth/me");
+      if (me.j?.user) {
+        setMe((prev) => ({ ...prev, ...me.j.user }));
+        setStatus("Shop hiccup — tap Buy again.");
+        return;
+      }
       setStatus("Session expired — sending you to login");
       setTimeout(() => {
+        clearClientToken();
         location.href = "/login";
       }, 900);
       return;
@@ -498,7 +507,8 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
           )}
           <button
             onClick={async () => {
-              await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
+              await fetch("/api/auth/logout", authInit({ method: "POST" }));
+              clearClientToken();
               location.href = "/";
             }}
           >

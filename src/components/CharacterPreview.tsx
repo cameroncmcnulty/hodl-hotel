@@ -7,6 +7,9 @@ import {
   botsFor,
   clampFigure,
   drawAvatarFront,
+  EYE_LABEL,
+  EYES,
+  FACE,
   GENDERS,
   HAIR_C,
   hairsFor,
@@ -69,6 +72,14 @@ function PartIcon({ kind, color }: { kind: string; color: string }) {
       {kind === "shoes" && (
         <svg viewBox="0 0 24 24" width="22" height="22">
           <path d="M3 15h12l6 2v3H3v-5z" fill={color} stroke="#222" strokeWidth="1" />
+        </svg>
+      )}
+      {kind === "face" && (
+        <svg viewBox="0 0 24 24" width="22" height="22">
+          <circle cx="12" cy="12" r="8" fill="#f0c3a0" stroke="#222" strokeWidth="1" />
+          <circle cx="9" cy="11" r="1.4" fill={color} />
+          <circle cx="15" cy="11" r="1.4" fill={color} />
+          <path d="M9 16c1 1 5 1 6 0" fill="none" stroke="#222" strokeWidth="1" />
         </svg>
       )}
     </span>
@@ -173,6 +184,16 @@ export function FigureEditor({ figure, onChange }: { figure: Figure; onChange: (
       colorNext: () => cycle("hairColor", HAIR_C.length - 1, 1),
     },
     {
+      kind: "face",
+      color: EYES[f.eyes ?? 0],
+      label: `${FACE[f.face ?? 0]} · ${EYE_LABEL[f.eyes ?? 0]}`,
+      swatch: EYES[f.eyes ?? 0],
+      stylePrev: () => cycle("face", FACE.length - 1, -1),
+      styleNext: () => cycle("face", FACE.length - 1, 1),
+      colorPrev: () => cycle("eyes", EYES.length - 1, -1),
+      colorNext: () => cycle("eyes", EYES.length - 1, 1),
+    },
+    {
       kind: "skin",
       color: SKIN[f.skin],
       label: "skin",
@@ -241,7 +262,7 @@ export function FigureEditor({ figure, onChange }: { figure: Figure; onChange: (
           <ArrowBtn label="next" onClick={() => setDirI((i) => wrap(i + 1, DIRS.length - 1))} />
         </div>
         <p className="mt-1 text-center text-[10px] text-white/80">
-          {hairs[f.hair]} · {tops[f.topCut ?? 0]} · {bots[f.botCut ?? 0]}
+          {hairs[f.hair]} · {FACE[f.face ?? 0]} · {EYE_LABEL[f.eyes ?? 0]} · {tops[f.topCut ?? 0]} · {bots[f.botCut ?? 0]}
         </p>
       </div>
 

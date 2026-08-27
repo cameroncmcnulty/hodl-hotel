@@ -9,6 +9,8 @@ export type Figure = {
   acc: number;
   topCut?: number;
   botCut?: number;
+  eyes?: number;
+  face?: number;
 };
 
 export type Item = {

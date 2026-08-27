@@ -1,7 +1,27 @@
 import type { Figure } from "../types";
 import { mix } from "./pix";
 
-export const SKIN = ["#fbe0c8", "#f0c3a0", "#d29b6b", "#a86b3c", "#6e4320", "#3d2614"];
+export const SKIN = [
+  "#ffe9dc",
+  "#fbe0c8",
+  "#f3d1b0",
+  "#e8c19a",
+  "#d4a574",
+  "#c48a56",
+  "#b56c3a",
+  "#a05a32",
+  "#8d4e24",
+  "#7a4528",
+  "#6b3a20",
+  "#5a2e18",
+  "#4a2414",
+  "#3a1c10",
+  "#29140c",
+  "#1a0e08",
+];
+export const EYES = ["#3b2214", "#5c3317", "#8b5a2b", "#3d5c2e", "#2e5aa6", "#4a6274", "#b8860b", "#1a1a1a"];
+export const FACE = ["default", "almond", "round", "lash"];
+export const EYE_LABEL = ["dark brown", "brown", "hazel", "green", "blue", "gray", "amber", "black"];
 export const HAIR_C = [
   "#1e5a68",
   "#1b1b1b",
@@ -55,6 +75,8 @@ export const DEFAULT_FIGURE: Figure = {
   acc: 0,
   topCut: 0,
   botCut: 0,
+  eyes: 0,
+  face: 0,
 };
 
 export const AVATAR_DRAW_H = 128;
@@ -79,6 +101,8 @@ export function clampFigure(f: Partial<Figure> | undefined): Figure {
     acc: n(f?.acc, ACC.length - 1),
     topCut: n(f?.topCut, topsFor(gender).length - 1),
     botCut: n(f?.botCut, botsFor(gender).length - 1),
+    eyes: n(f?.eyes, EYES.length - 1),
+    face: n(f?.face, FACE.length - 1),
   };
 }
 
@@ -94,12 +118,12 @@ function loadImage(src: string) {
 export function loadAvatars() {
   if (!loadPromise) {
     loadPromise = (async () => {
-      const man = (await fetch("/art/avatars/manifest.json?v=15")
+      const man = (await fetch("/art/avatars/manifest.json?v=16")
         .then((r) => r.json())
         .catch(() => [])) as string[];
       await Promise.all(
         man.map(async (file) => {
-          const img = await loadImage(`/art/avatars/${file}?v=15`);
+          const img = await loadImage(`/art/avatars/${file}?v=16`);
           if (!img) return;
           const c = document.createElement("canvas");
           c.width = img.width;
@@ -145,19 +169,86 @@ function isHairPx(r: number, g: number, b: number) {
 
 function isSkinPx(r: number, g: number, b: number) {
   if (isPurplePx(r, g, b)) return false;
-  if (r < 70 || g < 35) return false;
+  if (r < 48 || g < 22) return false;
   if (r > 252 && g > 252 && b > 252) return false;
-  return r > g - 4 && g >= b - 14 && r - b > 12 && g < 230 && b < 210 && r < 256;
+  return r > g - 8 && g >= b - 18 && r - b > 8 && g < 235 && b < 220 && r < 256;
+}
+
+function mapSkin(r: number, g: number, b: number, target: [number, number, number]): [number, number, number] {
+  const srcL = lum(r, g, b);
+  const tL = Math.max(0.05, lum(target[0], target[1], target[2]));
+  const delta = srcL - 0.78;
+  const spread = tL < 0.22 ? 0.4 : tL < 0.4 ? 0.55 : 0.7;
+  const outL = Math.max(0.04, Math.min(0.96, tL + delta * spread));
+  const scale = outL / tL;
+  return [
+    Math.max(0, Math.min(255, Math.round(target[0] * scale))),
+    Math.max(0, Math.min(255, Math.round(target[1] * scale))),
+    Math.max(0, Math.min(255, Math.round(target[2] * scale))),
+  ];
 }
 
 function isPurplePx(r: number, g: number, b: number) {
   return r > 55 && b > 85 && g < 100 && b > g + 18 && Math.abs(r - b) < 90;
 }
 
+function isIrisPx(r: number, g: number, b: number, yn: number, xn: number) {
+  if (yn < 0.2 || yn > 0.31) return false;
+  if (xn < 0.33 || xn > 0.67) return false;
+  if (isSkinPx(r, g, b) || isLooseHair(r, g, b) || isPurplePx(r, g, b)) return false;
+  const mx = Math.max(r, g, b);
+  const mn = Math.min(r, g, b);
+  if (mx > 200 && mx - mn < 30) return false;
+  return lum(r, g, b) < 0.38 && mx < 120;
+}
+
+function applyEyesAndFace(d: Uint8ClampedArray, w: number, h: number, fig: Figure) {
+  const eyeT = hexRgb(EYES[fig.eyes ?? 0] || EYES[0]);
+  const face = fig.face ?? 0;
+  const iris: { x: number; y: number }[] = [];
+  for (let y = Math.floor(h * 0.2); y < Math.floor(h * 0.32); y++) {
+    for (let x = Math.floor(w * 0.32); x < Math.floor(w * 0.68); x++) {
+      const i = (y * w + x) * 4;
+      if (d[i + 3] < 16) continue;
+      if (!isIrisPx(d[i], d[i + 1], d[i + 2], y / h, x / w)) continue;
+      const t = tint(d[i], d[i + 1], d[i + 2], eyeT);
+      d[i] = t[0];
+      d[i + 1] = t[1];
+      d[i + 2] = t[2];
+      iris.push({ x, y });
+    }
+  }
+  if (!face || !iris.length) return;
+  const dark = [Math.max(0, eyeT[0] - 40), Math.max(0, eyeT[1] - 40), Math.max(0, eyeT[2] - 40)];
+  const paint = (x: number, y: number, col: number[]) => {
+    if (x < 0 || y < 0 || x >= w || y >= h) return;
+    const i = (y * w + x) * 4;
+    if (d[i + 3] < 12) return;
+    d[i] = col[0];
+    d[i + 1] = col[1];
+    d[i + 2] = col[2];
+    d[i + 3] = 255;
+  };
+  for (const p of iris) {
+    if (face === 1) {
+      const left = p.x < w / 2;
+      paint(p.x + (left ? -2 : 2), p.y, dark);
+      paint(p.x + (left ? -3 : 3), p.y, dark);
+    } else if (face === 2) {
+      paint(p.x, p.y + 1, [d[(p.y * w + p.x) * 4], d[(p.y * w + p.x) * 4 + 1], d[(p.y * w + p.x) * 4 + 2]]);
+      paint(p.x + 1, p.y, dark);
+      paint(p.x - 1, p.y, dark);
+    } else if (face === 3) {
+      paint(p.x, p.y - 1, [20, 16, 16]);
+      paint(p.x + 1, p.y - 1, [20, 16, 16]);
+    }
+  }
+}
+
 const recache = new Map<string, HTMLCanvasElement>();
 
 function recolor(src: HTMLCanvasElement, fig: Figure, id: string) {
-  const tagged = `${id}.${fig.skin}.${fig.hairColor}.${fig.top}.${fig.bottom}.${fig.shoes}`;
+  const tagged = `${id}.${fig.skin}.${fig.hairColor}.${fig.top}.${fig.bottom}.${fig.shoes}.${fig.eyes ?? 0}.${fig.face ?? 0}`;
   const hit = recache.get(tagged);
   if (hit) return hit;
   const out = document.createElement("canvas");
@@ -190,7 +281,7 @@ function recolor(src: HTMLCanvasElement, fig: Figure, id: string) {
       continue;
     }
     if (isSkinPx(r, g, b)) {
-      const t = tint(r, g, b, skinT);
+      const t = mapSkin(r, g, b, skinT);
       d[i] = t[0];
       d[i + 1] = t[1];
       d[i + 2] = t[2];
@@ -223,6 +314,7 @@ function recolor(src: HTMLCanvasElement, fig: Figure, id: string) {
       }
     }
   }
+  applyEyesAndFace(d, out.width, out.height, fig);
   ctx.putImageData(data, 0, 0);
   recache.set(tagged, out);
   if (recache.size > 220) {

@@ -4,8 +4,10 @@ import { BACKPACK_SLOTS, MIN_AGE, passwordIssues, RESERVED_NAMES, USERNAME_RE } 
 import { clampFigure, DEFAULT_FIGURE } from "@/lib/game/avatar";
 import { FREE_LAYOUT_IDS, layoutById, USER_LAYOUTS, walkable } from "@/lib/layouts";
 import { ageYears } from "@/lib/moderate";
-import { setSessionCookie } from "@/lib/session";
+import { sessionJson } from "@/lib/session";
 import { loadDB, log, publicUser, saveDB } from "@/lib/store";
+
+export const dynamic = "force-dynamic";
 
 export async function POST(req: Request) {
   const db = loadDB();
@@ -99,6 +101,5 @@ export async function POST(req: Request) {
   });
   log(db, "signup", `${username} checked in`);
   saveDB(db);
-  await setSessionCookie(id);
-  return NextResponse.json({ user: publicUser(user), homeRoomId: roomId });
+  return sessionJson({ user: publicUser(user), homeRoomId: roomId }, id);
 }

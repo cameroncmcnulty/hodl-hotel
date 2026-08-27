@@ -46,7 +46,10 @@ function empty(): DB {
   };
 }
 
-let cache: DB | null = null;
+type LiveRoom = { occupants: Occupant[]; chat: ChatLine[] };
+type Live = { rooms: Record<string, LiveRoom> };
+const g = globalThis as unknown as { __hodlDB?: DB; __hodlLive?: Live };
+let cache: DB | null = g.__hodlDB || null;
 
 function filePath() {
   for (const f of FILES) {
@@ -73,13 +76,31 @@ export function loadDB(): DB {
   if (found.length) {
     found.sort((a, b) => (b.db.users?.length || 0) - (a.db.users?.length || 0));
     cache = found[0].db;
+    for (const extra of found.slice(1)) {
+      mergeUsers(cache, extra.db);
+    }
     bootstrap(cache);
+    g.__hodlDB = cache;
     return cache;
   }
   cache = empty();
   bootstrap(cache);
   saveDB(cache);
   return cache;
+}
+
+function mergeUsers(into: DB, from: DB) {
+  const have = new Set(into.users.map((u) => u.id));
+  for (const u of from.users || []) {
+    if (!have.has(u.id)) {
+      into.users.push(u);
+      have.add(u.id);
+    }
+  }
+  const haveR = new Set(into.rooms.map((r) => r.id));
+  for (const r of from.rooms || []) {
+    if (!haveR.has(r.id)) into.rooms.push(r);
+  }
 }
 
 export function reloadDB(): DB {
@@ -127,6 +148,7 @@ function bootstrap(db: DB) {
 
 export function saveDB(db: DB) {
   cache = db;
+  g.__hodlDB = db;
   const json = JSON.stringify(db);
   let wrote = false;
   for (const f of FILES) {
@@ -174,11 +196,6 @@ export function persistInfo() {
   };
 }
 
-type LiveRoom = { occupants: Occupant[]; chat: ChatLine[] };
-
-type Live = { rooms: Record<string, LiveRoom> };
-
-const g = globalThis as unknown as { __hodlLive?: Live };
 function live(): Live {
   if (!g.__hodlLive) g.__hodlLive = { rooms: {} };
   return g.__hodlLive;

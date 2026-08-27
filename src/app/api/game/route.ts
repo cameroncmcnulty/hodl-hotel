@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { applyAction, snapshot } from "@/lib/game/world";
 import { sessionUserId } from "@/lib/session";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(req: Request) {
   const id = await sessionUserId();
   if (!id) return NextResponse.json({ error: "Session expired. Log in again." }, { status: 401 });

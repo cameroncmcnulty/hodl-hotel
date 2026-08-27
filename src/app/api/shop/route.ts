@@ -5,6 +5,8 @@ import { FREE_LAYOUT_IDS, PREMIUM_LAYOUTS } from "@/lib/layouts";
 import { sessionUserId } from "@/lib/session";
 import { findUser, loadDB, log, publicUser, reloadDB, saveDB } from "@/lib/store";
 
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   return NextResponse.json({ catalog: CATALOG, plans: PREMIUM_LAYOUTS.map((l) => ({ id: l.id, name: l.name, blurb: l.blurb, price: l.price })) });
 }

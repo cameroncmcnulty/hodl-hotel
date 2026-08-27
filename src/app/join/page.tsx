@@ -55,6 +55,7 @@ export default function JoinPage() {
     setErr("");
     const res = await fetch("/api/auth/register", {
       method: "POST",
+      credentials: "include",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
         email,
@@ -77,6 +78,14 @@ export default function JoinPage() {
     const j = await res.json();
     setBusy(false);
     if (!res.ok) return setErr(j.error || "Could not check in");
+    try {
+      if (j.token) {
+        localStorage.setItem("hodl_session", j.token);
+        sessionStorage.setItem("hodl_session", j.token);
+      }
+    } catch {
+      /* */
+    }
     r.push("/play");
   }
 

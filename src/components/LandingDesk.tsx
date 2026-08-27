@@ -18,12 +18,21 @@ export function LandingDesk() {
     setErr("");
     const res = await fetch("/api/auth/login", {
       method: "POST",
+      credentials: "include",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ login, password }),
     });
     const j = await res.json();
     setBusy(false);
     if (!res.ok) return setErr(j.error || "Wrong key");
+    try {
+      if (j.token) {
+        localStorage.setItem("hodl_session", j.token);
+        sessionStorage.setItem("hodl_session", j.token);
+      }
+    } catch {
+      /* */
+    }
     r.push("/play");
   }
 
