@@ -3,6 +3,7 @@
 import { FigureEditor } from "@/components/CharacterPreview";
 import { FurnIcon } from "@/components/FurnIcon";
 import { LayoutPreview } from "@/components/LayoutPreview";
+import { AppIcon, PhoneApp, PhoneClock, PhoneShell } from "@/components/PhoneShell";
 import { CATALOG, CATS, furn, RARITY_LABEL, RARITY_TONE, type Rarity } from "@/lib/catalog";
 import { FREE_LAYOUT_IDS, layoutById, PREMIUM_LAYOUTS, USER_LAYOUTS, walkable } from "@/lib/layouts";
 import { COIN_PACKS } from "@/lib/constants";
@@ -16,15 +17,19 @@ import { api, authInit, clearClientToken } from "@/lib/clientAuth";
 import type { Ad, ChatLine, Figure, Occupant, Placed, Room } from "@/lib/types";
 import {
   Backpack,
-  Flag,
   Handshake,
+  LogOut,
   Map,
+  Megaphone,
   MessageCircle,
   MessagesSquare,
+  Send,
+  Settings,
   ShoppingBag,
+  Smartphone,
   UserRound,
   Users,
-  X,
+  Wallet,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -53,7 +58,7 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
   const [snap, setSnap] = useState<Snap | null>(null);
   const [meState, setMe] = useState(me);
   const [roomId, setRoomId] = useState(homeRoomId);
-  const [panel, setPanel] = useState<string | null>(null);
+  const [phone, setPhone] = useState<string | null>(null);
   const [chat, setChat] = useState("");
   const [hover, setHover] = useState<{ x: number; y: number } | null>(null);
   const [menu, setMenu] = useState<{ x: number; y: number; tile?: { x: number; y: number }; furn?: Placed; user?: Occupant } | null>(null);
@@ -100,12 +105,12 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
   }, []);
 
   useEffect(() => {
-    if (panel !== "shop") return;
+    if (phone !== "shop") return;
     const ids = CATALOG.filter((f) => f.category === shopCat && f.id !== "ad_board").map((f) => f.id);
     loadSprites(ids).then((s) => {
       spritesRef.current = { ...spritesRef.current, ...s };
     });
-  }, [panel, shopCat]);
+  }, [phone, shopCat]);
 
   const act = useCallback(async (body: { type: string; [k: string]: unknown }) => {
     const { res, j } = await api("/api/game", { method: "POST", body: JSON.stringify(body) });
@@ -234,8 +239,8 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
       }
       if (e.key === "Escape") {
         setPlace(null);
-        setPanel(null);
         setMenu(null);
+        setPhone((p) => (p && p !== "home" ? "home" : null));
       }
     };
     const onUp = (e: KeyboardEvent) => {
@@ -508,8 +513,10 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
     if (j.error === "Room is locked") {
       setJoinTarget(id);
       setLockPass("");
-      setPanel("lock");
-    } else setPanel(null);
+    } else {
+      setJoinTarget(null);
+      setPhone(null);
+    }
     return j;
   }
 
@@ -534,19 +541,19 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
   }
 
   async function openNav() {
-    setPanel("nav");
+    setPhone("nav");
     setNav(await fetch("/api/nav", { credentials: "include" }).then((r) => r.json()));
   }
   async function openSocial() {
-    setPanel(panel === "friends" ? "friends" : "friends");
+    setPhone("friends");
     setSocial(await fetch("/api/social", { credentials: "include" }).then((r) => r.json()));
   }
   async function openMsgs() {
-    setPanel("msgs");
+    setPhone("msgs");
     setSocial(await fetch("/api/social", { credentials: "include" }).then((r) => r.json()));
   }
   async function openAds() {
-    setPanel("ads");
+    setPhone("ads");
     setAds(await fetch("/api/ads", { credentials: "include" }).then((r) => r.json()));
   }
 
@@ -648,44 +655,14 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
   }
 
   const you = snap?.occupants.find((o) => o.userId === meState.id);
+  const unread = (social?.threads || []).reduce((n: number, t: any) => n + (Number(t.unread) || 0), 0);
+  const goHome = () => setPhone("home");
 
   return (
-    <div
-      className="relative flex h-[100dvh] flex-col overflow-hidden"
-      style={{
-        background:
-          "repeating-linear-gradient(45deg,#1c4a5c 0 10px,#163e4e 10px 20px)",
-      }}
-    >
-      <div className="z-10 flex items-center justify-between border-b-4 border-[#c48a1a] bg-gradient-to-r from-[#f0b429] to-[#e08932] px-3 py-1 text-sm font-bold text-[#2a1a08]">
-        <span className="font-display text-lg">HODL Hotel</span>
-        <span>
-          {snap?.room.name} · {snap?.occupants.length || 0} in room
-        </span>
-        <span className="flex items-center gap-2">
-          <button className="rounded bg-[#24143d] px-2 py-0.5 text-white" onClick={() => setPanel(panel === "coins" ? null : "coins")}>
-            {meState.coins}c
-          </button>
-          {meState.role === "admin" && (
-            <a className="underline" href="/admin">
-              Desk
-            </a>
-          )}
-          <button
-            onClick={async () => {
-              await fetch("/api/auth/logout", authInit({ method: "POST" }));
-              clearClientToken();
-              location.href = "/";
-            }}
-          >
-            Logout
-          </button>
-        </span>
-      </div>
-      <div className="relative min-h-0 flex-1 border-x-8 border-[#f0b429] bg-[#7ec8ea]">
+    <div className="relative h-[100dvh] overflow-hidden bg-[#050508]" style={{ overscrollBehavior: "none" }}>
       <canvas
         ref={canvasRef}
-        className="h-full w-full cursor-pointer touch-none select-none"
+        className="absolute inset-0 h-full w-full cursor-pointer touch-none select-none"
         style={{ imageRendering: "pixelated", touchAction: "none" }}
         onMouseMove={(e) => setHover(localTile(e))}
         onContextMenu={(e) => {
@@ -721,34 +698,36 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
           walkTo(t.x, t.y);
         }}
       />
-      </div>
 
-      <div className="z-10 flex items-center gap-2 border-t-4 border-[#c48a1a] bg-[#2a2218] px-3 py-2">
-      <div className="flex gap-1">
-        {(
-          [
-            { id: "nav", Icon: Map, fn: openNav },
-            { id: "pack", Icon: Backpack, fn: () => setPanel(panel === "pack" ? null : "pack") },
-            { id: "shop", Icon: ShoppingBag, fn: () => setPanel(panel === "shop" ? null : "shop") },
-            { id: "chat", Icon: MessageCircle, fn: () => setPanel(panel === "chat" ? null : "chat") },
-            { id: "look", Icon: UserRound, fn: () => { setLook(clampFigure(meState.figure)); setPanel(panel === "look" ? null : "look"); } },
-            { id: "friends", Icon: Users, fn: openSocial },
-            { id: "msgs", Icon: MessagesSquare, fn: openMsgs },
-            { id: "ads", Icon: Flag, fn: openAds },
-          ] as const
-        ).map(({ id, Icon, fn }) => (
-          <button
-            key={id}
-            className={`grid h-11 w-11 place-items-center rounded-md border-2 border-[#7a5a20] bg-[#f0b429] text-[#24143d] ${panel === id ? "ring-2 ring-mint" : ""}`}
-            onClick={fn}
-            title={id}
+      <button
+        type="button"
+        onClick={openNav}
+        className="glass-chip absolute left-1/2 top-3 z-20 -translate-x-1/2 rounded-full px-3.5 py-1.5 text-xs font-semibold text-white/90"
+      >
+        {snap?.room.name || "HODL Hotel"}
+        <span className="ml-2 text-white/45">{snap?.occupants.length || 0} here</span>
+      </button>
+
+      <div className="pointer-events-none absolute bottom-[5.6rem] left-3 right-3 z-20 mx-auto max-w-md space-y-1.5">
+        {(snap?.chat || []).slice(-4).map((c) => (
+          <div
+            key={c.id}
+            className={`pointer-events-none max-w-[88%] rounded-[18px] px-3 py-1.5 text-[13px] leading-snug shadow-lg backdrop-blur-md ${
+              c.userId === meState.id
+                ? "ml-auto bg-[#14F195]/90 text-[#12121c]"
+                : "bg-black/55 text-white"
+            }`}
           >
-            <Icon size={18} />
-          </button>
+            {c.userId !== meState.id && (
+              <span className={`mr-1.5 font-semibold ${c.kind === "roll" ? "text-gold" : "text-mint"}`}>{c.username}</span>
+            )}
+            {c.text}
+          </div>
         ))}
       </div>
+
       <form
-        className="flex min-w-0 flex-1 gap-2"
+        className="absolute inset-x-0 bottom-0 z-30 mx-auto flex max-w-xl items-center gap-2 px-3 pb-[max(0.7rem,env(safe-area-inset-bottom))] pt-2"
         onSubmit={(e) => {
           e.preventDefault();
           if (chat.trim()) act({ type: "chat", text: chat });
@@ -756,24 +735,51 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
         }}
       >
         <input
-          className="min-w-0 flex-1 rounded-md border-2 border-[#7a5a20] bg-[#f7efe2] px-3 py-2 text-sm text-[#24143d] outline-none"
+          className="h-11 min-w-0 flex-1 rounded-full border border-white/15 bg-black/55 px-4 text-sm text-white outline-none placeholder:text-white/40 backdrop-blur-xl focus:border-mint/50"
           placeholder={`Say something, ${meState.username}…`}
           value={chat}
           onChange={(e) => setChat(e.target.value)}
           maxLength={80}
         />
-        <button className="rounded-md bg-[#14F195] px-4 font-bold text-[#24143d]">Send</button>
+        <button
+          type="submit"
+          aria-label="Send"
+          className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[#14F195] text-[#12121c] shadow-[0_8px_24px_rgba(20,241,149,0.35)] transition active:scale-95"
+        >
+          <Send size={18} />
+        </button>
+        <button
+          type="button"
+          aria-label={phone ? "Close phone" : "Open phone"}
+          onClick={() => {
+            if (phone) setPhone(null);
+            else {
+              setPhone("home");
+              fetch("/api/social", { credentials: "include" })
+                .then((r) => r.json())
+                .then(setSocial)
+                .catch(() => {});
+            }
+          }}
+          className={`relative grid h-11 w-11 shrink-0 place-items-center rounded-full bg-gradient-to-br from-[#9945FF] to-[#14F195] text-white shadow-[0_8px_28px_rgba(153,69,255,0.45)] transition active:scale-95 ${phone ? "ring-2 ring-white/80" : ""}`}
+        >
+          <Smartphone size={18} />
+          {!!unread && !phone && (
+            <span className="absolute -right-0.5 -top-0.5 grid h-4 min-w-4 place-items-center rounded-full bg-coral px-1 text-[9px] font-bold">
+              {unread > 9 ? "9+" : unread}
+            </span>
+          )}
+        </button>
       </form>
-      </div>
 
       {status && (
-        <div className="absolute left-1/2 top-20 z-50 -translate-x-1/2 rounded-xl bg-black/80 px-4 py-2 text-sm shadow-lg" onClick={() => setStatus("")}>
+        <div className="glass-chip absolute left-1/2 top-14 z-50 -translate-x-1/2 rounded-full px-4 py-2 text-sm text-white" onClick={() => setStatus("")}>
           {status}
         </div>
       )}
 
       {place && (
-        <div className="absolute bottom-24 left-1/2 z-40 flex -translate-x-1/2 items-center gap-2 rounded-xl border border-white/15 bg-night/95 px-3 py-2 text-sm">
+        <div className="glass-chip absolute bottom-[5.7rem] left-1/2 z-30 flex -translate-x-1/2 items-center gap-2 rounded-full px-3 py-2 text-sm">
           <span className="max-w-[40vw] truncate text-white/80">Placing {furn(place.catalogId)?.name}</span>
           <button
             className="rounded bg-white/10 px-2 py-1"
@@ -793,306 +799,417 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
         </div>
       )}
 
-      {panel === "look" && (
-        <Hud title="Look" onClose={() => setPanel(null)} wide>
-          <FigureEditor figure={look} onChange={setLook} />
-          <button
-            className="btn-sol mt-3 w-full"
-            onClick={async () => {
-              const j = await act({ type: "look", figure: look });
-              if (!j.error) {
-                setMe((p) => ({ ...p, figure: look }));
-                setPanel(null);
-                setStatus("Look saved");
-              }
-            }}
-          >
-            Save look
-          </button>
-        </Hud>
-      )}
-
-      {panel === "pack" && (
-        <Hud title="Backpack — 30 slots" onClose={() => setPanel(null)}>
-          <div className="grid grid-cols-5 gap-2 sm:grid-cols-6">
-            {meState.backpack.map((slot, i) => (
-              <button
-                key={i}
-                onClick={async () => {
-                  if (!slot) return;
-                  if (snap?.room.ownerId !== meState.id) {
-                    setStatus("You can only place furniture in your suite — heading there.");
-                    const j = await joinRoom(homeRoomId);
-                    if (j?.room?.ownerId !== meState.id) {
-                      setStatus("You can only put furniture down in your own suite.");
-                      return;
-                    }
-                  }
-                  setPlace({ uid: slot.uid, catalogId: slot.catalogId, rot: 0 });
-                  setPanel(null);
-                  setStatus("Rotate, then tap a tile in your suite to place.");
-                }}
-                className={`flex aspect-square flex-col items-center justify-center overflow-hidden rounded-xl border text-[9px] leading-tight ${slot ? "border-mint/40 bg-[#8fd4f2]/20" : "border-white/10 bg-black/30"}`}
-              >
-                {slot ? (
-                  <>
-                    <FurnIcon id={slot.catalogId} className="h-12 w-full" />
-                    <span className="px-0.5 pb-0.5 text-center">{furn(slot.catalogId)?.name}</span>
-                  </>
-                ) : null}
-              </button>
-            ))}
-          </div>
-          <p className="mt-2 text-xs text-white/50">Place only in your suite. Right-click (or hold ~2s on phone) your pieces to pick up, rotate, sit, or use them.</p>
-        </Hud>
-      )}
-
-      {panel === "shop" && (
-        <Hud title="Furniture shop" onClose={() => setPanel(null)} wide>
-          <div className="mb-2 flex flex-wrap gap-1">
-            {[...CATS, "plans"].map((c) => (
-              <button key={c} className={`rounded-full px-2 py-1 text-xs capitalize ${shopCat === c ? "bg-mint text-ink" : "bg-white/10"}`} onClick={() => setShopCat(c)}>
-                {c}
-              </button>
-            ))}
-          </div>
-          {shopCat !== "plans" && (
-            <div className="mb-2 flex flex-wrap gap-1 text-[9px] font-bold uppercase tracking-wide">
-              {(["uncommon", "rare", "elite", "gold", "crypto"] as Rarity[]).map((r) => (
-                <span key={r} className={`rounded-full px-1.5 py-0.5 ${RARITY_TONE[r]}`}>
-                  {RARITY_LABEL[r]}
-                </span>
-              ))}
-            </div>
-          )}
-          {shopCat === "plans" ? (
-            <div className="grid max-h-[56vh] grid-cols-2 gap-2 overflow-auto">
-              {[...USER_LAYOUTS, ...PREMIUM_LAYOUTS].map((l) => (
-                <div key={l.id} className="rounded-xl border border-white/10 bg-black/25 p-2">
-                  <LayoutPreview layoutId={l.id} />
-                  <div className="mt-1 font-semibold leading-tight">
-                    {l.name} {l.premium && <span className="text-gold">gold</span>}
-                  </div>
-                  <div className="text-xs text-white/60">{l.blurb}</div>
-                  {ownsPlan(l.id) ? (
-                    <button
-                      className="btn-sol mt-2 w-full text-xs"
-                      onClick={() => {
-                        if (snap?.room.ownerId !== meState.id) {
-                          setStatus("You can only change the floor plan in your own suite.");
-                          return;
-                        }
-                        applyPlan(l.id);
-                      }}
-                    >
-                      Use in this room
-                    </button>
-                  ) : (
-                    <button className="btn-sol mt-2 w-full text-xs" onClick={() => buyPlan(l.id)}>
-                      {l.price} coins
-                    </button>
-                  )}
-                </div>
-              ))}
-            </div>
-          ) : (
-          <div className="grid max-h-[56vh] grid-cols-2 gap-2 overflow-auto md:grid-cols-3">
-            {CATALOG.filter((f) => f.category === shopCat && f.id !== "ad_board")
-              .slice()
-              .sort((a, b) => a.price - b.price)
-              .map((f) => {
-                const rarity = (f.rarity || (f.rare ? "rare" : "common")) as Rarity;
-                return (
-              <div key={f.id} className="rounded-xl border border-white/10 bg-black/25 p-2">
-                <div className="relative overflow-hidden rounded-lg border border-white/10 bg-[#7ec8ea]">
-                  <FurnIcon id={f.id} className="h-28 w-full" />
-                  {rarity !== "common" && (
-                    <span className={`absolute left-1.5 top-1.5 rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide ${RARITY_TONE[rarity]}`}>
-                      {RARITY_LABEL[rarity]}
-                    </span>
-                  )}
-                </div>
-                <div className="mt-1.5 font-semibold leading-tight">{f.name}</div>
-                <div className="text-[10px] text-white/45">
-                  {f.w}×{f.d} tile{f.w * f.d > 1 ? "s" : ""} · {f.sittable ? "sit" : f.walkable ? "walk" : f.slot === "wall" ? "wall" : "place"}
-                </div>
-                <div className="text-xs text-white/60">{f.desc}</div>
-                <button className="btn-sol mt-2 w-full text-xs" onClick={() => buy(f.id)}>
-                  {f.price === 0 ? "Get free" : meState.coins < f.price ? `Need ${f.price.toLocaleString()}c` : `Buy · ${f.price.toLocaleString()}c`}
+      {phone && (
+        <PhoneShell onBackdrop={() => setPhone(null)} onHomeBar={() => (phone === "home" ? setPhone(null) : goHome())}>
+          {phone === "home" && (
+            <div className="flex min-h-0 flex-1 flex-col px-5 pt-1">
+              <div className="mb-3 flex items-center justify-between text-[12px] font-semibold text-white/75">
+                <PhoneClock />
+                <button type="button" onClick={() => setPhone("coins")} className="rounded-full bg-white/10 px-2.5 py-0.5 text-mint">
+                  {meState.coins.toLocaleString()}c
                 </button>
               </div>
-                );
-              })}
-          </div>
-          )}
-        </Hud>
-      )}
-
-      {panel === "coins" && (
-        <Hud title="Coin desk — pay with Solana" onClose={() => setPanel(null)}>
-          <p className="mb-3 text-xs text-white/60">Virtual coins have no cash value. 18+ only. Payments go to the hotel treasury wallet.</p>
-          <div className="grid gap-2">
-            {COIN_PACKS.map((p) => (
-              <button key={p.id} className="flex items-center justify-between rounded-xl border border-white/10 px-3 py-2 text-left hover:border-mint" onClick={() => buyCoins(p.id)}>
-                <span>
-                  <b>{p.name}</b>
-                  <div className="text-xs text-white/50">{p.tag}</div>
-                </span>
-                <span className="text-mint">
-                  {p.coins}c · {p.sol} SOL
-                </span>
-              </button>
-            ))}
-          </div>
-        </Hud>
-      )}
-
-      {panel === "nav" && nav && (
-        <Hud title="Navigator" onClose={() => setPanel(null)} wide>
-          <Tabs
-            tabs={[
-              {
-                id: "pop",
-                label: "Popular Rooms",
-                node: (
-                  <RoomList rooms={nav.popular} onJoin={joinRoom} />
-                ),
-              },
-              {
-                id: "pub",
-                label: "Public Areas",
-                node: (
-                  <div>
-                    <div className="mb-3 grid gap-2 sm:grid-cols-2">
-                      {[
-                        ["public-lobby", "Grand Lobby", "/art/lobby.jpg"],
-                        ["public-pool", "Roof Pool", "/art/pool.jpg"],
-                        ["public-shill-zone", "SHILL ZONE", "/art/shill-zone.jpg"],
-                        ["public-cook-room", "The Cook Room", "/art/cook-room.jpg"],
-                        ["public-arcade", "Signal Arcade", "/art/arcade.jpg"],
-                      ].map(([id, name, src]) => (
-                        <button key={id} className="overflow-hidden rounded-xl border border-white/10 text-left" onClick={() => joinRoom(id)}>
-                          <img src={src} alt={name} className="h-24 w-full object-cover" />
-                          <div className="p-2 text-sm font-semibold">{name}</div>
-                        </button>
-                      ))}
-                    </div>
-                    <RoomList rooms={nav.publicAreas} onJoin={joinRoom} />
-                  </div>
-                ),
-              },
-              { id: "hist", label: "Room History", node: <RoomList rooms={nav.history} onJoin={joinRoom} /> },
-            ]}
-          />
-          {nav.events?.length > 0 && (
-            <div className="mt-3 text-xs text-mint">
-              Event: {nav.events[0].title} — {nav.events[0].desc}
+              <div className="mb-5">
+                <p className="font-display text-[22px] leading-tight">Hi, {meState.username}</p>
+                <p className="text-[12px] text-white/45">Your hotel phone</p>
+              </div>
+              <div className="grid grid-cols-4 gap-x-2 gap-y-5">
+                <AppIcon label="Look" tint="from-[#ff8fab] to-[#c026d3]" onClick={() => { setLook(clampFigure(meState.figure)); setPhone("look"); }}>
+                  <UserRound size={26} />
+                </AppIcon>
+                <AppIcon label="Inbox" tint="from-[#22d3ee] to-[#2563eb]" badge={unread} onClick={openMsgs}>
+                  <MessagesSquare size={26} />
+                </AppIcon>
+                <AppIcon label="Chat" tint="from-[#a3e635] to-[#16a34a]" onClick={() => setPhone("chat")}>
+                  <MessageCircle size={26} />
+                </AppIcon>
+                <AppIcon label="Wallet" tint="from-[#facc15] to-[#f97316]" onClick={() => setPhone("coins")}>
+                  <Wallet size={26} />
+                </AppIcon>
+                <AppIcon label="Boards" tint="from-[#fb7185] to-[#e11d48]" onClick={openAds}>
+                  <Megaphone size={26} />
+                </AppIcon>
+                <AppIcon label="Settings" tint="from-[#94a3b8] to-[#475569]" onClick={() => setPhone("settings")}>
+                  <Settings size={26} />
+                </AppIcon>
+              </div>
+              <div className="mt-auto mb-1 grid grid-cols-4 justify-items-center gap-2 rounded-[22px] bg-white/12 p-2.5 backdrop-blur-md">
+                {[
+                  { tint: "from-[#38bdf8] to-[#1d4ed8]", Icon: Map, fn: openNav, label: "Navigator" },
+                  { tint: "from-[#fbbf24] to-[#ea580c]", Icon: Backpack, fn: () => setPhone("pack"), label: "Bag" },
+                  { tint: "from-[#14F195] to-[#0f766e]", Icon: ShoppingBag, fn: () => setPhone("shop"), label: "Shop" },
+                  { tint: "from-[#c084fc] to-[#7c3aed]", Icon: Users, fn: openSocial, label: "Friends" },
+                ].map(({ tint, Icon, fn, label }) => (
+                  <button
+                    key={label}
+                    type="button"
+                    aria-label={label}
+                    onClick={fn}
+                    className={`grid h-[52px] w-[52px] place-items-center rounded-[15px] bg-gradient-to-br text-white shadow-[0_8px_18px_rgba(0,0,0,0.3)] transition active:scale-95 ${tint}`}
+                  >
+                    <Icon size={24} />
+                  </button>
+                ))}
+              </div>
             </div>
           )}
-          <button className="btn-ink mt-3 text-xs" onClick={() => joinRoom(homeRoomId)}>
-            My room
-          </button>
-        </Hud>
-      )}
 
-      {panel === "chat" && (
-        <Hud title="Room chat" onClose={() => setPanel(null)}>
-          <div className="max-h-64 overflow-auto text-sm">
-            {(snap?.chat || []).map((c) => (
-              <div key={c.id} className="py-0.5">
-                <b className={c.kind === "roll" ? "text-gold" : "text-mint"}>{c.username}</b>: {c.text}
-              </div>
-            ))}
-          </div>
-        </Hud>
-      )}
-
-      {panel === "friends" && social && (
-        <Hud title="Friends" onClose={() => setPanel(null)}>
-          <FriendBox social={social} onJoin={joinRoom} onRefresh={openSocial} onMsg={(id: string) => { setDmUser(id); setPanel("msgs"); }} onTrade={async (id: string) => {
-            const j = await fetch("/api/trade", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ op: "open", userId: id, roomId }) }).then((r) => r.json());
-            setTrade(j.trade);
-            setPanel("trade");
-          }} />
-        </Hud>
-      )}
-
-      {panel === "msgs" && social && (
-        <Hud title="Messages" onClose={() => setPanel(null)}>
-          <div className="grid gap-2">
-            {(social.threads || []).map((t: any) => (
-              <button key={t.id} className="rounded-xl border border-white/10 p-2 text-left" onClick={() => setDmUser(t.other?.id)}>
-                <b>{t.other?.username}</b> {t.unread > 0 && <span className="text-coral">({t.unread})</span>}
-                <div className="text-xs text-white/50">{t.last?.text}</div>
-              </button>
-            ))}
-            {dmUser && (
-              <form
-                onSubmit={async (e) => {
-                  e.preventDefault();
-                  await fetch("/api/social", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ op: "dm", userId: dmUser, text: dmText }) });
-                  setDmText("");
-                  openMsgs();
-                }}
-              >
-                <input className="field" value={dmText} onChange={(e) => setDmText(e.target.value)} placeholder="Private message" />
-              </form>
-            )}
-          </div>
-        </Hud>
-      )}
-
-      {panel === "ads" && ads && (
-        <Hud title="Rent a board" onClose={() => setPanel(null)}>
-          <p className="mb-2 text-xs text-white/60">SHILL ZONE and The Cook Room boards. Upload a 16:9 image. Hotel can take it down.</p>
-          {ads.spots.map((s: any) => (
-            <AdRow key={s.id} spot={s} plans={ads.plans} onDone={() => { refreshMe(); openAds(); }} />
-          ))}
-        </Hud>
-      )}
-
-      {panel === "lock" && joinTarget && (
-        <Hud title="Locked room" onClose={() => setPanel(null)}>
-          <input className="field" placeholder="Password" value={lockPass} onChange={(e) => setLockPass(e.target.value)} />
-          <button className="btn-sol mt-2" onClick={() => joinRoom(joinTarget, lockPass)}>
-            Knock
-          </button>
-        </Hud>
-      )}
-
-      {panel === "trade" && trade && (
-        <Hud title="Trade" onClose={() => setPanel(null)}>
-          <p className="text-xs text-white/60">Offer backpack items. Both ready, then both confirm.</p>
-          <div className="mt-2 grid grid-cols-6 gap-1">
-            {meState.backpack.map((s, i) => (
+          {phone === "look" && (
+            <PhoneApp title="Look" onBack={goHome}>
+              <FigureEditor figure={look} onChange={setLook} />
               <button
-                key={i}
-                className="h-10 rounded border border-white/10 text-[9px]"
+                className="btn-sol mt-3 w-full"
                 onClick={async () => {
-                  if (!s) return;
-                  const uids = [...(trade.a === meState.id ? trade.aItems : trade.bItems).map((x: any) => x.uid), s.uid].slice(0, 6);
-                  const j = await fetch("/api/trade", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ op: "offer", tradeId: trade.id, uids }) }).then((r) => r.json());
-                  setTrade(j.trade);
+                  const j = await act({ type: "look", figure: look });
+                  if (!j.error) {
+                    setMe((p) => ({ ...p, figure: look }));
+                    setPhone(null);
+                    setStatus("Look saved");
+                  }
                 }}
               >
-                {s ? furn(s.catalogId)?.name : ""}
+                Save look
               </button>
-            ))}
-          </div>
-          <div className="mt-2 flex gap-2">
-            <button className="btn-ink" onClick={async () => setTrade((await fetch("/api/trade", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ op: "ready", tradeId: trade.id }) }).then((r) => r.json())).trade)}>
-              Ready
+            </PhoneApp>
+          )}
+
+          {phone === "pack" && (
+            <PhoneApp title="Backpack" extra={<span className="pr-2 text-[11px] text-white/40">{meState.backpack.filter(Boolean).length}/30</span>} onBack={goHome}>
+              <div className="grid grid-cols-4 gap-2">
+                {meState.backpack.map((slot, i) => (
+                  <button
+                    key={i}
+                    onClick={async () => {
+                      if (!slot) return;
+                      if (snap?.room.ownerId !== meState.id) {
+                        setStatus("You can only place furniture in your suite — heading there.");
+                        const j = await joinRoom(homeRoomId);
+                        if (j?.room?.ownerId !== meState.id) {
+                          setStatus("You can only put furniture down in your own suite.");
+                          return;
+                        }
+                      }
+                      setPlace({ uid: slot.uid, catalogId: slot.catalogId, rot: 0 });
+                      setPhone(null);
+                      setStatus("Rotate, then tap a tile in your suite to place.");
+                    }}
+                    className={`flex aspect-square flex-col items-center justify-center overflow-hidden rounded-2xl border text-[9px] leading-tight ${slot ? "border-white/15 bg-white/10" : "border-white/5 bg-black/25"}`}
+                  >
+                    {slot ? (
+                      <>
+                        <FurnIcon id={slot.catalogId} className="h-12 w-full" />
+                        <span className="px-0.5 pb-0.5 text-center text-white/80">{furn(slot.catalogId)?.name}</span>
+                      </>
+                    ) : null}
+                  </button>
+                ))}
+              </div>
+              <p className="mt-3 text-[11px] leading-relaxed text-white/40">Place only in your suite. Right-click or hold ~2s on your pieces to pick up, rotate, sit, or use them.</p>
+            </PhoneApp>
+          )}
+
+          {phone === "shop" && (
+            <PhoneApp title="Shop" extra={<span className="pr-2 text-[11px] text-mint">{meState.coins.toLocaleString()}c</span>} onBack={goHome}>
+              <div className="mb-2 flex flex-wrap gap-1">
+                {[...CATS, "plans"].map((c) => (
+                  <button key={c} className={`rounded-full px-2.5 py-1 text-[11px] capitalize ${shopCat === c ? "bg-mint text-ink" : "bg-white/10 text-white/80"}`} onClick={() => setShopCat(c)}>
+                    {c}
+                  </button>
+                ))}
+              </div>
+              {shopCat !== "plans" && (
+                <div className="mb-2 flex flex-wrap gap-1 text-[9px] font-bold uppercase tracking-wide">
+                  {(["uncommon", "rare", "elite", "gold", "crypto"] as Rarity[]).map((r) => (
+                    <span key={r} className={`rounded-full px-1.5 py-0.5 ${RARITY_TONE[r]}`}>
+                      {RARITY_LABEL[r]}
+                    </span>
+                  ))}
+                </div>
+              )}
+              {shopCat === "plans" ? (
+                <div className="grid grid-cols-1 gap-2">
+                  {[...USER_LAYOUTS, ...PREMIUM_LAYOUTS].map((l) => (
+                    <div key={l.id} className="rounded-2xl border border-white/10 bg-white/5 p-2">
+                      <LayoutPreview layoutId={l.id} />
+                      <div className="mt-1 font-semibold leading-tight">
+                        {l.name} {l.premium && <span className="text-gold">gold</span>}
+                      </div>
+                      <div className="text-xs text-white/60">{l.blurb}</div>
+                      {ownsPlan(l.id) ? (
+                        <button
+                          className="btn-sol mt-2 w-full text-xs"
+                          onClick={() => {
+                            if (snap?.room.ownerId !== meState.id) {
+                              setStatus("You can only change the floor plan in your own suite.");
+                              return;
+                            }
+                            applyPlan(l.id);
+                          }}
+                        >
+                          Use in this room
+                        </button>
+                      ) : (
+                        <button className="btn-sol mt-2 w-full text-xs" onClick={() => buyPlan(l.id)}>
+                          {l.price} coins
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-2">
+                  {CATALOG.filter((f) => f.category === shopCat && f.id !== "ad_board")
+                    .slice()
+                    .sort((a, b) => a.price - b.price)
+                    .map((f) => {
+                      const rarity = (f.rarity || (f.rare ? "rare" : "common")) as Rarity;
+                      return (
+                        <div key={f.id} className="rounded-2xl border border-white/10 bg-white/5 p-2">
+                          <div className="relative overflow-hidden rounded-xl bg-[#7ec8ea]">
+                            <FurnIcon id={f.id} className="h-24 w-full" />
+                            {rarity !== "common" && (
+                              <span className={`absolute left-1.5 top-1.5 rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide ${RARITY_TONE[rarity]}`}>
+                                {RARITY_LABEL[rarity]}
+                              </span>
+                            )}
+                          </div>
+                          <div className="mt-1.5 text-[13px] font-semibold leading-tight">{f.name}</div>
+                          <div className="text-[10px] text-white/45">
+                            {f.w}×{f.d} · {f.sittable ? "sit" : f.walkable ? "walk" : f.slot === "wall" ? "wall" : "place"}
+                          </div>
+                          <button className="btn-sol mt-2 w-full text-[11px]" onClick={() => buy(f.id)}>
+                            {f.price === 0 ? "Get free" : meState.coins < f.price ? `Need ${f.price.toLocaleString()}c` : `Buy · ${f.price.toLocaleString()}c`}
+                          </button>
+                        </div>
+                      );
+                    })}
+                </div>
+              )}
+            </PhoneApp>
+          )}
+
+          {phone === "coins" && (
+            <PhoneApp title="Wallet" onBack={goHome}>
+              <p className="mb-1 text-3xl font-display font-semibold text-mint">{meState.coins.toLocaleString()}c</p>
+              <p className="mb-4 text-xs text-white/50">Virtual coins have no cash value. 18+ only. Payments go to the hotel treasury.</p>
+              <div className="grid gap-2">
+                {COIN_PACKS.map((p) => (
+                  <button key={p.id} className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-3 py-3 text-left hover:border-mint" onClick={() => buyCoins(p.id)}>
+                    <span>
+                      <b>{p.name}</b>
+                      <div className="text-xs text-white/50">{p.tag}</div>
+                    </span>
+                    <span className="text-sm text-mint">
+                      {p.coins}c · {p.sol} SOL
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </PhoneApp>
+          )}
+
+          {phone === "nav" && (
+            <PhoneApp title="Navigator" extra={<button type="button" className="mr-1 rounded-full bg-white/10 px-2.5 py-1 text-[11px] text-mint" onClick={() => joinRoom(homeRoomId)}>My suite</button>} onBack={goHome}>
+              {!nav ? (
+                <p className="text-sm text-white/50">Finding rooms…</p>
+              ) : (
+                <>
+                  <Tabs
+                    tabs={[
+                      { id: "pop", label: "Popular", node: <RoomList rooms={nav.popular} onJoin={joinRoom} /> },
+                      {
+                        id: "pub",
+                        label: "Public",
+                        node: (
+                          <div>
+                            <div className="mb-3 grid gap-2">
+                              {[
+                                ["public-lobby", "Grand Lobby", "/art/lobby.jpg"],
+                                ["public-pool", "Roof Pool", "/art/pool.jpg"],
+                                ["public-shill-zone", "SHILL ZONE", "/art/shill-zone.jpg"],
+                                ["public-cook-room", "The Cook Room", "/art/cook-room.jpg"],
+                                ["public-arcade", "Signal Arcade", "/art/arcade.jpg"],
+                              ].map(([id, name, src]) => (
+                                <button key={id} className="overflow-hidden rounded-2xl border border-white/10 bg-white/5 text-left" onClick={() => joinRoom(id)}>
+                                  <img src={src} alt={name} className="h-20 w-full object-cover" />
+                                  <div className="p-2 text-sm font-semibold">{name}</div>
+                                </button>
+                              ))}
+                            </div>
+                            <RoomList rooms={nav.publicAreas} onJoin={joinRoom} />
+                          </div>
+                        ),
+                      },
+                      { id: "hist", label: "History", node: <RoomList rooms={nav.history} onJoin={joinRoom} /> },
+                    ]}
+                  />
+                  {nav.events?.length > 0 && (
+                    <div className="mt-3 rounded-2xl bg-mint/10 px-3 py-2 text-xs text-mint">
+                      {nav.events[0].title} — {nav.events[0].desc}
+                    </div>
+                  )}
+                </>
+              )}
+            </PhoneApp>
+          )}
+
+          {phone === "chat" && (
+            <PhoneApp title="Room chat" onBack={goHome}>
+              <div className="space-y-2 text-sm">
+                {(snap?.chat || []).length === 0 && <p className="text-white/40">No messages yet.</p>}
+                {(snap?.chat || []).map((c) => (
+                  <div key={c.id} className="rounded-2xl bg-white/5 px-3 py-2">
+                    <b className={c.kind === "roll" ? "text-gold" : "text-mint"}>{c.username}</b>
+                    <div className="text-white/80">{c.text}</div>
+                  </div>
+                ))}
+              </div>
+            </PhoneApp>
+          )}
+
+          {phone === "friends" && (
+            <PhoneApp title="Friends" onBack={goHome}>
+              {!social ? (
+                <p className="text-sm text-white/50">Loading…</p>
+              ) : (
+                <FriendBox
+                  social={social}
+                  onJoin={joinRoom}
+                  onRefresh={openSocial}
+                  onMsg={(id: string) => { setDmUser(id); setPhone("msgs"); }}
+                  onTrade={async (id: string) => {
+                    const j = await fetch("/api/trade", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ op: "open", userId: id, roomId }) }).then((r) => r.json());
+                    setTrade(j.trade);
+                    setPhone("trade");
+                  }}
+                />
+              )}
+            </PhoneApp>
+          )}
+
+          {phone === "msgs" && (
+            <PhoneApp title="Inbox" onBack={goHome}>
+              {!social ? (
+                <p className="text-sm text-white/50">Loading…</p>
+              ) : (
+                <div className="grid gap-2">
+                  {(social.threads || []).length === 0 && <p className="text-white/40">No messages yet.</p>}
+                  {(social.threads || []).map((t: any) => (
+                    <button key={t.id} className="rounded-2xl border border-white/10 bg-white/5 p-3 text-left" onClick={() => setDmUser(t.other?.id)}>
+                      <b>{t.other?.username}</b> {t.unread > 0 && <span className="text-coral">({t.unread})</span>}
+                      <div className="text-xs text-white/50">{t.last?.text}</div>
+                    </button>
+                  ))}
+                  {dmUser && (
+                    <form
+                      className="mt-1"
+                      onSubmit={async (e) => {
+                        e.preventDefault();
+                        await fetch("/api/social", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ op: "dm", userId: dmUser, text: dmText }) });
+                        setDmText("");
+                        openMsgs();
+                      }}
+                    >
+                      <input className="field" value={dmText} onChange={(e) => setDmText(e.target.value)} placeholder="Private message" />
+                    </form>
+                  )}
+                </div>
+              )}
+            </PhoneApp>
+          )}
+
+          {phone === "ads" && (
+            <PhoneApp title="Boards" onBack={goHome}>
+              <p className="mb-3 text-xs text-white/50">SHILL ZONE and The Cook Room. Upload a 16:9 image. Hotel can take it down.</p>
+              {!ads ? (
+                <p className="text-sm text-white/50">Loading…</p>
+              ) : (
+                ads.spots.map((s: any) => (
+                  <AdRow key={s.id} spot={s} plans={ads.plans} onDone={() => { refreshMe(); openAds(); }} />
+                ))
+              )}
+            </PhoneApp>
+          )}
+
+          {phone === "trade" && trade && (
+            <PhoneApp title="Trade" onBack={goHome}>
+              <p className="text-xs text-white/50">Offer backpack items. Both ready, then both confirm.</p>
+              <div className="mt-2 grid grid-cols-5 gap-1.5">
+                {meState.backpack.map((s, i) => (
+                  <button
+                    key={i}
+                    className="flex h-14 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-[9px]"
+                    onClick={async () => {
+                      if (!s) return;
+                      const uids = [...(trade.a === meState.id ? trade.aItems : trade.bItems).map((x: any) => x.uid), s.uid].slice(0, 6);
+                      const j = await fetch("/api/trade", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ op: "offer", tradeId: trade.id, uids }) }).then((r) => r.json());
+                      setTrade(j.trade);
+                    }}
+                  >
+                    {s ? furn(s.catalogId)?.name : ""}
+                  </button>
+                ))}
+              </div>
+              <div className="mt-3 flex gap-2">
+                <button className="btn-ink flex-1" onClick={async () => setTrade((await fetch("/api/trade", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ op: "ready", tradeId: trade.id }) }).then((r) => r.json())).trade)}>
+                  Ready
+                </button>
+                <button className="btn-sol flex-1" onClick={async () => { const j = await fetch("/api/trade", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ op: "confirm", tradeId: trade.id }) }).then((r) => r.json()); setTrade(j.trade); refreshMe(); }}>
+                  Confirm
+                </button>
+              </div>
+            </PhoneApp>
+          )}
+
+          {phone === "settings" && (
+            <PhoneApp title="Settings" onBack={goHome}>
+              <div className="grid gap-2 text-sm">
+                <button className="rounded-2xl bg-white/10 px-4 py-3 text-left hover:bg-white/15" onClick={() => joinRoom(homeRoomId)}>
+                  My suite
+                </button>
+                <button className="rounded-2xl bg-white/10 px-4 py-3 text-left hover:bg-white/15" onClick={() => setPhone("coins")}>
+                  Wallet · {meState.coins.toLocaleString()}c
+                </button>
+                {meState.role === "admin" && (
+                  <a className="rounded-2xl bg-white/10 px-4 py-3 hover:bg-white/15" href="/admin">
+                    Front desk
+                  </a>
+                )}
+                <div className="rounded-2xl bg-white/10 px-4 py-3 text-[12px] leading-relaxed text-white/55">
+                  Scroll or pinch to zoom. Click a tile to walk or sit. Hold ~2s (phone) or right-click (mouse) your furniture. Space to dance.
+                </div>
+                <button
+                  className="mt-2 flex items-center justify-center gap-2 rounded-2xl bg-coral/80 px-4 py-3 font-semibold text-white"
+                  onClick={async () => {
+                    await fetch("/api/auth/logout", authInit({ method: "POST" }));
+                    clearClientToken();
+                    location.href = "/";
+                  }}
+                >
+                  <LogOut size={16} /> Log out
+                </button>
+              </div>
+            </PhoneApp>
+          )}
+        </PhoneShell>
+      )}
+
+      {joinTarget && (
+        <div className="absolute inset-0 z-50 grid place-items-center bg-black/50 p-4 backdrop-blur-sm" onClick={() => setJoinTarget(null)}>
+          <div className="w-full max-w-sm rounded-3xl border border-white/15 bg-night p-5 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <h2 className="font-display text-lg">Locked room</h2>
+            <p className="mt-1 text-xs text-white/50">This suite needs a password.</p>
+            <input className="field mt-3" placeholder="Password" value={lockPass} onChange={(e) => setLockPass(e.target.value)} />
+            <button className="btn-sol mt-3 w-full" onClick={() => joinRoom(joinTarget, lockPass)}>
+              Knock
             </button>
-            <button className="btn-sol" onClick={async () => { const j = await fetch("/api/trade", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ op: "confirm", tradeId: trade.id }) }).then((r) => r.json()); setTrade(j.trade); refreshMe(); }}>
-              Confirm
-            </button>
           </div>
-        </Hud>
+        </div>
       )}
 
       {menu && (
         <div
-          className="fixed z-50 min-w-[160px] rounded-xl border border-white/15 bg-night p-2 text-sm shadow-xl"
+          className="glass-chip fixed z-50 min-w-[168px] rounded-2xl p-1.5 text-sm"
           style={{
             left: Math.max(8, Math.min(menu.x + 8, (typeof window !== "undefined" ? window.innerWidth : 400) - 176)),
             top: Math.max(8, Math.min(menu.y + 8, (typeof window !== "undefined" ? window.innerHeight : 400) - 280)),
@@ -1167,7 +1284,7 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
             <>
               <div className="px-2 pb-1">{menu.user.username}</div>
               <Btn onClick={async () => { await fetch("/api/social", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ op: "request", userId: menu.user!.userId }) }); setStatus("Request sent"); setMenu(null); }}>Add friend</Btn>
-              <Btn onClick={async () => { const j = await fetch("/api/trade", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ op: "open", userId: menu.user!.userId, roomId }) }).then((r) => r.json()); setTrade(j.trade); setPanel("trade"); setMenu(null); }}><Handshake size={12} /> Trade</Btn>
+              <Btn onClick={async () => { const j = await fetch("/api/trade", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ op: "open", userId: menu.user!.userId, roomId }) }).then((r) => r.json()); setTrade(j.trade); setPhone("trade"); setMenu(null); }}><Handshake size={12} /> Trade</Btn>
               <Btn onClick={async () => { const reason = prompt("Why report?") || "report"; await fetch("/api/social", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ op: "report", userId: menu.user!.userId, reason }) }); setMenu(null); }}>Report</Btn>
             </>
           )}
@@ -1175,42 +1292,26 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
         </div>
       )}
 
-      {you?.dance && <div className="pointer-events-none absolute bottom-28 right-6 text-2xl">💃</div>}
-
-      <p className="pointer-events-none absolute bottom-[4.5rem] left-3 text-[10px] text-white/70">
-        Scroll or pinch to zoom · click to walk/sit · hold ~2s or right-click your furniture · Space to dance
-      </p>
-    </div>
-  );
-}
-
-function Hud({ title, onClose, children, wide }: { title: string; onClose: () => void; children: React.ReactNode; wide?: boolean }) {
-  return (
-    <div className={`absolute left-1/2 top-24 z-40 max-h-[70vh] -translate-x-1/2 overflow-auto p-4 panel ${wide ? "w-[min(860px,94vw)]" : "w-[min(420px,94vw)]"}`}>
-      <div className="mb-3 flex items-center justify-between">
-        <h2 className="font-display text-lg">{title}</h2>
-        <button onClick={onClose}><X size={16} /></button>
-      </div>
-      {children}
+      {you?.dance && <div className="pointer-events-none absolute bottom-[5.7rem] right-4 text-2xl">💃</div>}
     </div>
   );
 }
 
 function Btn({ children, onClick }: { children: React.ReactNode; onClick: () => void }) {
   return (
-    <button className="block w-full rounded-lg px-3 py-1 text-left hover:bg-white/10" onClick={onClick}>
+    <button className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-medium text-white/90 hover:bg-white/10" onClick={onClick}>
       {children}
     </button>
   );
 }
 
 function RoomList({ rooms, onJoin }: { rooms: any[]; onJoin: (id: string) => void }) {
-  if (!rooms?.length) return <p className="text-sm text-white/50">Empty.</p>;
+  if (!rooms?.length) return <p className="text-sm text-white/40">No rooms yet.</p>;
   return (
-    <div className="grid gap-1">
+    <div className="grid gap-1.5">
       {rooms.map((r) => (
-        <button key={r.id} className="flex justify-between rounded-lg px-2 py-1 text-left hover:bg-white/10" onClick={() => onJoin(r.id)}>
-          <span>{r.name}</span>
+        <button key={r.id} className="flex items-center justify-between rounded-2xl bg-white/5 px-3 py-2.5 text-left hover:bg-white/10" onClick={() => onJoin(r.id)}>
+          <span className="font-medium">{r.name}</span>
           <span className="text-xs text-mint">{r.users ?? 0}/{r.maxUsers ?? 25}</span>
         </button>
       ))}
@@ -1224,7 +1325,7 @@ function Tabs({ tabs }: { tabs: { id: string; label: string; node: React.ReactNo
     <div>
       <div className="mb-3 flex gap-1">
         {tabs.map((t) => (
-          <button key={t.id} className={`rounded-full px-3 py-1 text-xs ${id === t.id ? "bg-mint text-ink" : "bg-white/10"}`} onClick={() => setId(t.id)}>
+          <button key={t.id} className={`rounded-full px-3 py-1.5 text-xs font-medium ${id === t.id ? "bg-mint text-ink" : "bg-white/10 text-white/70"}`} onClick={() => setId(t.id)}>
             {t.label}
           </button>
         ))}
@@ -1248,12 +1349,13 @@ function FriendBox({ social, onJoin, onRefresh, onMsg, onTrade }: any) {
         className="flex gap-2"
       >
         <input className="field" placeholder="Add by username" value={name} onChange={(e) => setName(e.target.value)} />
-        <button className="btn-sol">Add</button>
+        <button className="btn-sol shrink-0 px-3">Add</button>
       </form>
       <div>
-        <div className="text-xs uppercase text-white/40">Requests</div>
+        <div className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-white/35">Requests</div>
+        {(social.incoming || []).length === 0 && <p className="text-xs text-white/35">None right now.</p>}
         {(social.incoming || []).map((f: any) => (
-          <div key={f.id} className="flex justify-between py-1">
+          <div key={f.id} className="flex items-center justify-between rounded-2xl bg-white/5 px-3 py-2">
             {f.username}
             <button className="text-mint" onClick={async () => { await fetch("/api/social", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ op: "accept", userId: f.id }) }); onRefresh(); }}>
               Accept
@@ -1262,13 +1364,13 @@ function FriendBox({ social, onJoin, onRefresh, onMsg, onTrade }: any) {
         ))}
       </div>
       <div>
-        <div className="text-xs uppercase text-white/40">Friends</div>
+        <div className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-white/35">Friends</div>
         {(social.friends || []).map((f: any) => (
-          <div key={f.id} className="flex items-center justify-between py-1">
+          <div key={f.id} className="flex items-center justify-between gap-2 rounded-2xl bg-white/5 px-3 py-2">
             <span>
               {f.username} <span className={f.online ? "text-mint" : "text-white/30"}>{f.online ? "online" : "offline"}</span>
             </span>
-            <span className="flex gap-2 text-xs">
+            <span className="flex shrink-0 gap-2 text-xs text-mint">
               {f.online && f.roomId && <button onClick={() => onJoin(f.roomId)}>Visit</button>}
               <button onClick={() => onMsg(f.id)}>DM</button>
               <button onClick={() => onTrade(f.id)}>Trade</button>

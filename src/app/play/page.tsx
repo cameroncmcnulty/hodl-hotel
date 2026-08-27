@@ -25,6 +25,6 @@ export default function PlayPage() {
         else setData(j);
       });
   }, []);
-  if (!data?.user) return <div className="grid min-h-[100dvh] place-items-center bg-[#7ec8ea] font-display text-[#24143d]">Opening the elevator…</div>;
+  if (!data?.user) return <div className="grid min-h-[100dvh] place-items-center bg-[#0c0914] font-display text-white/70">Opening the elevator…</div>;
   return <GameClient me={data.user} homeRoomId={data.homeRoomId} />;
 }

@@ -52,3 +52,49 @@ body {
 .field {
   @apply w-full rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-sm text-white placeholder:text-white/45 outline-none ring-mint/50 focus:ring-2;
 }
+
+.phone-device {
+  border-radius: 36px;
+  padding: 9px;
+  background: linear-gradient(165deg, #3a3a44 0%, #111116 38%, #1c1c24 100%);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.14),
+    0 28px 80px rgba(0, 0, 0, 0.62),
+    inset 0 1px 0 rgba(255, 255, 255, 0.22);
+}
+
+.phone-screen {
+  position: relative;
+  overflow: hidden;
+  border-radius: 28px;
+  background:
+    radial-gradient(120% 70% at 12% -10%, rgba(153, 69, 255, 0.38), transparent 52%),
+    radial-gradient(90% 50% at 110% 110%, rgba(20, 241, 149, 0.2), transparent 46%),
+    #0c0914;
+}
+
+.phone-island {
+  width: 96px;
+  height: 22px;
+  margin: 8px auto 0;
+  border-radius: 14px;
+  background: #050508;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+}
+
+.phone-home-bar {
+  display: block;
+  width: 112px;
+  height: 5px;
+  margin: 8px auto 10px;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, 0.32);
+}
+
+.phone-home-bar:hover {
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.glass-chip {
+  @apply border border-white/15 bg-black/45 shadow-lg backdrop-blur-xl;
+}
