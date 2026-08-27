@@ -360,19 +360,19 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
 
   async function openNav() {
     setPanel("nav");
-    setNav(await fetch("/api/nav").then((r) => r.json()));
+    setNav(await fetch("/api/nav", { credentials: "include" }).then((r) => r.json()));
   }
   async function openSocial() {
     setPanel(panel === "friends" ? "friends" : "friends");
-    setSocial(await fetch("/api/social").then((r) => r.json()));
+    setSocial(await fetch("/api/social", { credentials: "include" }).then((r) => r.json()));
   }
   async function openMsgs() {
     setPanel("msgs");
-    setSocial(await fetch("/api/social").then((r) => r.json()));
+    setSocial(await fetch("/api/social", { credentials: "include" }).then((r) => r.json()));
   }
   async function openAds() {
     setPanel("ads");
-    setAds(await fetch("/api/ads").then((r) => r.json()));
+    setAds(await fetch("/api/ads", { credentials: "include" }).then((r) => r.json()));
   }
 
   async function buyPlan(id: string) {
@@ -498,7 +498,7 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
           )}
           <button
             onClick={async () => {
-              await fetch("/api/auth/logout", { method: "POST" });
+              await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
               location.href = "/";
             }}
           >

@@ -94,12 +94,12 @@ function loadImage(src: string) {
 export function loadAvatars() {
   if (!loadPromise) {
     loadPromise = (async () => {
-      const man = (await fetch("/art/avatars/manifest.json?v=14")
+      const man = (await fetch("/art/avatars/manifest.json?v=15")
         .then((r) => r.json())
         .catch(() => [])) as string[];
       await Promise.all(
         man.map(async (file) => {
-          const img = await loadImage(`/art/avatars/${file}?v=14`);
+          const img = await loadImage(`/art/avatars/${file}?v=15`);
           if (!img) return;
           const c = document.createElement("canvas");
           c.width = img.width;
@@ -267,41 +267,80 @@ function botName(fig: Figure) {
   return botsFor(fig.gender ?? 0)[fig.botCut ?? 0] || "pants";
 }
 
-function pickBody(fig: Figure, dir: 0 | 1 | 2 | 3, walking: boolean, sit: boolean, frame: number) {
+function clothesSpr(g: string, kind: "top" | "bot", name: string, view: string) {
+  return firstSpr([`${g}-${kind}-${name}-${view}`, `${g}-${kind}-${name}-se`]);
+}
+
+function pickPose(fig: Figure, dir: 0 | 1 | 2 | 3, walking: boolean, sit: boolean, frame: number) {
   const g = gKey(fig);
   const view = viewOf(dir);
   const hair = hairName(fig);
   const top = topName(fig);
   const bot = botName(fig);
   const defHair = defaultHairName(fig.gender ?? 0);
-  const clothesDefault = top === "hoodie" && bot === "pants";
+  const customClothes = top !== "hoodie" || bot !== "pants";
 
   if (sit) return firstSpr([`${g}-se-sit`, `${g}-se-idle`]);
 
   if (walking) {
     const which = frame % 2;
+    if (customClothes) return firstSpr([`${g}-se-walk${which}`, `${g}-se-walk0`, `${g}-se-walk1`, `${g}-se-idle`]);
     return firstSpr([`${g}-${view}-walk${which}`, `${g}-${view}-walk0`, `${g}-${view}-walk1`, `${g}-${view}-idle`]);
   }
 
-  if (top !== "hoodie") {
-    const t = firstSpr([`${g}-top-${top}-${view}`, `${g}-top-${top}-se`]);
-    if (t) return t;
-  }
-  if (bot !== "pants") {
-    const b = firstSpr([`${g}-bot-${bot}-${view}`, `${g}-bot-${bot}-se`]);
-    if (b) return b;
-  }
-  if (hair !== defHair && clothesDefault) {
+  if (!customClothes && hair !== defHair) {
     const h = firstSpr([`${g}-hair-${hair}-${view}`, `${g}-hair-${hair}-se`]);
     if (h) return h;
   }
-  return firstSpr([`${g}-${view}-idle`, `${g}-se-idle`]);
+  if (!customClothes) return firstSpr([`${g}-${view}-idle`, `${g}-se-idle`]);
+  return firstSpr([`${g}-se-idle`, `${g}-${view}-idle`]);
+}
+
+function isPantsPx(r: number, g: number, b: number, yn: number) {
+  if (yn < 0.555) return false;
+  if (isSkinPx(r, g, b) || isLooseHair(r, g, b) || isPurplePx(r, g, b)) return false;
+  return Math.max(r, g, b) < 108;
+}
+
+function copyBand(
+  dst: HTMLCanvasElement,
+  src: HTMLCanvasElement,
+  y0f: number,
+  y1f: number,
+  skipPants: boolean
+) {
+  const dctx = dst.getContext("2d")!;
+  const dd = dctx.getImageData(0, 0, dst.width, dst.height);
+  const sd = src.getContext("2d")!.getImageData(0, 0, src.width, src.height);
+  const d = dd.data;
+  const s = sd.data;
+  const w = Math.min(dst.width, src.width);
+  const h = Math.min(dst.height, src.height);
+  const y0 = Math.max(0, Math.floor(h * y0f));
+  const y1 = Math.min(h - 1, Math.floor(h * y1f));
+  const dw = dst.width;
+  const sw = src.width;
+  for (let y = y0; y <= y1; y++) {
+    const yn = y / h;
+    for (let x = 0; x < w; x++) {
+      const si = (y * sw + x) * 4;
+      if (s[si + 3] < 16) continue;
+      if (isLooseHair(s[si], s[si + 1], s[si + 2])) continue;
+      if (skipPants && isPantsPx(s[si], s[si + 1], s[si + 2], yn)) continue;
+      const di = (y * dw + x) * 4;
+      d[di] = s[si];
+      d[di + 1] = s[si + 1];
+      d[di + 2] = s[si + 2];
+      d[di + 3] = s[si + 3];
+    }
+  }
+  dctx.putImageData(dd, 0, 0);
 }
 
 function isLooseHair(r: number, g: number, b: number) {
   if (isSkinPx(r, g, b) || isPurplePx(r, g, b)) return false;
   if (r > 190 && g > 190 && b > 190) return false;
-  if (g < 28 || r > 150) return false;
+  if (g < 22 || r > 150) return false;
   if (g <= r + 8) return false;
   if (b <= r + 2) return false;
   if (b < g * 0.62) return false;
@@ -405,13 +444,17 @@ function compose(fig: Figure, dir: 0 | 1 | 2 | 3, walking: boolean, sit: boolean
   const g = gKey(fig);
   const view = viewOf(dir);
   const hair = hairName(fig);
+  const top = topName(fig);
+  const bot = botName(fig);
   const defHair = defaultHairName(fig.gender ?? 0);
-  const body = pickBody(fig, dir, walking, sit, frame);
+  const body = pickPose(fig, dir, walking, sit, frame);
   if (!body) return null;
 
   const usingHairBody = body.id.includes(`-hair-${hair}-`);
+  const customTop = top !== "hoodie";
+  const customBot = bot !== "pants";
   const needHair = hair !== defHair && !usingHairBody;
-  const key = `${g}|${body.id}|${hair}|${needHair ? "H" : "raw"}|${view}|${frame}`;
+  const key = `${g}|${body.id}|${top}|${bot}|${hair}|${needHair ? "H" : "raw"}|${view}|${frame}`;
   const hit = composeCache.get(key);
   if (hit) return { id: key, src: hit };
 
@@ -420,6 +463,14 @@ function compose(fig: Figure, dir: 0 | 1 | 2 | 3, walking: boolean, sit: boolean
   out.height = body.src.height;
   out.getContext("2d")!.drawImage(body.src, 0, 0);
 
+  if (customBot) {
+    const b = clothesSpr(g, "bot", bot, view);
+    if (b) copyBand(out, b.src, 0.48, 0.88, false);
+  }
+  if (customTop) {
+    const t = clothesSpr(g, "top", top, view);
+    if (t) copyBand(out, t.src, 0.26, 0.58, true);
+  }
   if (needHair) {
     const full = spr(`${g}-hair-${hair}-${view}`) || spr(`${g}-hair-${hair}-se`);
     const layer = spr(`${g}-hair-${hair}-${view}-layer`) || spr(`${g}-hair-${hair}-se-layer`);
@@ -428,7 +479,7 @@ function compose(fig: Figure, dir: 0 | 1 | 2 | 3, walking: boolean, sit: boolean
   }
 
   composeCache.set(key, out);
-  if (composeCache.size > 180) {
+  if (composeCache.size > 220) {
     const first = composeCache.keys().next().value;
     if (first) composeCache.delete(first);
   }
