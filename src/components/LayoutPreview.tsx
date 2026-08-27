@@ -8,50 +8,7 @@ import { loadSprites } from "@/lib/game/sprites";
 import { layoutById, walkable } from "@/lib/layouts";
 import type { Placed, Room } from "@/lib/types";
 
-const SAMPLES: Record<string, { id: string; x: number; y: number }[]> = {
-  cozy_studio: [
-    { id: "rug_small", x: 2, y: 2 },
-    { id: "bed_twin", x: 5, y: 1 },
-    { id: "plant_palm", x: 1, y: 1 },
-    { id: "chair_coral", x: 3, y: 5 },
-    { id: "table_coffee", x: 2, y: 5 },
-    { id: "lamp_floor", x: 6, y: 5 },
-  ],
-  city_loft: [
-    { id: "sofa_sunset", x: 1, y: 2 },
-    { id: "table_coffee", x: 2, y: 4 },
-    { id: "plant_palm", x: 8, y: 1 },
-    { id: "table_desk", x: 1, y: 7 },
-    { id: "lamp_floor", x: 4, y: 1 },
-  ],
-  neon_suite: [
-    { id: "bed_double", x: 1, y: 1 },
-    { id: "sofa_sunset", x: 7, y: 6 },
-    { id: "plant_palm", x: 10, y: 1 },
-    { id: "lamp_sol", x: 5, y: 4 },
-    { id: "rug_large", x: 6, y: 3 },
-  ],
-  sky_penthouse: [
-    { id: "lounger_pool", x: 2, y: 8 },
-    { id: "sofa_sunset", x: 3, y: 2 },
-    { id: "plant_palm", x: 11, y: 1 },
-    { id: "fountain", x: 8, y: 3 },
-    { id: "lamp_floor", x: 1, y: 1 },
-  ],
-  vault_den: [
-    { id: "throne_obsidian", x: 6, y: 2 },
-    { id: "statue_sol", x: 7, y: 6 },
-    { id: "bean_gold", x: 7, y: 7 },
-    { id: "lamp_sol", x: 1, y: 1 },
-  ],
-  garden_lanai: [
-    { id: "plant_palm", x: 3, y: 3 },
-    { id: "plant_palm", x: 6, y: 3 },
-    { id: "bean_gold", x: 1, y: 1 },
-    { id: "sofa_sunset", x: 7, y: 8 },
-    { id: "fountain", x: 4, y: 4 },
-  ],
-};
+const SAMPLES: Record<string, { id: string; x: number; y: number }[]> = {};
 
 const VW = 480;
 const VH = 280;

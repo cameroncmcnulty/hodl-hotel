@@ -354,46 +354,50 @@ export function drawRoom(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
     diamond(ctx, tile.x, tile.y, tile.fill, "#2a1c10", tile.z);
   }
 
-  for (let y = 0; y < layout.h; y++) {
+  let backY = Infinity;
+  let backX = Infinity;
+  for (const tile of tiles) {
+    if (tile.y < backY) backY = tile.y;
+    if (tile.x < backX) backX = tile.x;
+  }
+  if (Number.isFinite(backY)) {
     let x = 0;
     while (x < layout.w) {
-      const z = tileH(layout, x, y);
-      const here = walkable(layout, x, y) || isWater(layout, x, y);
-      const nBlocked = !walkable(layout, x, y - 1) && !isWater(layout, x, y - 1);
-      if (here && nBlocked) {
-        let x1 = x;
-        while (
-          x1 + 1 < layout.w &&
-          (walkable(layout, x1 + 1, y) || isWater(layout, x1 + 1, y)) &&
-          !walkable(layout, x1 + 1, y - 1) &&
-          !isWater(layout, x1 + 1, y - 1) &&
-          Math.abs(tileH(layout, x1 + 1, y) - z) < 0.05
-        )
-          x1++;
-        wallRunN(ctx, x, x1, y, z, paper);
-        x = x1 + 1;
-      } else x++;
+      const here = walkable(layout, x, backY) || isWater(layout, x, backY);
+      if (!here) {
+        x++;
+        continue;
+      }
+      const z = tileH(layout, x, backY);
+      let x1 = x;
+      while (
+        x1 + 1 < layout.w &&
+        (walkable(layout, x1 + 1, backY) || isWater(layout, x1 + 1, backY)) &&
+        Math.abs(tileH(layout, x1 + 1, backY) - z) < 0.05
+      )
+        x1++;
+      wallRunN(ctx, x, x1, backY, z, paper);
+      x = x1 + 1;
     }
   }
-  for (let x = 0; x < layout.w; x++) {
+  if (Number.isFinite(backX)) {
     let y = 0;
     while (y < layout.h) {
-      const z = tileH(layout, x, y);
-      const here = walkable(layout, x, y) || isWater(layout, x, y);
-      const wBlocked = !walkable(layout, x - 1, y) && !isWater(layout, x - 1, y);
-      if (here && wBlocked) {
-        let y1 = y;
-        while (
-          y1 + 1 < layout.h &&
-          (walkable(layout, x, y1 + 1) || isWater(layout, x, y1 + 1)) &&
-          !walkable(layout, x - 1, y1 + 1) &&
-          !isWater(layout, x - 1, y1 + 1) &&
-          Math.abs(tileH(layout, x, y1 + 1) - z) < 0.05
-        )
-          y1++;
-        wallRunW(ctx, x, y, y1, z, paper);
-        y = y1 + 1;
-      } else y++;
+      const here = walkable(layout, backX, y) || isWater(layout, backX, y);
+      if (!here) {
+        y++;
+        continue;
+      }
+      const z = tileH(layout, backX, y);
+      let y1 = y;
+      while (
+        y1 + 1 < layout.h &&
+        (walkable(layout, backX, y1 + 1) || isWater(layout, backX, y1 + 1)) &&
+        Math.abs(tileH(layout, backX, y1 + 1) - z) < 0.05
+      )
+        y1++;
+      wallRunW(ctx, backX, y, y1, z, paper);
+      y = y1 + 1;
     }
   }
 
