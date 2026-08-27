@@ -249,8 +249,8 @@ export function applyAction(userId: string, action: Action) {
   if (action.type === "pickup") {
     const p = room.furniture.find((f) => f.uid === action.uid);
     if (!p) return { error: "Missing furniture" };
-    if (p.ownerId !== userId && room.ownerId !== userId) return { error: "Not yours" };
-    if (room.ownerId === null) return { error: "Hotel furniture stays" };
+    if (room.ownerId !== userId) return { error: "You can only edit furniture in your own suite" };
+    if (p.ownerId !== userId) return { error: "That's not your furniture" };
     const free = firstFreeSlot(u);
     if (free < 0) return { error: "Backpack full (30)" };
     u.backpack[free] = {
@@ -267,7 +267,8 @@ export function applyAction(userId: string, action: Action) {
 
   if (action.type === "rotate") {
     const p = room.furniture.find((f) => f.uid === action.uid);
-    if (!p || (p.ownerId !== userId && room.ownerId !== userId)) return { error: "Can't rotate" };
+    if (!p) return { error: "Missing furniture" };
+    if (room.ownerId !== userId || p.ownerId !== userId) return { error: "You can only rotate your furniture in your suite" };
     p.rot = ((p.rot + 1) % 4) as 0 | 1 | 2 | 3;
     saveDB(db);
     return snapshot(here.roomId, userId);
@@ -277,7 +278,9 @@ export function applyAction(userId: string, action: Action) {
     const p = room.furniture.find((f) => f.uid === action.uid);
     if (!p) return { error: "Nothing there" };
     const def = furn(p.catalogId);
+    const ownSpecial = room.ownerId === userId && p.ownerId === userId;
     if (def?.use === "dice") {
+      if (!ownSpecial) return { error: "You can only use that in your suite" };
       const n = 1 + Math.floor(Math.random() * 6);
       live.chat.push({
         id: crypto.randomUUID(),
@@ -299,10 +302,17 @@ export function applyAction(userId: string, action: Action) {
       return snapshot(here.roomId, userId);
     }
     if (def?.use === "dance") {
+      if (!ownSpecial) return { error: "You can only use that in your suite" };
       occ.dance = !occ.dance;
       return snapshot(here.roomId, userId);
     }
+    if (def?.use === "arcade") {
+      if (!ownSpecial) return { error: "You can only use that in your suite" };
+      occ.chat = { text: "beep boop", at: Date.now() };
+      return snapshot(here.roomId, userId);
+    }
     if (def?.use === "teleport" && p.pairId) {
+      if (!ownSpecial) return { error: "You can only use that in your suite" };
       return applyAction(userId, { type: "walk", x: p.x, y: p.y });
     }
     return snapshot(here.roomId, userId);
@@ -314,10 +324,11 @@ export function applyAction(userId: string, action: Action) {
   }
 
   if (action.type === "linkPads") {
+    if (room.ownerId !== userId) return { error: "You can only link pads in your own suite" };
     const a = room.furniture.find((f) => f.uid === action.a);
     const bRooms = db.rooms.filter((r) => r.ownerId === userId);
     const b = bRooms.flatMap((r) => r.furniture).find((f) => f.uid === action.b);
-    if (!a || !b) return { error: "Need two pads you own" };
+    if (!a || !b || a.ownerId !== userId || b.ownerId !== userId) return { error: "Need two pads you own" };
     if (furn(a.catalogId)?.use !== "teleport" || furn(b.catalogId)?.use !== "teleport") return { error: "Not pads" };
     const pairId = crypto.randomUUID();
     a.pairId = pairId;
@@ -371,7 +382,7 @@ export function applyAction(userId: string, action: Action) {
 
   if (action.type === "setFrame") {
     const p = room.furniture.find((f) => f.uid === action.uid);
-    if (!p || p.ownerId !== userId) return { error: "Not your frame" };
+    if (!p || room.ownerId !== userId || p.ownerId !== userId) return { error: "Not your frame" };
     if (furn(p.catalogId)?.use !== "frame") return { error: "Not a frame" };
     p.nftMint = action.nftMint;
     p.nftUrl = action.nftUrl;

@@ -71,12 +71,21 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
   const [look, setLook] = useState<Figure>(() => clampFigure(me.figure));
   const tRef = useRef(0);
   const cam = useRef({ x: 400, y: 200 });
+  const zoomRef = useRef(1);
+  const pinchRef = useRef<{ dist: number; z: number } | null>(null);
+  const holdRef = useRef<{ t: number; x: number; y: number } | null>(null);
+  const skipClickRef = useRef(false);
+  const lastTouchAt = useRef(0);
   const spritesRef = useRef<Record<string, HTMLCanvasElement>>({});
   const motions = useRef<Record<string, Mot>>({});
   const lastTs = useRef(typeof performance !== "undefined" ? performance.now() : 0);
   const keys = useRef(new Set<string>());
   const snapRef = useRef(snap);
   snapRef.current = snap;
+  const meIdRef = useRef(meState.id);
+  meIdRef.current = meState.id;
+  const menuRef = useRef(menu);
+  menuRef.current = menu;
 
   const furnKey = (snap?.room.furniture || []).map((f) => f.catalogId).join(",");
   useEffect(() => {
@@ -259,11 +268,16 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
           if (c.width !== w * dpr) {
             c.width = w * dpr;
             c.height = h * dpr;
-            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
           }
+          ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
           ctx.imageSmoothingEnabled = false;
           ctx.fillStyle = "#050508";
           ctx.fillRect(0, 0, w, h);
+          const z = zoomRef.current;
+          ctx.save();
+          ctx.translate(w / 2, h / 2);
+          ctx.scale(z, z);
+          ctx.translate(-w / 2, -h / 2);
           const meMot = motions.current[meState.id];
           const held = keys.current;
           let hx = 0;
@@ -349,6 +363,7 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
             ctx.fillStyle = g;
             ctx.fillRect(0, 0, w, h);
           }
+          ctx.restore();
         }
       }
       raf = requestAnimationFrame(loop);
@@ -357,11 +372,136 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
     return () => cancelAnimationFrame(raf);
   }, [snap, hover, place, meState.id, walkTo]);
 
-  function localTile(e: React.MouseEvent) {
+  function localTile(e: { clientX: number; clientY: number }) {
     const r = canvasRef.current!.getBoundingClientRect();
-    const layout = snap ? layoutById(snap.room.layoutId) : undefined;
-    return tileAt(cam.current, e.clientX - r.left, e.clientY - r.top, layout);
+    const layout = snapRef.current ? layoutById(snapRef.current.room.layoutId) : undefined;
+    return tileAt(
+      { ...cam.current, z: zoomRef.current },
+      e.clientX - r.left,
+      e.clientY - r.top,
+      layout,
+      { w: r.width, h: r.height }
+    );
   }
+
+  function clampZoom(z: number) {
+    return Math.max(0.55, Math.min(2.6, z));
+  }
+
+  function zoomAt(mx: number, my: number, nextZ: number) {
+    const c = canvasRef.current;
+    if (!c) {
+      zoomRef.current = clampZoom(nextZ);
+      return;
+    }
+    const r = c.getBoundingClientRect();
+    const z0 = zoomRef.current;
+    const z1 = clampZoom(nextZ);
+    if (z0 === z1) return;
+    const cx = r.width / 2;
+    const cy = r.height / 2;
+    cam.current.x += (mx - cx) * (1 / z1 - 1 / z0);
+    cam.current.y += (my - cy) * (1 / z1 - 1 / z0);
+    zoomRef.current = z1;
+  }
+
+  function openFurnMenu(clientX: number, clientY: number) {
+    const s = snapRef.current;
+    if (!s) return;
+    const meId = meIdRef.current;
+    const t = localTile({ clientX, clientY });
+    const furnHit = furnAt(s.room.furniture, t.x, t.y);
+    const userHit = s.occupants.find((o) => Math.round(o.x) === t.x && Math.round(o.y) === t.y && o.userId !== meId);
+    const ownRoom = s.room.ownerId === meId;
+    const ownFurn = !!(furnHit && ownRoom && furnHit.ownerId === meId);
+    if (furnHit && !ownFurn) {
+      setStatus("You can only pick up, rotate, or use furniture in your own suite.");
+      if (userHit) setMenu({ x: clientX, y: clientY, tile: t, user: userHit });
+      else setMenu(null);
+      return;
+    }
+    if (!ownFurn && !userHit) {
+      setMenu(null);
+      return;
+    }
+    setMenu({ x: clientX, y: clientY, tile: t, furn: ownFurn ? furnHit : undefined, user: userHit });
+  }
+
+  useEffect(() => {
+    const c = canvasRef.current;
+    if (!c) return;
+    const HOLD_MS = 2000;
+    const pinchDist = (a: Touch, b: Touch) => Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+    const clearHold = () => {
+      if (holdRef.current) {
+        window.clearTimeout(holdRef.current.t);
+        holdRef.current = null;
+      }
+    };
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const r = c.getBoundingClientRect();
+      zoomAt(e.clientX - r.left, e.clientY - r.top, zoomRef.current * Math.exp(-e.deltaY * 0.0016));
+    };
+    const onTouchStart = (e: TouchEvent) => {
+      if (e.touches.length >= 2) {
+        e.preventDefault();
+        clearHold();
+        skipClickRef.current = true;
+        pinchRef.current = { dist: pinchDist(e.touches[0], e.touches[1]), z: zoomRef.current };
+        return;
+      }
+      lastTouchAt.current = Date.now();
+      if (e.touches.length === 1) {
+        const t = e.touches[0];
+        holdRef.current = {
+          t: window.setTimeout(() => {
+            skipClickRef.current = true;
+            if (typeof navigator !== "undefined" && navigator.vibrate) navigator.vibrate(25);
+            openFurnMenu(t.clientX, t.clientY);
+            holdRef.current = null;
+          }, HOLD_MS),
+          x: t.clientX,
+          y: t.clientY,
+        };
+      }
+    };
+    const onTouchMove = (e: TouchEvent) => {
+      if (e.touches.length >= 2 && pinchRef.current) {
+        e.preventDefault();
+        skipClickRef.current = true;
+        const d = pinchDist(e.touches[0], e.touches[1]);
+        const r = c.getBoundingClientRect();
+        const mx = (e.touches[0].clientX + e.touches[1].clientX) / 2 - r.left;
+        const my = (e.touches[0].clientY + e.touches[1].clientY) / 2 - r.top;
+        zoomAt(mx, my, pinchRef.current.z * (d / Math.max(1, pinchRef.current.dist)));
+        return;
+      }
+      const hold = holdRef.current;
+      if (hold && e.touches[0]) {
+        const dx = e.touches[0].clientX - hold.x;
+        const dy = e.touches[0].clientY - hold.y;
+        if (dx * dx + dy * dy > 140) clearHold();
+      }
+    };
+    const onTouchEnd = () => {
+      pinchRef.current = null;
+      clearHold();
+    };
+    c.addEventListener("wheel", onWheel, { passive: false });
+    c.addEventListener("touchstart", onTouchStart, { passive: false });
+    c.addEventListener("touchmove", onTouchMove, { passive: false });
+    c.addEventListener("touchend", onTouchEnd);
+    c.addEventListener("touchcancel", onTouchEnd);
+    return () => {
+      clearHold();
+      c.removeEventListener("wheel", onWheel);
+      c.removeEventListener("touchstart", onTouchStart);
+      c.removeEventListener("touchmove", onTouchMove);
+      c.removeEventListener("touchend", onTouchEnd);
+      c.removeEventListener("touchcancel", onTouchEnd);
+    };
+  }, []);
 
   async function joinRoom(id: string, password?: string) {
     const j = await act({ type: "join", roomId: id, password });
@@ -370,6 +510,7 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
       setLockPass("");
       setPanel("lock");
     } else setPanel(null);
+    return j;
   }
 
   useEffect(() => {
@@ -377,6 +518,14 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
     const t = setTimeout(() => setStatus(""), 4500);
     return () => clearTimeout(t);
   }, [status]);
+
+  useEffect(() => {
+    if (!place) return;
+    if (snap?.room && snap.room.ownerId !== meState.id) {
+      setPlace(null);
+      setStatus("You can only place furniture in your own suite.");
+    }
+  }, [place, snap?.room?.ownerId, meState.id]);
 
   async function refreshMe() {
     const { j } = await api("/api/auth/me");
@@ -536,34 +685,35 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
       <div className="relative min-h-0 flex-1 border-x-8 border-[#f0b429] bg-[#7ec8ea]">
       <canvas
         ref={canvasRef}
-        className="h-full w-full cursor-pointer"
-        style={{ imageRendering: "pixelated" }}
+        className="h-full w-full cursor-pointer touch-none select-none"
+        style={{ imageRendering: "pixelated", touchAction: "none" }}
         onMouseMove={(e) => setHover(localTile(e))}
         onContextMenu={(e) => {
           e.preventDefault();
-          if (!snap) return;
-          const t = localTile(e);
-          const furnHit = furnAt(snap.room.furniture, t.x, t.y);
-          const userHit = snap.occupants.find((o) => Math.round(o.x) === t.x && Math.round(o.y) === t.y && o.userId !== meState.id);
-          setMenu({ x: e.clientX, y: e.clientY, tile: t, furn: furnHit, user: userHit });
+          if (Date.now() - lastTouchAt.current < 2500) return;
+          skipClickRef.current = true;
+          openFurnMenu(e.clientX, e.clientY);
         }}
         onClick={async (e) => {
-          setMenu(null);
+          if (skipClickRef.current) {
+            skipClickRef.current = false;
+            return;
+          }
+          if (menuRef.current) {
+            setMenu(null);
+            return;
+          }
           const t = localTile(e);
           if (place) {
-            if (snap?.room.ownerId === null) {
-              setStatus("Hotel rooms are curated — taking you to your suite.");
-              await joinRoom(homeRoomId);
-              return;
-            }
-            if (snap?.room.ownerId && snap.room.ownerId !== meState.id) {
-              setStatus("Only you can decorate your own suite.");
+            if (snap?.room.ownerId !== meState.id) {
+              setStatus("You can only place furniture in your own suite.");
+              setPlace(null);
               return;
             }
             const j = await act({ type: "place", uid: place.uid, x: t.x, y: t.y, rot: place.rot });
             if (!j.error) {
               setPlace(null);
-              setStatus("Placed. Right-click to move, rotate, or pick up.");
+              setStatus("Placed. Hold ~2s or right-click it to pick up, rotate, sit, or use.");
               refreshMe();
             }
             return;
@@ -671,12 +821,16 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
                 onClick={async () => {
                   if (!slot) return;
                   if (snap?.room.ownerId !== meState.id) {
-                    setStatus("Opening your suite to place furniture…");
-                    await joinRoom(homeRoomId);
+                    setStatus("You can only place furniture in your suite — heading there.");
+                    const j = await joinRoom(homeRoomId);
+                    if (j?.room?.ownerId !== meState.id) {
+                      setStatus("You can only put furniture down in your own suite.");
+                      return;
+                    }
                   }
                   setPlace({ uid: slot.uid, catalogId: slot.catalogId, rot: 0 });
                   setPanel(null);
-                  setStatus("Rotate with ← → or R, then click a floor tile to place.");
+                  setStatus("Rotate, then tap a tile in your suite to place.");
                 }}
                 className={`flex aspect-square flex-col items-center justify-center overflow-hidden rounded-xl border text-[9px] leading-tight ${slot ? "border-mint/40 bg-[#8fd4f2]/20" : "border-white/10 bg-black/30"}`}
               >
@@ -689,7 +843,7 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
               </button>
             ))}
           </div>
-          <p className="mt-2 text-xs text-white/50">Click an item to hold it, rotate, then click the floor. Right-click placed furniture to move or pick it up.</p>
+          <p className="mt-2 text-xs text-white/50">Place only in your suite. Right-click (or hold ~2s on phone) your pieces to pick up, rotate, sit, or use them.</p>
         </Hud>
       )}
 
@@ -721,7 +875,16 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
                   </div>
                   <div className="text-xs text-white/60">{l.blurb}</div>
                   {ownsPlan(l.id) ? (
-                    <button className="btn-sol mt-2 w-full text-xs" onClick={() => applyPlan(l.id)}>
+                    <button
+                      className="btn-sol mt-2 w-full text-xs"
+                      onClick={() => {
+                        if (snap?.room.ownerId !== meState.id) {
+                          setStatus("You can only change the floor plan in your own suite.");
+                          return;
+                        }
+                        applyPlan(l.id);
+                      }}
+                    >
                       Use in this room
                     </button>
                   ) : (
@@ -928,11 +1091,16 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
       )}
 
       {menu && (
-        <div className="absolute z-50 rounded-xl border border-white/15 bg-night p-2 text-sm shadow-xl" style={{ left: menu.x, top: menu.y }}>
+        <div
+          className="fixed z-50 min-w-[160px] rounded-xl border border-white/15 bg-night p-2 text-sm shadow-xl"
+          style={{
+            left: Math.max(8, Math.min(menu.x + 8, (typeof window !== "undefined" ? window.innerWidth : 400) - 176)),
+            top: Math.max(8, Math.min(menu.y + 8, (typeof window !== "undefined" ? window.innerHeight : 400) - 280)),
+          }}
+        >
           {menu.furn && (
             <>
               <div className="px-2 pb-1 text-xs text-white/50">{furn(menu.furn.catalogId)?.name}</div>
-              {furn(menu.furn.catalogId)?.use === "dice" && <Btn onClick={() => { act({ type: "use", uid: menu.furn!.uid }); setMenu(null); }}>Roll</Btn>}
               {furn(menu.furn.catalogId)?.sittable && (
                 <Btn
                   onClick={() => {
@@ -944,20 +1112,32 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
                   Sit
                 </Btn>
               )}
+              {furn(menu.furn.catalogId)?.use === "dice" && (
+                <Btn onClick={() => { act({ type: "use", uid: menu.furn!.uid }); setMenu(null); }}>Roll</Btn>
+              )}
+              {furn(menu.furn.catalogId)?.use === "arcade" && (
+                <Btn onClick={() => { act({ type: "use", uid: menu.furn!.uid }); setMenu(null); }}>Play</Btn>
+              )}
+              {furn(menu.furn.catalogId)?.use === "dance" && (
+                <Btn onClick={() => { act({ type: "use", uid: menu.furn!.uid }); setMenu(null); }}>Dance</Btn>
+              )}
+              {furn(menu.furn.catalogId)?.use === "teleport" && (
+                <Btn onClick={() => { act({ type: "use", uid: menu.furn!.uid }); setMenu(null); }}>Use pad</Btn>
+              )}
+              {furn(menu.furn.catalogId)?.use === "frame" && (
+                <Btn
+                  onClick={async () => {
+                    const w = prompt("Wallet address that holds the NFT (or leave blank to use linked wallet)");
+                    const n = await fetch("/api/nfts" + (w ? `?wallet=${w}` : "")).then((r) => r.json());
+                    const pick = n.nfts?.[0];
+                    if (pick) act({ type: "setFrame", uid: menu.furn!.uid, nftMint: pick.mint, nftUrl: pick.image });
+                    setMenu(null);
+                  }}
+                >
+                  Hang NFT
+                </Btn>
+              )}
               <Btn onClick={() => { act({ type: "rotate", uid: menu.furn!.uid }); setMenu(null); }}>Rotate</Btn>
-              <Btn
-                onClick={async () => {
-                  const p = menu.furn!;
-                  const j = await act({ type: "pickup", uid: p.uid });
-                  setMenu(null);
-                  if (j.error) return;
-                  await refreshMe();
-                  setPlace({ uid: p.uid, catalogId: p.catalogId, rot: p.rot });
-                  setStatus("Moving — rotate, then click a new tile.");
-                }}
-              >
-                Move
-              </Btn>
               <Btn
                 onClick={async () => {
                   await act({ type: "pickup", uid: menu.furn!.uid });
@@ -968,15 +1148,19 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
               >
                 Pick up
               </Btn>
-              {furn(menu.furn.catalogId)?.use === "frame" && (
-                <Btn onClick={async () => {
-                  const w = prompt("Wallet address that holds the NFT (or leave blank to use linked wallet)");
-                  const n = await fetch("/api/nfts" + (w ? `?wallet=${w}` : "")).then((r) => r.json());
-                  const pick = n.nfts?.[0];
-                  if (pick) act({ type: "setFrame", uid: menu.furn!.uid, nftMint: pick.mint, nftUrl: pick.image });
+              <Btn
+                onClick={async () => {
+                  const p = menu.furn!;
+                  const j = await act({ type: "pickup", uid: p.uid });
                   setMenu(null);
-                }}>Hang NFT</Btn>
-              )}
+                  if (j.error) return;
+                  await refreshMe();
+                  setPlace({ uid: p.uid, catalogId: p.catalogId, rot: p.rot });
+                  setStatus("Moving — rotate, then click a new tile in your suite.");
+                }}
+              >
+                Move
+              </Btn>
             </>
           )}
           {menu.user && (
@@ -993,7 +1177,9 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
 
       {you?.dance && <div className="pointer-events-none absolute bottom-28 right-6 text-2xl">💃</div>}
 
-      <p className="pointer-events-none absolute bottom-[4.5rem] left-3 text-[10px] text-white/70">Click or WASD to walk · right-click items · Space to dance · R rotates</p>
+      <p className="pointer-events-none absolute bottom-[4.5rem] left-3 text-[10px] text-white/70">
+        Scroll or pinch to zoom · click to walk/sit · hold ~2s or right-click your furniture · Space to dance
+      </p>
     </div>
   );
 }
