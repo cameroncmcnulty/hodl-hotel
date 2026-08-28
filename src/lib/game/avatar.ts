@@ -123,12 +123,12 @@ function loadImage(src: string) {
 export function loadAvatars() {
   if (!loadPromise) {
     loadPromise = (async () => {
-      const man = (await fetch("/art/avatars/manifest.json?v=18")
+      const man = (await fetch("/art/avatars/manifest.json?v=19")
         .then((r) => r.json())
         .catch(() => [])) as string[];
       await Promise.all(
         man.map(async (file) => {
-          const img = await loadImage(`/art/avatars/${file}?v=18`);
+          const img = await loadImage(`/art/avatars/${file}?v=19`);
           if (!img) return;
           const c = document.createElement("canvas");
           c.width = img.width;
@@ -724,6 +724,35 @@ function stampFace(body: HTMLCanvasElement, g: string, faceName: string) {
 
 const composeCache = new Map<string, HTMLCanvasElement>();
 
+function layerSpr(g: string, kind: string, name: string, view: string) {
+  return firstSpr([`${g}-${kind}-${name}-${view}-layer`, `${g}-${kind}-${name}-se-layer`]);
+}
+
+function stampLayer(dst: HTMLCanvasElement, src: HTMLCanvasElement | null) {
+  if (!src) return;
+  const dctx = dst.getContext("2d")!;
+  const dd = dctx.getImageData(0, 0, dst.width, dst.height);
+  const sd = src.getContext("2d")!.getImageData(0, 0, src.width, src.height);
+  const d = dd.data;
+  const s = sd.data;
+  const w = Math.min(dst.width, src.width);
+  const h = Math.min(dst.height, src.height);
+  const dw = dst.width;
+  const sw = src.width;
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const si = (y * sw + x) * 4;
+      if (s[si + 3] < 16) continue;
+      const di = (y * dw + x) * 4;
+      d[di] = s[si];
+      d[di + 1] = s[si + 1];
+      d[di + 2] = s[si + 2];
+      d[di + 3] = s[si + 3];
+    }
+  }
+  dctx.putImageData(dd, 0, 0);
+}
+
 function compose(fig: Figure, dir: 0 | 1 | 2 | 3, walking: boolean, sit: boolean, frame: number) {
   const g = gKey(fig);
   const view = viewOf(dir);
@@ -731,14 +760,33 @@ function compose(fig: Figure, dir: 0 | 1 | 2 | 3, walking: boolean, sit: boolean
   const top = topName(fig);
   const bot = botName(fig);
   const defHair = defaultHairName(fig.gender ?? 0);
+
+  if (!walking && !sit) {
+    const base = firstSpr([`${g}-base-${view}`, `${g}-se-base`]);
+    if (base) {
+      const key = `stack|${g}|${view}|${hair}|${top}|${bot}|v7`;
+      const hit = composeCache.get(key);
+      if (hit) return { id: key, src: hit };
+      const out = document.createElement("canvas");
+      out.width = base.src.width;
+      out.height = base.src.height;
+      out.getContext("2d")!.drawImage(base.src, 0, 0);
+      stampLayer(out, layerSpr(g, "bot", bot, view)?.src || null);
+      stampLayer(out, layerSpr(g, "top", top, view)?.src || null);
+      stampLayer(out, layerSpr(g, "hair", hair, view)?.src || null);
+      composeCache.set(key, out);
+      if (composeCache.size > 220) {
+        const first = composeCache.keys().next().value;
+        if (first) composeCache.delete(first);
+      }
+      return { id: key, src: out };
+    }
+  }
+
   const body = pickPose(fig, dir, walking, sit, frame);
   if (!body) return null;
 
-  const customTop = top !== "hoodie";
-  const customBot = bot !== "pants";
   const usingHairBody = body.id.includes("-hair-");
-  const usingTopBody = body.id.includes("-top-");
-  const usingBotBody = body.id.includes("-bot-");
   const needHair = hair !== defHair && !usingHairBody;
   const key = `${g}|full|${body.id}|${top}|${bot}|${hair}|${view}|${frame}|v6`;
   const hit = composeCache.get(key);
@@ -748,17 +796,6 @@ function compose(fig: Figure, dir: 0 | 1 | 2 | 3, walking: boolean, sit: boolean
   out.width = body.src.width;
   out.height = body.src.height;
   out.getContext("2d")!.drawImage(body.src, 0, 0);
-
-  if (!walking && !sit) {
-    if (customTop && !usingTopBody) {
-      const t = clothesSpr(g, "top", top, view);
-      if (t) applyShirt(out, t.src);
-    }
-    if (customBot && !usingBotBody) {
-      const b = clothesSpr(g, "bot", bot, view);
-      if (b) copyLegs(out, b.src);
-    }
-  }
   if (needHair) replaceHair(out, g, view, hair);
 
   composeCache.set(key, out);
