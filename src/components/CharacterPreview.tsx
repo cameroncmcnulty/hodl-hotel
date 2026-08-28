@@ -7,7 +7,6 @@ import {
   botsFor,
   clampFigure,
   drawAvatarFront,
-  EYES,
   GENDERS,
   HAIR_C,
   hairsFor,
@@ -38,7 +37,7 @@ function ArrowBtn({ dir, label, onClick }: { dir: "prev" | "next"; label: string
   );
 }
 
-function LookIcon({ kind, color }: { kind: "hair" | "eyes" | "skin" | "shirt" | "pants"; color: string }) {
+function LookIcon({ kind, color }: { kind: "hair" | "skin" | "shirt" | "pants"; color: string }) {
   return (
     <span className="grid h-11 w-11 place-items-center rounded-2xl bg-white/10 ring-1 ring-white/10" aria-hidden>
       <svg viewBox="0 0 32 32" width="26" height="26" fill="none">
@@ -55,16 +54,6 @@ function LookIcon({ kind, color }: { kind: "hair" | "eyes" | "skin" | "shirt" | 
               strokeLinejoin="round"
             />
             <path d="M11.5 12.5c1.4-1.8 3.2-2.8 4.5-2.8" stroke="#fff" strokeOpacity="0.35" strokeWidth="1.2" strokeLinecap="round" />
-          </>
-        )}
-        {kind === "eyes" && (
-          <>
-            <path d="M6.5 16.5c2.2-3.2 4.8-4.8 7.5-4.8" stroke={color} strokeWidth="2.2" strokeLinecap="round" />
-            <path d="M18 11.7c2.7 0 5.3 1.6 7.5 4.8" stroke={color} strokeWidth="2.2" strokeLinecap="round" />
-            <circle cx="12.2" cy="16.2" r="2.15" fill={color} stroke="#0b0b12" strokeWidth="1.2" />
-            <circle cx="19.8" cy="16.2" r="2.15" fill={color} stroke="#0b0b12" strokeWidth="1.2" />
-            <circle cx="12.7" cy="15.7" r="0.55" fill="#fff" />
-            <circle cx="20.3" cy="15.7" r="0.55" fill="#fff" />
           </>
         )}
         {kind === "skin" && (
@@ -190,7 +179,7 @@ export function FigureEditor({ figure, onChange }: { figure: Figure; onChange: (
   };
 
   const rows: {
-    id: "hair" | "eyes" | "skin" | "shirt" | "pants";
+    id: "hair" | "skin" | "shirt" | "pants";
     title: string;
     color: string;
     colors: string[];
@@ -209,14 +198,6 @@ export function FigureEditor({ figure, onChange }: { figure: Figure; onChange: (
         onPrev: () => cycle("hair", hairs.length - 1, -1),
         onNext: () => cycle("hair", hairs.length - 1, 1),
       },
-    },
-    {
-      id: "eyes",
-      title: "EYES",
-      color: EYES[f.eyes ?? 0],
-      colors: EYES,
-      value: f.eyes ?? 0,
-      onColor: (i) => push({ eyes: i }),
     },
     {
       id: "skin",

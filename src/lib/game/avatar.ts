@@ -44,7 +44,7 @@ export const SHOES = ["#f4f4f6"];
 export const HAIR_BOY = ["spike", "buzz", "mohawk", "undercut", "crop", "side"];
 export const HAIR_GIRL = ["long", "bob", "pony", "bun", "curl", "bangs", "twin"];
 export const TOP_BOY = ["hoodie", "tee", "jacket", "sweater", "tank", "shirt"];
-export const TOP_GIRL = ["hoodie", "crop", "blouse", "cardi", "cami", "wrap"];
+export const TOP_GIRL = ["hoodie", "tee", "blouse", "cami", "wrap", "cardi"];
 export const BOT_BOY = ["pants", "shorts", "cargo", "joggers", "jeans"];
 export const BOT_GIRL = ["pants", "shorts", "skirt", "dress", "leggings", "pleat"];
 export const HAIR_STYLES = HAIR_BOY;
@@ -139,6 +139,8 @@ export function loadAvatars() {
           sprites.set(file.replace(/\.png$/i, ""), c);
         })
       );
+      composeCache.clear();
+      recache.clear();
     })();
   }
   return loadPromise;
@@ -331,7 +333,7 @@ function botName(fig: Figure) {
 }
 
 function clothesSpr(g: string, kind: "top" | "bot", name: string, view: string) {
-  return firstSpr([`${g}-${kind}-${name}-${view}`, `${g}-${kind}-${name}-se`]);
+  return firstSpr([`${g}-${kind}-${name}-${view}`, `${g}-${kind}-${name}-se`, `${g}-${kind}-${name}-ne`]);
 }
 
 function hairSprite(fig: Figure, view: string) {
@@ -342,14 +344,8 @@ function hairSprite(fig: Figure, view: string) {
   return firstSpr([`${g}-hair-${hair}-${view}`, `${g}-hair-${hair}-se`]);
 }
 
-function pickPose(fig: Figure, dir: 0 | 1 | 2 | 3, walking: boolean, sit: boolean, frame: number) {
+function idleBase(fig: Figure, view: string) {
   const g = gKey(fig);
-  const view = viewOf(dir);
-  if (sit) return firstSpr([`${g}-se-sit`, `${g}-se-idle`]);
-  if (walking) {
-    const which = frame % 2;
-    return firstSpr([`${g}-${view}-walk${which}`, `${g}-se-walk${which}`, `${g}-se-walk0`, `${g}-se-walk1`, `${g}-se-idle`]);
-  }
   const top = topName(fig);
   const bot = botName(fig);
   if (top !== "hoodie") {
@@ -365,6 +361,17 @@ function pickPose(fig: Figure, dir: 0 | 1 | 2 | 3, walking: boolean, sit: boolea
   return firstSpr([`${g}-${view}-idle`, `${g}-se-idle`]);
 }
 
+function pickPose(fig: Figure, dir: 0 | 1 | 2 | 3, walking: boolean, sit: boolean, frame: number) {
+  const g = gKey(fig);
+  const view = viewOf(dir);
+  if (sit) return firstSpr([`${g}-se-sit`, `${g}-se-idle`]);
+  if (walking) {
+    const which = frame % 2;
+    return firstSpr([`${g}-${view}-walk${which}`, `${g}-se-walk${which}`, `${g}-se-walk0`, `${g}-se-walk1`, `${g}-se-idle`]);
+  }
+  return idleBase(fig, view);
+}
+
 function isShoePx(r: number, g: number, b: number, yn: number) {
   if (yn < 0.84) return false;
   const mx = Math.max(r, g, b);
@@ -375,6 +382,37 @@ function isShoePx(r: number, g: number, b: number, yn: number) {
 function isGarmentPx(r: number, g: number, b: number) {
   if (isSkinPx(r, g, b) || isLooseHair(r, g, b) || isPurplePx(r, g, b)) return false;
   return true;
+}
+
+function copyLegs(dst: HTMLCanvasElement, src: HTMLCanvasElement) {
+  const dctx = dst.getContext("2d")!;
+  const dd = dctx.getImageData(0, 0, dst.width, dst.height);
+  const sd = src.getContext("2d")!.getImageData(0, 0, src.width, src.height);
+  const d = dd.data;
+  const s = sd.data;
+  const w = Math.min(dst.width, src.width);
+  const h = Math.min(dst.height, src.height);
+  const y0 = Math.floor(h * 0.54);
+  const y1 = Math.floor(h * 0.88);
+  const dw = dst.width;
+  const sw = src.width;
+  for (let y = y0; y <= y1; y++) {
+    const yn = y / h;
+    for (let x = 0; x < w; x++) {
+      const si = (y * sw + x) * 4;
+      if (s[si + 3] < 16) continue;
+      const sr = s[si],
+        sg = s[si + 1],
+        sb = s[si + 2];
+      if (isLooseHair(sr, sg, sb) || isShoePx(sr, sg, sb, yn)) continue;
+      const di = (y * dw + x) * 4;
+      d[di] = sr;
+      d[di + 1] = sg;
+      d[di + 2] = sb;
+      d[di + 3] = s[si + 3];
+    }
+  }
+  dctx.putImageData(dd, 0, 0);
 }
 
 function replaceTop(dst: HTMLCanvasElement, src: HTMLCanvasElement) {
@@ -638,12 +676,9 @@ function compose(fig: Figure, dir: 0 | 1 | 2 | 3, walking: boolean, sit: boolean
 
   const customTop = top !== "hoodie";
   const customBot = bot !== "pants";
-  const usingTopBody = body.id.includes("-top-");
-  const usingBotBody = body.id.includes("-bot-");
   const usingHairBody = body.id.includes("-hair-");
   const needHair = hair !== defHair && !usingHairBody;
-  const faceName = facesFor(fig.gender ?? 0)[fig.face ?? 0] || "oval";
-  const key = `${g}|pose|${body.id}|${top}|${bot}|${hair}|${faceName}|${view}|${frame}|v4`;
+  const key = `${g}|full|${body.id}|${top}|${bot}|${hair}|${view}|${frame}|v5`;
   const hit = composeCache.get(key);
   if (hit) return { id: key, src: hit };
 
@@ -652,17 +687,10 @@ function compose(fig: Figure, dir: 0 | 1 | 2 | 3, walking: boolean, sit: boolean
   out.height = body.src.height;
   out.getContext("2d")!.drawImage(body.src, 0, 0);
 
-  if (!walking) {
-    if (customTop && !usingTopBody) {
-      const t = clothesSpr(g, "top", top, view);
-      if (t) replaceTop(out, t.src);
-    }
-    if (customBot && !usingBotBody) {
-      const b = clothesSpr(g, "bot", bot, view);
-      if (b) replaceBot(out, b.src, bot === "dress" || bot === "skirt" || bot === "pleat");
-    }
+  if (!walking && !sit && customTop && customBot && body.id.includes("-top-")) {
+    const b = clothesSpr(g, "bot", bot, view);
+    if (b) copyLegs(out, b.src);
   }
-  if ((fig.face ?? 0) > 0) stampFace(out, g, faceName);
   if (needHair) replaceHair(out, g, view, hair);
 
   composeCache.set(key, out);
