@@ -1,6 +1,5 @@
 "use client";
 
-import { FigureEditor } from "@/components/CharacterPreview";
 import { FurnIcon } from "@/components/FurnIcon";
 import { LayoutPreview } from "@/components/LayoutPreview";
 import { AppIcon, PhoneApp, PhoneClock, PhoneShell } from "@/components/PhoneShell";
@@ -11,23 +10,21 @@ import { drawRoom, tileAt } from "@/lib/game/draw";
 import { astar, canPlaceFurn, furnAt } from "@/lib/game/path";
 import { iso } from "@/lib/game/iso";
 import { face, motAt, setPath, tickMot, type Mot } from "@/lib/game/motion";
-import { clampFigure, loadAvatars } from "@/lib/game/avatar";
+import { loadAvatars } from "@/lib/game/avatar";
 import { loadSprites, spriteCache } from "@/lib/game/sprites";
 import { api, authInit, clearClientToken } from "@/lib/clientAuth";
-import type { Ad, ChatLine, Figure, Occupant, Placed, Room } from "@/lib/types";
+import type { Ad, ChatLine, Occupant, Placed, Room } from "@/lib/types";
 import {
   Backpack,
   Handshake,
   LogOut,
   Map,
-  Megaphone,
   MessageCircle,
   MessagesSquare,
   Send,
   Settings,
   ShoppingBag,
   Smartphone,
-  UserRound,
   Users,
   Wallet,
 } from "lucide-react";
@@ -68,13 +65,11 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
   const [nav, setNav] = useState<{ popular: Room[]; publicAreas: Room[]; history: Room[]; events: { title: string; roomId: string; desc: string }[] } | null>(null);
   const [social, setSocial] = useState<any>(null);
   const [shopCat, setShopCat] = useState("seating");
-  const [ads, setAds] = useState<any>(null);
   const [dmText, setDmText] = useState("");
   const [dmUser, setDmUser] = useState<string | null>(null);
   const [lockPass, setLockPass] = useState("");
   const [joinTarget, setJoinTarget] = useState<string | null>(null);
   const [trade, setTrade] = useState<any>(null);
-  const [look, setLook] = useState<Figure>(() => clampFigure(me.figure));
   const tRef = useRef(0);
   const cam = useRef({ x: 400, y: 200 });
   const zoomRef = useRef(1);
@@ -554,10 +549,7 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
     setPhone("msgs");
     setSocial(await fetch("/api/social", { credentials: "include" }).then((r) => r.json()));
   }
-  async function openAds() {
-    setPhone("ads");
-    setAds(await fetch("/api/ads", { credentials: "include" }).then((r) => r.json()));
-  }
+
 
   async function buyPlan(id: string) {
     const { j } = await api("/api/shop", { method: "POST", body: JSON.stringify({ layoutId: id }) });
@@ -816,9 +808,6 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
                 <p className="text-[12px] text-white/45">Your hotel phone</p>
               </div>
               <div className="grid grid-cols-4 gap-x-2 gap-y-5">
-                <AppIcon label="Look" tint="from-[#ff8fab] to-[#c026d3]" onClick={() => { setLook(clampFigure(meState.figure)); setPhone("look"); }}>
-                  <UserRound size={26} />
-                </AppIcon>
                 <AppIcon label="Inbox" tint="from-[#22d3ee] to-[#2563eb]" badge={unread} onClick={openMsgs}>
                   <MessagesSquare size={26} />
                 </AppIcon>
@@ -827,9 +816,6 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
                 </AppIcon>
                 <AppIcon label="Wallet" tint="from-[#facc15] to-[#f97316]" onClick={() => setPhone("coins")}>
                   <Wallet size={26} />
-                </AppIcon>
-                <AppIcon label="Boards" tint="from-[#fb7185] to-[#e11d48]" onClick={openAds}>
-                  <Megaphone size={26} />
                 </AppIcon>
                 <AppIcon label="Settings" tint="from-[#94a3b8] to-[#475569]" onClick={() => setPhone("settings")}>
                   <Settings size={26} />
@@ -854,25 +840,6 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
                 ))}
               </div>
             </div>
-          )}
-
-          {phone === "look" && (
-            <PhoneApp title="Look" onBack={goHome}>
-              <FigureEditor figure={look} onChange={setLook} />
-              <button
-                className="btn-sol mt-3 w-full"
-                onClick={async () => {
-                  const j = await act({ type: "look", figure: look });
-                  if (!j.error) {
-                    setMe((p) => ({ ...p, figure: look }));
-                    setPhone(null);
-                    setStatus("Look saved");
-                  }
-                }}
-              >
-                Save look
-              </button>
-            </PhoneApp>
           )}
 
           {phone === "pack" && (
@@ -1116,19 +1083,6 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
                     </form>
                   )}
                 </div>
-              )}
-            </PhoneApp>
-          )}
-
-          {phone === "ads" && (
-            <PhoneApp title="Boards" onBack={goHome}>
-              <p className="mb-3 text-xs text-white/50">SHILL ZONE and The Cook Room. Upload a 16:9 image. Hotel can take it down.</p>
-              {!ads ? (
-                <p className="text-sm text-white/50">Loading…</p>
-              ) : (
-                ads.spots.map((s: any) => (
-                  <AdRow key={s.id} spot={s} plans={ads.plans} onDone={() => { refreshMe(); openAds(); }} />
-                ))
               )}
             </PhoneApp>
           )}

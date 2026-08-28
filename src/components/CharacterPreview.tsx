@@ -14,7 +14,6 @@ import {
   HAIR_C,
   hairsFor,
   loadAvatars,
-  SHOES,
   SKIN,
   topsFor,
   TOPS,
@@ -222,16 +221,6 @@ export function FigureEditor({ figure, onChange }: { figure: Figure; onChange: (
       styleNext: () => cycle("botCut", bots.length - 1, 1),
       colorPrev: () => cycle("bottom", BOTTOMS.length - 1, -1),
       colorNext: () => cycle("bottom", BOTTOMS.length - 1, 1),
-    },
-    {
-      kind: "shoes",
-      color: SHOES[f.shoes],
-      label: "shoes",
-      swatch: SHOES[f.shoes],
-      stylePrev: () => cycle("shoes", SHOES.length - 1, -1),
-      styleNext: () => cycle("shoes", SHOES.length - 1, 1),
-      colorPrev: () => cycle("shoes", SHOES.length - 1, -1),
-      colorNext: () => cycle("shoes", SHOES.length - 1, 1),
     },
   ];
 
