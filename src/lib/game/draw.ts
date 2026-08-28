@@ -124,23 +124,34 @@ function poly(ctx: CanvasRenderingContext2D, pts: { sx: number; sy: number }[], 
 
 const WALL_H = 7.4;
 
-function wallRunN(ctx: CanvasRenderingContext2D, x0: number, x1: number, y: number, z: number, paper: string) {
-  const top = z + WALL_H;
-  poly(ctx, [iso(x0, y, top), iso(x1 + 1, y, top), iso(x1 + 1, y, z), iso(x0, y, z)], paper, false);
-  poly(ctx, [iso(x0, y, top), iso(x1 + 1, y, top), iso(x1 + 1, y, top - 0.35), iso(x0, y, top - 0.35)], "#d4b45a", false);
-  poly(ctx, [iso(x0, y, z + 0.42), iso(x1 + 1, y, z + 0.42), iso(x1 + 1, y, z), iso(x0, y, z)], "#7a4e28", false);
-  const mid = z + WALL_H * 0.55;
-  poly(ctx, [iso(x0, y, mid), iso(x1 + 1, y, mid), iso(x1 + 1, y, mid - 0.08), iso(x0, y, mid - 0.08)], shade(paper, -12), false);
+type WallTheme = { h: number; paper: string; cap: string; base: string; rail: string };
+
+function wallTheme(layout: Layout): WallTheme {
+  if (!layout.indoor) return { h: 1.45, paper: "#d9a07c", cap: "#f3d2b8", base: "#8a5340", rail: "#c48a6a" };
+  if (layout.id === "grand_lobby") return { h: 7.6, paper: layout.paper || "#f3e0c4", cap: "#e0c068", base: "#7a4e28", rail: "#d4b45a" };
+  if (layout.id === "shill_club") return { h: 7.9, paper: "#3b1860", cap: "#ff4fd8", base: "#14F195", rail: "#45f0ff" };
+  if (layout.id === "cook_lab") return { h: 7.3, paper: "#f3ead8", cap: "#d4a84b", base: "#2a6b6b", rail: "#3d8f8f" };
+  if (layout.id === "pixel_arcade") return { h: 7.7, paper: "#3b1d6e", cap: "#c084fc", base: "#22d3ee", rail: "#4ade80" };
+  return { h: WALL_H, paper: layout.paper || "#e6d7bc", cap: "#d4b45a", base: "#7a4e28", rail: shade(layout.paper || "#e6d7bc", -12) };
 }
 
-function wallRunW(ctx: CanvasRenderingContext2D, x: number, y0: number, y1: number, z: number, paper: string) {
-  const top = z + WALL_H;
-  const left = shade(paper, -22);
+function wallRunN(ctx: CanvasRenderingContext2D, x0: number, x1: number, y: number, z: number, theme: WallTheme) {
+  const top = z + theme.h;
+  poly(ctx, [iso(x0, y, top), iso(x1 + 1, y, top), iso(x1 + 1, y, z), iso(x0, y, z)], theme.paper, false);
+  poly(ctx, [iso(x0, y, top), iso(x1 + 1, y, top), iso(x1 + 1, y, top - 0.35), iso(x0, y, top - 0.35)], theme.cap, false);
+  poly(ctx, [iso(x0, y, z + 0.42), iso(x1 + 1, y, z + 0.42), iso(x1 + 1, y, z), iso(x0, y, z)], theme.base, false);
+  const mid = z + theme.h * 0.55;
+  poly(ctx, [iso(x0, y, mid), iso(x1 + 1, y, mid), iso(x1 + 1, y, mid - 0.08), iso(x0, y, mid - 0.08)], theme.rail, false);
+}
+
+function wallRunW(ctx: CanvasRenderingContext2D, x: number, y0: number, y1: number, z: number, theme: WallTheme) {
+  const top = z + theme.h;
+  const left = shade(theme.paper, -22);
   poly(ctx, [iso(x, y0, top), iso(x, y1 + 1, top), iso(x, y1 + 1, z), iso(x, y0, z)], left, false);
-  poly(ctx, [iso(x, y0, top), iso(x, y1 + 1, top), iso(x, y1 + 1, top - 0.35), iso(x, y0, top - 0.35)], "#c49a3a", false);
-  poly(ctx, [iso(x, y0, z + 0.42), iso(x, y1 + 1, z + 0.42), iso(x, y1 + 1, z), iso(x, y0, z)], "#5c3818", false);
-  const mid = z + WALL_H * 0.55;
-  poly(ctx, [iso(x, y0, mid), iso(x, y1 + 1, mid), iso(x, y1 + 1, mid - 0.08), iso(x, y0, mid - 0.08)], shade(paper, -30), false);
+  poly(ctx, [iso(x, y0, top), iso(x, y1 + 1, top), iso(x, y1 + 1, top - 0.35), iso(x, y0, top - 0.35)], shade(theme.cap, -12), false);
+  poly(ctx, [iso(x, y0, z + 0.42), iso(x, y1 + 1, z + 0.42), iso(x, y1 + 1, z), iso(x, y0, z)], shade(theme.base, -14), false);
+  const mid = z + theme.h * 0.55;
+  poly(ctx, [iso(x, y0, mid), iso(x, y1 + 1, mid), iso(x, y1 + 1, mid - 0.08), iso(x, y0, mid - 0.08)], shade(theme.rail, -18), false);
 }
 
 function drawSprite(
@@ -371,7 +382,7 @@ export function drawRoom(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
   ctx.translate(cam.x, cam.y);
   ctx.imageSmoothingEnabled = false;
 
-  const paper = layout.paper || "#e6d7bc";
+  const theme = wallTheme(layout);
   const floorA = layout.floorA || "#c9a36e";
   const floorB = layout.floorB || "#b8925c";
 
@@ -383,8 +394,8 @@ export function drawRoom(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
       let fill = (x + y) % 2 === 0 ? floorA : floorB;
       if (isDance(layout, x, y)) {
         const flash = Math.floor(t * 2 + x + y) % 3;
-        fill = flash === 0 ? "#ff4fd8" : flash === 1 ? "#45f0ff" : "#9945FF";
-      } else if (isWater(layout, x, y)) fill = (x + y) % 2 === 0 ? "#3ec6e0" : "#2aa8c8";
+        fill = flash === 0 ? "#ff6bd6" : flash === 1 ? "#4fc3ff" : "#c084fc";
+      } else if (isWater(layout, x, y)) fill = (x + y + Math.floor(t * 3)) % 2 === 0 ? "#5ee4f5" : "#2eb8d4";
       else if (isOutdoor(layout, x, y)) fill = (x + y) % 2 === 0 ? "#cfe88a" : "#b5d46a";
       tiles.push({ x, y, fill, z: tileH(layout, x, y) });
     }
@@ -432,7 +443,7 @@ export function drawRoom(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
         Math.abs(tileH(layout, x1 + 1, backY) - z) < 0.05
       )
         x1++;
-      wallRunN(ctx, x, x1, backY, z, paper);
+      wallRunN(ctx, x, x1, backY, z, theme);
       x = x1 + 1;
     }
   }
@@ -452,7 +463,7 @@ export function drawRoom(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
         Math.abs(tileH(layout, backX, y1 + 1) - z) < 0.05
       )
         y1++;
-      wallRunW(ctx, backX, y, y1, z, paper);
+      wallRunW(ctx, backX, y, y1, z, theme);
       y = y1 + 1;
     }
   }

@@ -933,7 +933,7 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
                 </div>
               ) : (
                 <div className="grid grid-cols-2 gap-2">
-                  {CATALOG.filter((f) => f.category === shopCat && f.id !== "ad_board")
+                  {CATALOG.filter((f) => f.category === shopCat && !f.hotelOnly && f.id !== "ad_board")
                     .slice()
                     .sort((a, b) => a.price - b.price)
                     .map((f) => {

@@ -1,14 +1,14 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { furn } from "@/lib/catalog";
+import { furn, HOTEL_SPOTS } from "@/lib/catalog";
 import { drawRoom } from "@/lib/game/draw";
 import { camToFit } from "@/lib/game/iso";
 import { loadSprites } from "@/lib/game/sprites";
 import { layoutById, walkable } from "@/lib/layouts";
 import type { Placed, Room } from "@/lib/types";
 
-const SAMPLES: Record<string, { id: string; x: number; y: number }[]> = {};
+const SAMPLES: Record<string, { id: string; x: number; y: number; rot?: 0 | 1 | 2 | 3 }[]> = HOTEL_SPOTS;
 
 const VW = 480;
 const VH = 280;
@@ -32,13 +32,13 @@ export function LayoutPreview({ layoutId }: { layoutId: string }) {
       ctx.fillStyle = "#050508";
       ctx.fillRect(0, 0, VW, VH);
       const furniture: Placed[] = (SAMPLES[layoutId] || [])
-        .filter((s) => furn(s.id) && walkable(layout, s.x, s.y))
+        .filter((s) => furn(s.id) && (furn(s.id)?.slot === "wall" || walkable(layout, s.x, s.y)))
         .map((s, i) => ({
           uid: `p${i}`,
           catalogId: s.id,
           x: s.x,
           y: s.y,
-          rot: 0,
+          rot: s.rot ?? 0,
           ownerId: "hotel",
         }));
       const room: Room = {

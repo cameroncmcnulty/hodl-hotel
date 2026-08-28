@@ -289,8 +289,9 @@ export function applyAction(userId: string, action: Action) {
     if (!p) return { error: "Nothing there" };
     const def = furn(p.catalogId);
     const ownSpecial = room.ownerId === userId && p.ownerId === userId;
+    const hotelPublic = room.ownerId === null;
     if (def?.use === "dice") {
-      if (!ownSpecial) return { error: "You can only use that in your suite" };
+      if (!ownSpecial && !hotelPublic) return { error: "You can only use that in your suite" };
       const n = 1 + Math.floor(Math.random() * 6);
       live.chat.push({
         id: crypto.randomUUID(),
@@ -312,12 +313,12 @@ export function applyAction(userId: string, action: Action) {
       return snapshot(here.roomId, userId);
     }
     if (def?.use === "dance") {
-      if (!ownSpecial) return { error: "You can only use that in your suite" };
+      if (!ownSpecial && !hotelPublic) return { error: "You can only use that in your suite" };
       occ.dance = !occ.dance;
       return snapshot(here.roomId, userId);
     }
     if (def?.use === "arcade") {
-      if (!ownSpecial) return { error: "You can only use that in your suite" };
+      if (!ownSpecial && !hotelPublic) return { error: "You can only use that in your suite" };
       occ.chat = { text: "beep boop", at: Date.now() };
       return snapshot(here.roomId, userId);
     }

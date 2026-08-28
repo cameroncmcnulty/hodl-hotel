@@ -16,6 +16,7 @@ export type FurnDef = {
   slot?: "floor" | "wall";
   walkable?: boolean;
   sittable?: boolean;
+  hotelOnly?: boolean;
   use?: FurnUse;
   shape: string;
   colors: { top: string; left: string; right: string; accent?: string };
@@ -179,6 +180,141 @@ export const RARITY_TONE: Record<Rarity, string> = {
   gold: "bg-gold/25 text-gold",
   crypto: "bg-orange-500/20 text-orange-300",
 };
+
+const H = (partial: Omit<FurnDef, "price" | "hotelOnly"> & Partial<Pick<FurnDef, "price" | "rarity">>): FurnDef =>
+  F({
+    rarity: "rare",
+    ...partial,
+    hotelOnly: true,
+    price: 0,
+  });
+
+export const HOTEL_FURN: FurnDef[] = [
+  H({ id: "hq_desk", name: "Front Desk", desc: "Hotel reception. Not for sale.", category: "hotel", w: 3, d: 1, h: 1.35, shape: "desk", colors: { top: "#e8b4a0", left: "#5a2e1a", right: "#c9a227" } }),
+  H({ id: "hq_fountain", name: "Lobby Fountain", desc: "Three-tier gold. Hotel only.", category: "hotel", w: 3, d: 3, h: 2.2, shape: "fountain", colors: { top: "#7dd3fc", left: "#c9a227", right: "#f5c542" } }),
+  H({ id: "hq_chandelier", name: "Cube Chandelier", desc: "Hangs in the lobby.", category: "hotel", w: 2, d: 2, h: 2.4, walkable: true, shape: "chandelier", colors: { top: "#f5c542", left: "#fff0b0", right: "#e8b4c8" } }),
+  H({ id: "hq_urn", name: "Gold Urn Palm", desc: "Lobby planter.", category: "hotel", w: 1, d: 1, h: 2.1, shape: "palm", colors: { top: "#2f9e44", left: "#c9a227", right: "#5ee0d4" } }),
+  H({ id: "hq_palm", name: "Roof Palm", desc: "Rooftop tree.", category: "hotel", w: 1, d: 1, h: 2.6, shape: "palm", colors: { top: "#2f9e44", left: "#6d4c2f", right: "#5ecf70" } }),
+  H({ id: "hq_lounger", name: "Lime Lounger", desc: "Pool deck chair.", category: "hotel", w: 1, d: 2, h: 0.7, sittable: true, use: "sit", shape: "lounger", colors: { top: "#86efac", left: "#e8eefc", right: "#4ade80" } }),
+  H({ id: "hq_lounger_orange", name: "Sunset Lounger", desc: "Pool deck chair.", category: "hotel", w: 1, d: 2, h: 0.7, sittable: true, use: "sit", shape: "lounger", colors: { top: "#fb923c", left: "#e8eefc", right: "#fdba74" } }),
+  H({ id: "hq_umb_pink", name: "Pink Umbrella", desc: "Striped shade.", category: "hotel", w: 1, d: 1, h: 2.3, shape: "umbrella", colors: { top: "#fb7185", left: "#ffffff", right: "#fda4af" } }),
+  H({ id: "hq_umb_blue", name: "Blue Umbrella", desc: "Striped shade.", category: "hotel", w: 1, d: 1, h: 2.3, shape: "umbrella", colors: { top: "#38bdf8", left: "#ffffff", right: "#7dd3fc" } }),
+  H({ id: "hq_umb_yellow", name: "Sun Umbrella", desc: "Striped shade.", category: "hotel", w: 1, d: 1, h: 2.3, shape: "umbrella", colors: { top: "#facc15", left: "#ffffff", right: "#fde047" } }),
+  H({ id: "hq_sofa", name: "Neon Banquette", desc: "Club L-sofa.", category: "hotel", w: 2, d: 2, h: 1.2, sittable: true, use: "sit", shape: "sofa", colors: { top: "#6b21c4", left: "#ff4fd8", right: "#3b0764" } }),
+  H({ id: "hq_club_table", name: "Glow Table", desc: "Mint club table.", category: "hotel", w: 1, d: 1, h: 0.55, shape: "table", colors: { top: "#86efac", left: "#14532d", right: "#14F195" } }),
+  H({ id: "hq_dj", name: "Club Booth", desc: "Hotel DJ desk.", category: "hotel", w: 3, d: 1, h: 1.35, shape: "dj", colors: { top: "#6d28d9", left: "#14F195", right: "#3b0764" } }),
+  H({ id: "hq_disco", name: "Mirror Ball", desc: "Club globe.", category: "hotel", w: 1, d: 1, h: 1.8, walkable: true, use: "dance", shape: "disco", colors: { top: "#e5e7eb", left: "#9945FF", right: "#14F195" } }),
+  H({ id: "hq_speakers", name: "Stack Speakers", desc: "Club wall of sound.", category: "hotel", w: 1, d: 1, h: 2.4, shape: "juke", colors: { top: "#111", left: "#facc15", right: "#14F195" } }),
+  H({ id: "hq_table", name: "Cook Table", desc: "Think-tank slab.", category: "hotel", w: 3, d: 2, h: 1.05, shape: "table", colors: { top: "#c4a574", left: "#6d4c2f", right: "#e0c49a" } }),
+  H({ id: "hq_cork", name: "Idea Board", desc: "Pinned plans.", category: "hotel", w: 2, d: 1, h: 1.8, slot: "wall", shape: "board", colors: { top: "#b45309", left: "#f5e6cc", right: "#78350f" } }),
+  H({ id: "hq_bean", name: "Teal Bean", desc: "Cook-room sit.", category: "hotel", w: 1, d: 1, h: 0.85, sittable: true, use: "sit", shape: "bean", colors: { top: "#0f766e", left: "#115e59", right: "#5eead4" } }),
+  H({ id: "hq_bean_gold", name: "Gold Bean", desc: "Cook-room sit.", category: "hotel", w: 1, d: 1, h: 0.85, sittable: true, use: "sit", shape: "bean", colors: { top: "#f5c542", left: "#c49212", right: "#ffe08a" } }),
+  H({ id: "hq_ottoman", name: "Gold Pouf", desc: "Tassel cube.", category: "hotel", w: 1, d: 1, h: 0.7, sittable: true, use: "sit", shape: "stool", colors: { top: "#f5c542", left: "#c9a227", right: "#fff0b0" } }),
+  H({ id: "hq_ottoman_teal", name: "Teal Pouf", desc: "Tassel cube.", category: "hotel", w: 1, d: 1, h: 0.7, sittable: true, use: "sit", shape: "stool", colors: { top: "#14b8a6", left: "#0f766e", right: "#5eead4" } }),
+  H({ id: "hq_ottoman_coral", name: "Coral Pouf", desc: "Tassel cube.", category: "hotel", w: 1, d: 1, h: 0.7, sittable: true, use: "sit", shape: "stool", colors: { top: "#fb7185", left: "#be123c", right: "#fda4af" } }),
+  H({ id: "hq_lamp", name: "Pendant Lamp", desc: "Warm hang light.", category: "hotel", w: 1, d: 1, h: 1.7, walkable: true, shape: "lamp", colors: { top: "#fbbf24", left: "#c9a227", right: "#fff7ed" } }),
+  H({ id: "hq_monstera", name: "Hall Monstera", desc: "Hotel plant.", category: "hotel", w: 1, d: 1, h: 1.7, shape: "palm", colors: { top: "#2f9e44", left: "#6d4c2f", right: "#5ecf70" } }),
+  H({ id: "hq_cab_pink", name: "Pink Cabinet", desc: "Hotel arcade.", category: "hotel", w: 1, d: 1, h: 2.1, use: "arcade", shape: "arcade", colors: { top: "#fb7185", left: "#38bdf8", right: "#facc15" } }),
+  H({ id: "hq_cab_blue", name: "Blue Cabinet", desc: "Hotel arcade.", category: "hotel", w: 1, d: 1, h: 2.1, use: "arcade", shape: "arcade", colors: { top: "#38bdf8", left: "#1d4ed8", right: "#facc15" } }),
+  H({ id: "hq_cab_green", name: "Green Cabinet", desc: "Hotel arcade.", category: "hotel", w: 1, d: 1, h: 2.1, use: "arcade", shape: "arcade", colors: { top: "#4ade80", left: "#166534", right: "#f472b6" } }),
+  H({ id: "hq_cab_purple", name: "Violet Cabinet", desc: "Hotel arcade.", category: "hotel", w: 1, d: 1, h: 2.1, use: "arcade", shape: "arcade", colors: { top: "#c084fc", left: "#6b21c4", right: "#14F195" } }),
+  H({ id: "hq_prize", name: "Prize Case", desc: "Arcade counter.", category: "hotel", w: 3, d: 1, h: 1.2, shape: "bar", colors: { top: "#7c3aed", left: "#4c1d95", right: "#c084fc" } }),
+  H({ id: "hq_stool", name: "Stripe Stool", desc: "Arcade perch.", category: "hotel", w: 1, d: 1, h: 0.9, sittable: true, use: "sit", shape: "stool", colors: { top: "#fb7185", left: "#facc15", right: "#38bdf8" } }),
+];
+
+for (const item of HOTEL_FURN) {
+  if (!CATALOG.some((c) => c.id === item.id)) CATALOG.push(item);
+}
+
+export type HotelSpot = { id: string; x: number; y: number; rot?: 0 | 1 | 2 | 3 };
+
+export const HOTEL_SPOTS: Record<string, HotelSpot[]> = {
+  grand_lobby: [
+    { id: "hq_desk", x: 1, y: 4 },
+    { id: "hq_fountain", x: 6, y: 9 },
+    { id: "hq_chandelier", x: 5, y: 3 },
+    { id: "hq_chandelier", x: 10, y: 3 },
+    { id: "hq_urn", x: 1, y: 1 },
+    { id: "hq_urn", x: 4, y: 1 },
+    { id: "hq_urn", x: 1, y: 8 },
+    { id: "hq_urn", x: 13, y: 8 },
+    { id: "hq_urn", x: 14, y: 4 },
+    { id: "hq_lamp", x: 3, y: 3 },
+  ],
+  roof_pool: [
+    { id: "hq_palm", x: 1, y: 1 },
+    { id: "hq_palm", x: 1, y: 12 },
+    { id: "hq_palm", x: 16, y: 2 },
+    { id: "hq_palm", x: 15, y: 11 },
+    { id: "hq_lounger", x: 1, y: 2 },
+    { id: "hq_lounger", x: 2, y: 8 },
+    { id: "hq_lounger_orange", x: 16, y: 3 },
+    { id: "hq_lounger_orange", x: 16, y: 6 },
+    { id: "hq_lounger", x: 6, y: 0, rot: 1 },
+    { id: "hq_lounger_orange", x: 10, y: 0, rot: 1 },
+    { id: "hq_umb_pink", x: 2, y: 4 },
+    { id: "hq_umb_pink", x: 8, y: 1 },
+    { id: "hq_umb_blue", x: 16, y: 5 },
+    { id: "hq_umb_yellow", x: 12, y: 8 },
+    { id: "hq_umb_blue", x: 4, y: 8 },
+  ],
+  shill_club: [
+    { id: "hq_sofa", x: 1, y: 2 },
+    { id: "hq_sofa", x: 1, y: 8 },
+    { id: "hq_sofa", x: 12, y: 1 },
+    { id: "hq_club_table", x: 3, y: 4 },
+    { id: "hq_club_table", x: 3, y: 10 },
+    { id: "hq_club_table", x: 11, y: 3 },
+    { id: "hq_dj", x: 11, y: 10 },
+    { id: "hq_speakers", x: 14, y: 3 },
+    { id: "hq_speakers", x: 14, y: 5 },
+    { id: "hq_speakers", x: 14, y: 7 },
+    { id: "hq_disco", x: 6, y: 5 },
+    { id: "hq_disco", x: 8, y: 5 },
+    { id: "hq_disco", x: 10, y: 6 },
+  ],
+  cook_lab: [
+    { id: "hq_table", x: 5, y: 6 },
+    { id: "hq_bean", x: 2, y: 5 },
+    { id: "hq_bean_gold", x: 3, y: 7 },
+    { id: "hq_bean", x: 8, y: 5 },
+    { id: "hq_ottoman", x: 4, y: 9 },
+    { id: "hq_ottoman_teal", x: 8, y: 9 },
+    { id: "hq_ottoman_coral", x: 9, y: 8 },
+    { id: "hq_cork", x: 2, y: 0 },
+    { id: "hq_cork", x: 8, y: 0 },
+    { id: "hq_lamp", x: 4, y: 5 },
+    { id: "hq_lamp", x: 9, y: 5 },
+    { id: "hq_monstera", x: 1, y: 1 },
+    { id: "hq_monstera", x: 12, y: 8 },
+    { id: "hq_urn", x: 12, y: 1 },
+  ],
+  pixel_arcade: [
+    { id: "hq_cab_blue", x: 1, y: 1 },
+    { id: "hq_cab_pink", x: 1, y: 2 },
+    { id: "hq_cab_purple", x: 1, y: 3 },
+    { id: "hq_cab_green", x: 1, y: 4 },
+    { id: "hq_cab_pink", x: 1, y: 5 },
+    { id: "hq_prize", x: 8, y: 2 },
+    { id: "hq_stool", x: 3, y: 7 },
+    { id: "hq_stool", x: 4, y: 8 },
+    { id: "hq_stool", x: 8, y: 6 },
+    { id: "hq_stool", x: 9, y: 4 },
+    { id: "hq_palm", x: 12, y: 9 },
+    { id: "hq_lamp", x: 6, y: 2 },
+  ],
+};
+
+export function hotelFurniture(layoutId: string) {
+  return (HOTEL_SPOTS[layoutId] || []).map((s, i) => ({
+    uid: `hotel-${layoutId}-${i}`,
+    catalogId: s.id,
+    x: s.x,
+    y: s.y,
+    rot: (s.rot ?? 0) as 0 | 1 | 2 | 3,
+    ownerId: "hotel",
+  }));
+}
 
 export const CATS = [
   "seating",

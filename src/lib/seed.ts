@@ -1,4 +1,5 @@
 import type { DB, Room } from "./types";
+import { hotelFurniture } from "./catalog";
 
 function ensure(db: DB, room: Room) {
   const i = db.rooms.findIndex((r) => r.id === room.id);
@@ -8,13 +9,13 @@ function ensure(db: DB, room: Room) {
     db.rooms[i].maxUsers = room.maxUsers;
     db.rooms[i].visibility = room.visibility;
     db.rooms[i].publicKey = room.publicKey;
-    db.rooms[i].furniture = [];
+    db.rooms[i].furniture = room.furniture;
     return;
   }
   db.rooms.push(room);
 }
 
-function emptyPublic(
+function hotelPublic(
   id: string,
   name: string,
   layoutId: string,
@@ -28,7 +29,7 @@ function emptyPublic(
     ownerId: null,
     layoutId,
     visibility: "public",
-    furniture: [],
+    furniture: hotelFurniture(layoutId),
     maxUsers,
     createdAt: now,
     lastActiveAt: now,
@@ -39,14 +40,14 @@ function emptyPublic(
 export function seedPublicRooms(db: DB) {
   const now = new Date().toISOString();
 
-  ensure(db, emptyPublic("public-lobby", "Grand Lobby", "grand_lobby", "lobby", 40, now));
-  ensure(db, emptyPublic("public-pool", "Roof Pool", "roof_pool", "pool", 30, now));
-  ensure(db, emptyPublic("public-shill-zone", "SHILL ZONE", "shill_club", "shill", 40, now));
-  ensure(db, emptyPublic("public-cook-room", "The Cook Room", "cook_lab", "cook", 28, now));
-  ensure(db, emptyPublic("public-arcade", "Signal Arcade", "pixel_arcade", "arcade", 24, now));
+  ensure(db, hotelPublic("public-lobby", "Grand Lobby", "grand_lobby", "lobby", 40, now));
+  ensure(db, hotelPublic("public-pool", "Roof Pool", "roof_pool", "pool", 30, now));
+  ensure(db, hotelPublic("public-shill-zone", "SHILL ZONE", "shill_club", "shill", 40, now));
+  ensure(db, hotelPublic("public-cook-room", "The Cook Room", "cook_lab", "cook", 28, now));
+  ensure(db, hotelPublic("public-arcade", "Signal Arcade", "pixel_arcade", "arcade", 24, now));
 
   for (const r of db.rooms) {
-    if (r.ownerId === null) r.furniture = [];
+    if (r.ownerId === null) r.furniture = hotelFurniture(r.layoutId);
   }
 
   if (!db.events.length) {

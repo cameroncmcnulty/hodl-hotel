@@ -8,7 +8,10 @@ import { findUser, loadDB, log, publicUser, reloadDB, saveDB } from "@/lib/store
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  return NextResponse.json({ catalog: CATALOG, plans: PREMIUM_LAYOUTS.map((l) => ({ id: l.id, name: l.name, blurb: l.blurb, price: l.price })) });
+  return NextResponse.json({
+    catalog: CATALOG.filter((f) => !f.hotelOnly && f.id !== "ad_board"),
+    plans: PREMIUM_LAYOUTS.map((l) => ({ id: l.id, name: l.name, blurb: l.blurb, price: l.price })),
+  });
 }
 
 export async function POST(req: Request) {
@@ -37,7 +40,7 @@ export async function POST(req: Request) {
   }
   const { catalogId, qty } = body;
   const def = furn(String(catalogId || ""));
-  if (!def) return NextResponse.json({ error: "Unknown item" }, { status: 400 });
+  if (!def || def.hotelOnly) return NextResponse.json({ error: "Unknown item" }, { status: 400 });
   const n = Math.min(10, Math.max(1, Number(qty) || 1));
   const cost = def.price * n;
   if (u.coins < cost) return NextResponse.json({ error: "Not enough coins" }, { status: 400 });
