@@ -348,6 +348,8 @@ function idleBase(fig: Figure, view: string) {
   const g = gKey(fig);
   const top = topName(fig);
   const bot = botName(fig);
+  const styled = hairSprite(fig, view);
+  if (styled) return styled;
   if (top !== "hoodie") {
     const t = clothesSpr(g, "top", top, view);
     if (t) return t;
@@ -356,8 +358,6 @@ function idleBase(fig: Figure, view: string) {
     const b = clothesSpr(g, "bot", bot, view);
     if (b) return b;
   }
-  const styled = hairSprite(fig, view);
-  if (styled) return styled;
   return firstSpr([`${g}-${view}-idle`, `${g}-se-idle`]);
 }
 
@@ -384,6 +384,65 @@ function isGarmentPx(r: number, g: number, b: number) {
   return true;
 }
 
+function isOutfitPx(r: number, g: number, b: number, yn: number) {
+  if (isSkinPx(r, g, b) || isLooseHair(r, g, b) || isShoePx(r, g, b, yn)) return false;
+  return true;
+}
+
+/** Put a shirt onto a hair (or idle) character without copying that shirt sprite's hair. */
+function applyShirt(dst: HTMLCanvasElement, src: HTMLCanvasElement) {
+  const dctx = dst.getContext("2d")!;
+  const dd = dctx.getImageData(0, 0, dst.width, dst.height);
+  const sd = src.getContext("2d")!.getImageData(0, 0, src.width, src.height);
+  const d = dd.data;
+  const s = sd.data;
+  const w = Math.min(dst.width, src.width);
+  const h = Math.min(dst.height, src.height);
+  const y0 = Math.floor(h * 0.14);
+  const y1 = Math.floor(h * 0.62);
+  const scalp = sampleScalp(dst);
+  const dw = dst.width;
+  const sw = src.width;
+  for (let y = y0; y <= y1; y++) {
+    const yn = y / h;
+    for (let x = 0; x < w; x++) {
+      const si = (y * sw + x) * 4;
+      const di = (y * dw + x) * 4;
+      const destHair = d[di + 3] > 16 && isLooseHair(d[di], d[di + 1], d[di + 2]);
+      if (destHair) continue;
+      const destOutfit = d[di + 3] > 16 && isOutfitPx(d[di], d[di + 1], d[di + 2], yn);
+      if (s[si + 3] < 16) {
+        if (destOutfit && yn < 0.5) {
+          d[di] = scalp[0];
+          d[di + 1] = scalp[1];
+          d[di + 2] = scalp[2];
+          d[di + 3] = 255;
+        }
+        continue;
+      }
+      const sr = s[si],
+        sg = s[si + 1],
+        sb = s[si + 2];
+      if (isLooseHair(sr, sg, sb)) {
+        if (destOutfit) {
+          d[di] = scalp[0];
+          d[di + 1] = scalp[1];
+          d[di + 2] = scalp[2];
+          d[di + 3] = 255;
+        }
+        continue;
+      }
+      if (isShoePx(sr, sg, sb, yn)) continue;
+      if (yn > 0.57 && !isSkinPx(sr, sg, sb) && Math.max(sr, sg, sb) < 110) continue;
+      d[di] = sr;
+      d[di + 1] = sg;
+      d[di + 2] = sb;
+      d[di + 3] = s[si + 3];
+    }
+  }
+  dctx.putImageData(dd, 0, 0);
+}
+
 function copyLegs(dst: HTMLCanvasElement, src: HTMLCanvasElement) {
   const dctx = dst.getContext("2d")!;
   const dd = dctx.getImageData(0, 0, dst.width, dst.height);
@@ -406,6 +465,7 @@ function copyLegs(dst: HTMLCanvasElement, src: HTMLCanvasElement) {
         sb = s[si + 2];
       if (isLooseHair(sr, sg, sb) || isShoePx(sr, sg, sb, yn)) continue;
       const di = (y * dw + x) * 4;
+      if (d[di + 3] > 16 && isLooseHair(d[di], d[di + 1], d[di + 2])) continue;
       d[di] = sr;
       d[di + 1] = sg;
       d[di + 2] = sb;
@@ -677,8 +737,10 @@ function compose(fig: Figure, dir: 0 | 1 | 2 | 3, walking: boolean, sit: boolean
   const customTop = top !== "hoodie";
   const customBot = bot !== "pants";
   const usingHairBody = body.id.includes("-hair-");
+  const usingTopBody = body.id.includes("-top-");
+  const usingBotBody = body.id.includes("-bot-");
   const needHair = hair !== defHair && !usingHairBody;
-  const key = `${g}|full|${body.id}|${top}|${bot}|${hair}|${view}|${frame}|v5`;
+  const key = `${g}|full|${body.id}|${top}|${bot}|${hair}|${view}|${frame}|v6`;
   const hit = composeCache.get(key);
   if (hit) return { id: key, src: hit };
 
@@ -687,9 +749,15 @@ function compose(fig: Figure, dir: 0 | 1 | 2 | 3, walking: boolean, sit: boolean
   out.height = body.src.height;
   out.getContext("2d")!.drawImage(body.src, 0, 0);
 
-  if (!walking && !sit && customTop && customBot && body.id.includes("-top-")) {
-    const b = clothesSpr(g, "bot", bot, view);
-    if (b) copyLegs(out, b.src);
+  if (!walking && !sit) {
+    if (customTop && !usingTopBody) {
+      const t = clothesSpr(g, "top", top, view);
+      if (t) applyShirt(out, t.src);
+    }
+    if (customBot && !usingBotBody) {
+      const b = clothesSpr(g, "bot", bot, view);
+      if (b) copyLegs(out, b.src);
+    }
   }
   if (needHair) replaceHair(out, g, view, hair);
 
