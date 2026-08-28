@@ -111,7 +111,7 @@ export function clampFigure(f: Partial<Figure> | undefined): Figure {
   };
 }
 
-const SPRITE_V = 20;
+const SPRITE_V = 21;
 const inflight = new Map<string, Promise<HTMLCanvasElement | null>>();
 
 function loadImage(src: string) {
@@ -147,23 +147,25 @@ export async function loadSpriteId(id: string) {
   return p;
 }
 
-export function lookSpriteIds(fig: Figure, dir: 0 | 1 | 2 | 3 = 1) {
+export function lookSpriteIds(fig: Figure, _dir: 0 | 1 | 2 | 3 = 1) {
   const f = clampFigure(fig);
   const g = f.gender === 1 ? "f" : "m";
-  const view = dir === 2 || dir === 3 ? "ne" : "se";
   const hair = hairName(f);
   const top = topName(f);
   const bot = botName(f);
-  return [
-    `${g}-base-${view}`,
-    `${g}-se-base`,
-    `${g}-hair-${hair}-${view}-layer`,
-    `${g}-hair-${hair}-se-layer`,
-    `${g}-top-${top}-${view}-layer`,
-    `${g}-top-${top}-se-layer`,
-    `${g}-bot-${bot}-${view}-layer`,
-    `${g}-bot-${bot}-se-layer`,
-  ];
+  const ids: string[] = [`${g}-se-sit`];
+  for (const view of ["se", "ne"] as const) {
+    ids.push(
+      `${g}-base-${view}`,
+      `${g}-hair-${hair}-${view}-layer`,
+      `${g}-top-${top}-${view}-layer`,
+      `${g}-bot-${bot}-${view}-layer`,
+      `${g}-${view}-idle`,
+      `${g}-${view}-walk0`,
+      `${g}-${view}-walk1`
+    );
+  }
+  return ids;
 }
 
 export async function loadLookSprites(fig: Figure, dir: 0 | 1 | 2 | 3 = 1) {
@@ -192,10 +194,37 @@ export function loadAvatars() {
         "f-base-se",
         "m-base-ne",
         "f-base-ne",
+        "m-hair-spike-se-layer",
+        "m-hair-spike-ne-layer",
+        "m-top-hoodie-se-layer",
+        "m-top-hoodie-ne-layer",
+        "m-bot-pants-se-layer",
+        "m-bot-pants-ne-layer",
+        "f-hair-long-se-layer",
+        "f-hair-long-ne-layer",
+        "f-top-hoodie-se-layer",
+        "f-top-hoodie-ne-layer",
+        "f-bot-pants-se-layer",
+        "f-bot-pants-ne-layer",
       ].map(loadSpriteId)
     ).then(() => undefined);
   }
   return loadPromise;
+}
+
+export function lookReady(fig: Figure, dir: 0 | 1 | 2 | 3 = 1) {
+  const f = clampFigure(fig);
+  const g = f.gender === 1 ? "f" : "m";
+  const view = dir === 2 || dir === 3 ? "ne" : "se";
+  const hair = hairName(f);
+  const top = topName(f);
+  const bot = botName(f);
+  return !!(
+    (sprites.get(`${g}-base-${view}`) || sprites.get(`${g}-se-base`)) &&
+    (sprites.get(`${g}-hair-${hair}-${view}-layer`) || sprites.get(`${g}-hair-${hair}-se-layer`)) &&
+    (sprites.get(`${g}-top-${top}-${view}-layer`) || sprites.get(`${g}-top-${top}-se-layer`)) &&
+    (sprites.get(`${g}-bot-${bot}-${view}-layer`) || sprites.get(`${g}-bot-${bot}-se-layer`))
+  );
 }
 
 export function avatarsReady() {
@@ -305,7 +334,7 @@ function recolor(src: HTMLCanvasElement, fig: Figure, id: string) {
       g = d[i + 1],
       b = d[i + 2];
     const yn = y / h;
-    if (isLooseHair(r, g, b) && yn < 0.38) {
+    if (isLooseHair(r, g, b) && yn < 0.32) {
       const t = tint(r, g, b, hairT);
       d[i] = t[0];
       d[i + 1] = t[1];
@@ -396,32 +425,15 @@ function hairSprite(fig: Figure, view: string) {
   return firstSpr([`${g}-hair-${hair}-${view}`, `${g}-hair-${hair}-se`]);
 }
 
-function idleBase(fig: Figure, view: string) {
-  const g = gKey(fig);
-  const top = topName(fig);
-  const bot = botName(fig);
-  const styled = hairSprite(fig, view);
-  if (styled) return styled;
-  if (top !== "hoodie") {
-    const t = clothesSpr(g, "top", top, view);
-    if (t) return t;
-  }
-  if (bot !== "pants") {
-    const b = clothesSpr(g, "bot", bot, view);
-    if (b) return b;
-  }
-  return firstSpr([`${g}-${view}-idle`, `${g}-se-idle`]);
-}
-
 function pickPose(fig: Figure, dir: 0 | 1 | 2 | 3, walking: boolean, sit: boolean, frame: number) {
   const g = gKey(fig);
   const view = viewOf(dir);
-  if (sit) return firstSpr([`${g}-se-sit`, `${g}-se-idle`]);
+  if (sit) return firstSpr([`${g}-se-sit`, `${g}-${view}-idle`, `${g}-se-idle`]);
   if (walking) {
     const which = frame % 2;
-    return firstSpr([`${g}-${view}-walk${which}`, `${g}-se-walk${which}`, `${g}-se-walk0`, `${g}-se-walk1`, `${g}-se-idle`]);
+    return firstSpr([`${g}-${view}-walk${which}`, `${g}-se-walk${which}`, `${g}-se-walk0`, `${g}-se-walk1`, `${g}-${view}-idle`, `${g}-se-idle`]);
   }
-  return idleBase(fig, view);
+  return firstSpr([`${g}-${view}-idle`, `${g}-se-idle`, `${g}-se-walk0`, `${g}-ne-idle`]);
 }
 
 function isShoePx(r: number, g: number, b: number, yn: number) {
@@ -607,12 +619,10 @@ function replaceBot(dst: HTMLCanvasElement, src: HTMLCanvasElement, longHem: boo
 
 function isLooseHair(r: number, g: number, b: number) {
   if (isSkinPx(r, g, b) || isPurplePx(r, g, b)) return false;
-  if (r > 180 && g > 180 && b > 180) return false;
-  if (r > 155) return false;
-  if (g < 14) return false;
-  if (g <= r + 5) return false;
-  if (b <= r) return false;
-  if (b < g * 0.5) return false;
+  if (r > 140) return false;
+  if (g < 28 || b < 36) return false;
+  if (g < r + 22) return false;
+  if (b < r + 28) return false;
   return true;
 }
 
@@ -811,21 +821,23 @@ function compose(fig: Figure, dir: 0 | 1 | 2 | 3, walking: boolean, sit: boolean
   const hair = hairName(fig);
   const top = topName(fig);
   const bot = botName(fig);
-  const defHair = defaultHairName(fig.gender ?? 0);
 
-  if (!walking && !sit) {
+  if (!sit) {
     const base = firstSpr([`${g}-base-${view}`, `${g}-se-base`]);
-    if (base) {
-      const key = `stack|${g}|${view}|${hair}|${top}|${bot}|v7`;
+    const hairL = layerSpr(g, "hair", hair, view);
+    const topL = layerSpr(g, "top", top, view);
+    const botL = layerSpr(g, "bot", bot, view);
+    if (base && hairL && topL && botL) {
+      const key = `stack|${g}|${view}|${hair}|${top}|${bot}|v9`;
       const hit = composeCache.get(key);
       if (hit) return { id: key, src: hit };
       const out = document.createElement("canvas");
       out.width = base.src.width;
       out.height = base.src.height;
       out.getContext("2d")!.drawImage(base.src, 0, 0);
-      stampLayer(out, layerSpr(g, "bot", bot, view)?.src || null);
-      stampLayer(out, layerSpr(g, "top", top, view)?.src || null);
-      stampLayer(out, layerSpr(g, "hair", hair, view)?.src || null);
+      stampLayer(out, botL.src);
+      stampLayer(out, topL.src);
+      stampLayer(out, hairL.src);
       composeCache.set(key, out);
       if (composeCache.size > 220) {
         const first = composeCache.keys().next().value;
@@ -835,12 +847,12 @@ function compose(fig: Figure, dir: 0 | 1 | 2 | 3, walking: boolean, sit: boolean
     }
   }
 
-  const body = pickPose(fig, dir, walking, sit, frame);
+  const body =
+    pickPose(fig, dir, walking, sit, frame) ||
+    firstSpr([`${g}-${view}-idle`, `${g}-se-idle`, `${g}-se-walk0`, "m-se-idle", "f-se-idle"]);
   if (!body) return null;
 
-  const usingHairBody = body.id.includes("-hair-");
-  const needHair = hair !== defHair && !usingHairBody;
-  const key = `${g}|full|${body.id}|${top}|${bot}|${hair}|${view}|${frame}|v6`;
+  const key = `${g}|pose|${body.id}|${view}|${frame}|v9`;
   const hit = composeCache.get(key);
   if (hit) return { id: key, src: hit };
 
@@ -848,7 +860,6 @@ function compose(fig: Figure, dir: 0 | 1 | 2 | 3, walking: boolean, sit: boolean
   out.width = body.src.width;
   out.height = body.src.height;
   out.getContext("2d")!.drawImage(body.src, 0, 0);
-  if (needHair) replaceHair(out, g, view, hair);
 
   composeCache.set(key, out);
   if (composeCache.size > 220) {

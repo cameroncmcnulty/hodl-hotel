@@ -141,26 +141,26 @@ export function CharacterPreview({
   dir?: 0 | 1 | 2 | 3;
 }) {
   const ref = useRef<HTMLCanvasElement>(null);
-  const [tick, setTick] = useState(0);
   useEffect(() => {
     let live = true;
+    const draw = () => {
+      const c = ref.current;
+      if (!c || !live) return;
+      const ctx = c.getContext("2d");
+      if (!ctx) return;
+      ctx.imageSmoothingEnabled = false;
+      ctx.fillStyle = "#6f7f8c";
+      ctx.fillRect(0, 0, size, size);
+      drawAvatarFront(ctx, clampFigure(figure), size / 2, size * 0.96, Math.max(5.5, size / 36), dir);
+    };
+    draw();
     loadLookSprites(figure, dir).then(() => {
-      if (live) setTick((n) => n + 1);
+      if (live) draw();
     });
     return () => {
       live = false;
     };
-  }, [figure, dir]);
-  useEffect(() => {
-    const c = ref.current;
-    if (!c) return;
-    const ctx = c.getContext("2d");
-    if (!ctx) return;
-    ctx.imageSmoothingEnabled = false;
-    ctx.fillStyle = "#6f7f8c";
-    ctx.fillRect(0, 0, size, size);
-    drawAvatarFront(ctx, clampFigure(figure), size / 2, size * 0.96, Math.max(5.5, size / 36), dir);
-  }, [figure, size, tick, dir]);
+  }, [figure, dir, size]);
   return (
     <canvas
       ref={ref}

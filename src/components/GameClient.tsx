@@ -101,6 +101,7 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
   }, []);
 
   useEffect(() => {
+    loadAvatars();
     loadLookSprites(meState.figure, 1);
     for (const o of snap?.occupants || []) loadLookSprites(o.figure, o.dir ?? 1);
   }, [meState.figure, snap]);

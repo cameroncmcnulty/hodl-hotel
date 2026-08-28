@@ -1,6 +1,6 @@
 /**
- * Build a bald base body plus one hair / shirt / pants layer per option.
- * Then render test stacks to scripts/avatar-tests for visual QA.
+ * Build a complete bald base plus one hair / shirt / pants layer per option.
+ * Sources are always full-body sprites — never previously extracted layers.
  */
 const fs = require("fs");
 const path = require("path");
@@ -54,29 +54,28 @@ function lum(r, g, b) {
   return (r * 0.32 + g * 0.5 + b * 0.18) / 255;
 }
 
+/** Teal/cyan hair only — navy pants, cream clothes, and green plaid must not match in body zones. */
 function isHair(r, g, b, a) {
   if (a < 16) return false;
-  if (r > 155) return false;
-  if (g < 14) return false;
-  if (g <= r + 5) return false;
-  if (b <= r) return false;
-  if (b < g * 0.5) return false;
+  if (r > 140) return false;
+  if (g < 28 || b < 36) return false;
+  if (g < r + 22) return false;
+  if (b < r + 28) return false;
   return true;
-}
-
-function isHairInk(r, g, b, a, yn, xn) {
-  if (isHair(r, g, b, a)) return true;
-  if (a < 16 || yn > 0.28) return false;
-  if (isSkin(r, g, b, a)) return false;
-  if (yn > 0.2 && yn < 0.28 && xn > 0.36 && xn < 0.64) return false;
-  return lum(r, g, b) < 0.22;
 }
 
 function isSkin(r, g, b, a) {
   if (a < 16) return false;
-  if (r < 48 || g < 22) return false;
-  if (r > 252 && g > 252 && b > 252) return false;
-  return r > g - 8 && g >= b - 18 && r - b > 8 && g < 235 && b < 220 && r < 256;
+  if (r < 170 || g < 90 || g > 215) return false;
+  if (b > 175) return false;
+  if (r - g < 28) return false;
+  if (r - b < 50) return false;
+  if (g - b < 20) return false;
+  return true;
+}
+
+function colorDist(a, b) {
+  return Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]) + Math.abs(a[2] - b[2]);
 }
 
 function isShoe(r, g, b, a, yn) {
@@ -86,6 +85,20 @@ function isShoe(r, g, b, a, yn) {
   return mx > 165 && mx - mn < 55;
 }
 
+function inScalp(xn, yn) {
+  const cx = 0.5;
+  const cy = 0.235;
+  const rx = 0.12;
+  const ry = 0.085;
+  const dx = (xn - cx) / rx;
+  const dy = (yn - cy) / ry;
+  return dx * dx + dy * dy <= 1;
+}
+
+function inInnerFace(xn, yn) {
+  return yn >= 0.155 && yn <= 0.278 && xn >= 0.4 && xn <= 0.6;
+}
+
 function sampleSkin(img) {
   const w = img.width;
   const h = img.height;
@@ -93,10 +106,10 @@ function sampleSkin(img) {
     g = 0,
     b = 0,
     n = 0;
-  const y0 = Math.floor(h * 0.2);
-  const y1 = Math.floor(h * 0.34);
-  const x0 = Math.floor(w * 0.38);
-  const x1 = Math.floor(w * 0.62);
+  const y0 = Math.floor(h * 0.18);
+  const y1 = Math.floor(h * 0.32);
+  const x0 = Math.floor(w * 0.4);
+  const x1 = Math.floor(w * 0.6);
   for (let y = y0; y < y1; y++) {
     for (let x = x0; x < x1; x++) {
       const p = px(img, x, y);
@@ -112,21 +125,52 @@ function sampleSkin(img) {
   return [(r / n) | 0, (g / n) | 0, (b / n) | 0];
 }
 
-function extractHair(src) {
-  const out = blank(src.width, src.height);
+function hairMask(src) {
   const h = src.height;
   const w = src.width;
   const mark = Buffer.alloc(w * h);
   for (let y = 0; y < h; y++) {
     const yn = y / h;
+    if (yn > 0.5) continue;
     for (let x = 0; x < w; x++) {
       const [r, g, b, a] = px(src, x, y);
-      if (isHair(r, g, b, a) || isHairInk(r, g, b, a, yn, x / w)) mark[y * w + x] = 1;
+      if (isHair(r, g, b, a)) mark[y * w + x] = 1;
     }
   }
+  const grown = Buffer.from(mark);
   for (let y = 0; y < h; y++) {
+    const yn = y / h;
+    if (yn > 0.46) continue;
+    for (let x = 0; x < w; x++) {
+      if (mark[y * w + x]) continue;
+      const [r, g, b, a] = px(src, x, y);
+      if (a < 16 || isSkin(r, g, b, a)) continue;
+      if (yn > 0.3 && lum(r, g, b) > 0.16) continue;
+      let near = false;
+      for (let dy = -2; dy <= 2 && !near; dy++) {
+        for (let dx = -2; dx <= 2; dx++) {
+          const nx = x + dx;
+          const ny = y + dy;
+          if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue;
+          if (mark[ny * w + nx]) near = true;
+        }
+      }
+      if (near) grown[y * w + x] = 1;
+    }
+  }
+  return grown;
+}
+
+function extractHair(src) {
+  const out = blank(src.width, src.height);
+  const h = src.height;
+  const w = src.width;
+  const mark = hairMask(src);
+  for (let y = 0; y < h; y++) {
+    const yn = y / h;
     for (let x = 0; x < w; x++) {
       if (!mark[y * w + x]) continue;
+      if (yn > 0.3 && !isHair(...px(src, x, y))) continue;
       const [r, g, b, a] = px(src, x, y);
       if (a > 16) setPx(out, x, y, r, g, b, a);
     }
@@ -134,21 +178,26 @@ function extractHair(src) {
   return out;
 }
 
-function extractTop(src) {
+function extractTop(src, idle) {
   const out = blank(src.width, src.height);
   const h = src.height;
   const w = src.width;
+  const srcHair = hairMask(src);
+  const idleHair = idle ? hairMask(idle) : srcHair;
   for (let y = 0; y < h; y++) {
     const yn = y / h;
-    if (yn < 0.14 || yn > 0.64) continue;
+    if (yn < 0.278 || yn > 0.568) continue;
     for (let x = 0; x < w; x++) {
       const xn = x / w;
-      const [r, g, b, a] = px(src, x, y);
+      const i = y * w + x;
+      const p = px(src, x, y);
+      const [r, g, b, a] = p;
       if (a < 16) continue;
-      if (isHair(r, g, b, a) || isHairInk(r, g, b, a, yn, xn)) continue;
+      if (isSkin(r, g, b, a)) continue;
       if (isShoe(r, g, b, a, yn)) continue;
-      if (yn > 0.58 && Math.max(r, g, b) < 110 && !isSkin(r, g, b, a)) continue;
-      if (isSkin(r, g, b, a) && yn < 0.34 && xn > 0.32 && xn < 0.68) continue;
+      if (inInnerFace(xn, yn) || inScalp(xn, yn)) continue;
+      if (yn < 0.32 && srcHair[i]) continue;
+      if (idleHair[i]) continue;
       setPx(out, x, y, r, g, b, a);
     }
   }
@@ -161,46 +210,66 @@ function extractBot(src) {
   const w = src.width;
   for (let y = 0; y < h; y++) {
     const yn = y / h;
-    if (yn < 0.5 || yn > 0.88) continue;
+    if (yn < 0.548 || yn > 0.845) continue;
     for (let x = 0; x < w; x++) {
-      const xn = x / w;
       const [r, g, b, a] = px(src, x, y);
       if (a < 16) continue;
-      if (isHair(r, g, b, a) || isHairInk(r, g, b, a, yn, xn)) continue;
+      if (isSkin(r, g, b, a)) continue;
       if (isShoe(r, g, b, a, yn)) continue;
-      if (yn < 0.56 && xn > 0.28 && xn < 0.72 && Math.max(r, g, b) < 80 && !isSkin(r, g, b, a)) continue;
       setPx(out, x, y, r, g, b, a);
     }
   }
   return out;
 }
 
-function makeBase(idle, hairMask) {
-  const out = clone(idle);
+function isFaceFeature(r, g, b, a, xn, yn) {
+  if (!inInnerFace(xn, yn) || a < 16 || isHair(r, g, b, a)) return false;
+  if (isSkin(r, g, b, a)) return true;
+  const mx = Math.max(r, g, b);
+  if (yn >= 0.175 && yn <= 0.255 && xn >= 0.42 && xn <= 0.58 && (mx > 200 || mx < 55)) return true;
+  if (yn > 0.25 && yn <= 0.278 && mx < 160) return true;
+  return false;
+}
+
+function makeBase(idle, slim) {
+  const body = slim || idle;
+  const out = clone(body);
   const skin = sampleSkin(idle);
   const h = idle.height;
   const w = idle.width;
+  const idleH = hairMask(idle);
+  const bodyH = hairMask(body);
   for (let y = 0; y < h; y++) {
     const yn = y / h;
     for (let x = 0; x < w; x++) {
-      const [r, g, b, a] = px(out, x, y);
-      if (a < 8) continue;
+      const [br, bg, bb, ba] = px(out, x, y);
+      const [ir, ig, ib, ia] = px(idle, x, y);
       const xn = x / w;
-      if (yn < 0.4 && !isSkin(r, g, b, a)) {
-        if (yn > 0.18 && yn < 0.34 && xn > 0.38 && xn < 0.62) setPx(out, x, y, skin[0], skin[1], skin[2], 255);
+      if (isShoe(ir, ig, ib, ia, yn)) {
+        setPx(out, x, y, ir, ig, ib, ia);
+        continue;
+      }
+      if (yn < 0.32 && ia > 8 && isFaceFeature(ir, ig, ib, ia, xn, yn)) {
+        setPx(out, x, y, ir, ig, ib, ia);
+        continue;
+      }
+      if (yn < 0.32 && ia > 8 && isSkin(ir, ig, ib, ia)) {
+        setPx(out, x, y, ir, ig, ib, ia);
+        continue;
+      }
+      if (ba < 8) continue;
+      const hi = y * w + x;
+      if (idleH[hi] || bodyH[hi] || isHair(br, bg, bb, ba) || isHair(ir, ig, ib, ia)) {
+        if (inScalp(xn, yn) && yn >= 0.15 && yn <= 0.28) setPx(out, x, y, skin[0], skin[1], skin[2], 255);
         else setPx(out, x, y, 0, 0, 0, 0);
         continue;
       }
-      if (isShoe(r, g, b, a, yn) || isSkin(r, g, b, a)) continue;
-      if (yn > 0.26 && yn < 0.56 && xn > 0.4 && xn < 0.6) {
-        setPx(out, x, y, skin[0], skin[1], skin[2], 255);
+      if (isSkin(br, bg, bb, ba)) continue;
+      if (yn < 0.278) {
+        setPx(out, x, y, 0, 0, 0, 0);
         continue;
       }
-      if (yn >= 0.56 && yn < 0.84 && xn > 0.43 && xn < 0.57) {
-        setPx(out, x, y, skin[0], skin[1], skin[2], 255);
-        continue;
-      }
-      if (yn > 0.16 && yn < 0.86) setPx(out, x, y, 0, 0, 0, 0);
+      if (yn < 0.86) setPx(out, x, y, skin[0], skin[1], skin[2], 255);
     }
   }
   return out;
@@ -227,64 +296,75 @@ function opaqueCount(img) {
   return n;
 }
 
+function fullSrc(g, kind, name, view) {
+  if (kind === "hair") {
+    return load(`${g}-hair-${name}-${view}`) || load(`${g}-hair-${name}-se`);
+  }
+  if (kind === "top") {
+    return load(`${g}-top-${name}-${view}`) || load(`${g}-top-${name}-se`);
+  }
+  return load(`${g}-bot-${name}-${view}`) || load(`${g}-bot-${name}-se`);
+}
+
 const views = ["se", "ne"];
 const genders = [
   { g: "m", hairs: HAIR_BOY, tops: TOP_BOY, bots: BOT_BOY, defHair: "spike" },
   { g: "f", hairs: HAIR_GIRL, tops: TOP_GIRL, bots: BOT_GIRL, defHair: "long" },
 ];
 
+const missing = [];
+
 for (const { g, hairs, tops, bots, defHair } of genders) {
   for (const view of views) {
     const idle = load(`${g}-${view}-idle`) || (view === "ne" ? load(`${g}-se-idle`) : null);
-    if (!idle) continue;
-    const idleLayer = load(`${g}-${view}-idle-layer`) || load(`${g}-se-idle-layer`);
-    const base = makeBase(idle, idleLayer);
+    if (!idle) {
+      missing.push(`${g}-${view}-idle`);
+      continue;
+    }
+    const slimName = g === "f" ? "cami" : "tank";
+    const slim = fullSrc(g, "top", slimName, view);
+    const base = makeBase(idle, slim);
     save(`${g}-base-${view}`, base);
     console.log("base", `${g}-base-${view}`, opaqueCount(base));
 
-    const defHairSrc = load(`${g}-hair-${defHair}-${view}-layer`) || idleLayer || idle;
-    const defHairLayer = extractHair(defHairSrc);
+    const defHairLayer = extractHair(idle);
     save(`${g}-hair-${defHair}-${view}-layer`, defHairLayer);
     console.log("hair", `${g}-hair-${defHair}-${view}-layer`, opaqueCount(defHairLayer));
 
     for (const name of hairs) {
       if (name === defHair) continue;
-      const src = load(`${g}-hair-${name}-${view}-layer`) || load(`${g}-hair-${name}-se-layer`) || load(`${g}-hair-${name}-${view}`) || load(`${g}-hair-${name}-se`);
-      if (!src) {
-        console.log("missing hair", g, name, view);
-        continue;
-      }
+      const src = fullSrc(g, "hair", name, view) || idle;
       const layer = extractHair(src);
       save(`${g}-hair-${name}-${view}-layer`, layer);
-      console.log("hair", `${g}-hair-${name}-${view}-layer`, opaqueCount(layer));
+      const n = opaqueCount(layer);
+      console.log("hair", `${g}-hair-${name}-${view}-layer`, n);
+      if (n < 400) missing.push(`thin-hair:${g}-hair-${name}-${view}`);
     }
 
     for (const name of tops) {
-      const src =
-        name === "hoodie"
-          ? idle
-          : load(`${g}-top-${name}-${view}`) || load(`${g}-top-${name}-se`);
+      const src = name === "hoodie" ? idle : fullSrc(g, "top", name, view);
       if (!src) {
-        console.log("missing top", g, name, view);
+        missing.push(`top:${g}-${name}-${view}`);
         continue;
       }
-      const layer = extractTop(src);
+      const layer = extractTop(src, idle);
       save(`${g}-top-${name}-${view}-layer`, layer);
-      console.log("top", `${g}-top-${name}-${view}-layer`, opaqueCount(layer));
+      const n = opaqueCount(layer);
+      console.log("top", `${g}-top-${name}-${view}-layer`, n);
+      if (n < 800) missing.push(`thin-top:${g}-top-${name}-${view}`);
     }
 
     for (const name of bots) {
-      const src =
-        name === "pants"
-          ? idle
-          : load(`${g}-bot-${name}-${view}`) || load(`${g}-bot-${name}-se`);
+      const src = name === "pants" ? idle : fullSrc(g, "bot", name, view);
       if (!src) {
-        console.log("missing bot", g, name, view);
+        missing.push(`bot:${g}-${name}-${view}`);
         continue;
       }
       const layer = extractBot(src);
       save(`${g}-bot-${name}-${view}-layer`, layer);
-      console.log("bot", `${g}-bot-${name}-${view}-layer`, opaqueCount(layer));
+      const n = opaqueCount(layer);
+      console.log("bot", `${g}-bot-${name}-${view}-layer`, n);
+      if (n < 800) missing.push(`thin-bot:${g}-bot-${name}-${view}`);
     }
   }
 }
@@ -293,32 +373,64 @@ const tests = [
   ["boy-default", "m", "se", "spike", "hoodie", "pants"],
   ["boy-buzz-tee-shorts", "m", "se", "buzz", "tee", "shorts"],
   ["boy-mohawk-tank-cargo", "m", "se", "mohawk", "tank", "cargo"],
+  ["boy-buzz-jacket-pants", "m", "se", "buzz", "jacket", "pants"],
+  ["boy-crop-sweater-jeans", "m", "se", "crop", "sweater", "jeans"],
+  ["boy-side-shirt-joggers", "m", "se", "side", "shirt", "joggers"],
   ["girl-default", "f", "se", "long", "hoodie", "pants"],
   ["girl-bob-blouse-skirt", "f", "se", "bob", "blouse", "skirt"],
   ["girl-pony-cami-shorts", "f", "se", "pony", "cami", "shorts"],
-  ["boy-buzz-jacket-pants", "m", "se", "buzz", "jacket", "pants"],
+  ["girl-bun-wrap-dress", "f", "se", "bun", "wrap", "dress"],
+  ["girl-curl-cardi-leggings", "f", "se", "curl", "cardi", "leggings"],
+  ["girl-twin-tee-pleat", "f", "se", "twin", "tee", "pleat"],
 ];
 
+const failed = [];
 for (const [label, g, view, hair, top, bot] of tests) {
   const base = load(`${g}-base-${view}`);
   const hairL = load(`${g}-hair-${hair}-${view}-layer`);
   const topL = load(`${g}-top-${top}-${view}-layer`);
   const botL = load(`${g}-bot-${bot}-${view}-layer`);
-  if (!base) {
-    console.log("test skip, no base", label);
+  if (!base || !hairL || !topL || !botL) {
+    failed.push(label + ":missing-layer");
+    console.log("test skip", label, !!base, !!hairL, !!topL, !!botL);
     continue;
   }
   const out = stack(base, [botL, topL, hairL]);
   save(label, out, TEST);
-  console.log("TEST", label, "hair", !!hairL, "top", !!topL, "bot", !!botL, "opaque", opaqueCount(out));
+  const n = opaqueCount(out);
+  console.log("TEST", label, "opaque", n);
+  if (n < 42000) failed.push(label + ":too-thin:" + n);
+}
+
+console.log("combo scan");
+for (const { g, hairs, tops, bots } of genders) {
+  const view = "se";
+  const base = load(`${g}-base-${view}`);
+  for (const hair of hairs) {
+    for (const top of tops) {
+      for (const bot of bots) {
+        const hairL = load(`${g}-hair-${hair}-${view}-layer`);
+        const topL = load(`${g}-top-${top}-${view}-layer`);
+        const botL = load(`${g}-bot-${bot}-${view}-layer`);
+        if (!base || !hairL || !topL || !botL) {
+          failed.push(`${g}-${hair}-${top}-${bot}:missing`);
+          continue;
+        }
+        const n = opaqueCount(stack(base, [botL, topL, hairL]));
+        if (n < 42000) failed.push(`${g}-${hair}-${top}-${bot}:thin:${n}`);
+      }
+    }
+  }
 }
 
 const manPath = path.join(DIR, "manifest.json");
 const man = JSON.parse(fs.readFileSync(manPath, "utf8"));
-const extra = fs.readdirSync(DIR).filter((f) => /-(base-|top-|bot-).+\.png$/i.test(f) || /-hair-.*-layer\.png$/i.test(f));
+const extra = fs.readdirSync(DIR).filter((f) => f.endsWith(".png"));
 const set = new Set(man);
 for (const f of extra) set.add(f);
 const next = [...set].sort();
 fs.writeFileSync(manPath, JSON.stringify(next, null, 2) + "\n");
 console.log("manifest", next.length);
+console.log("missing", missing);
+console.log("failed", failed);
 console.log("done");
