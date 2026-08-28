@@ -118,12 +118,12 @@ function loadImage(src: string) {
 export function loadAvatars() {
   if (!loadPromise) {
     loadPromise = (async () => {
-      const man = (await fetch("/art/avatars/manifest.json?v=16")
+      const man = (await fetch("/art/avatars/manifest.json?v=17")
         .then((r) => r.json())
         .catch(() => [])) as string[];
       await Promise.all(
         man.map(async (file) => {
-          const img = await loadImage(`/art/avatars/${file}?v=16`);
+          const img = await loadImage(`/art/avatars/${file}?v=17`);
           if (!img) return;
           const c = document.createElement("canvas");
           c.width = img.width;
@@ -355,6 +355,14 @@ function clothesSpr(g: string, kind: "top" | "bot", name: string, view: string) 
   return firstSpr([`${g}-${kind}-${name}-${view}`, `${g}-${kind}-${name}-se`]);
 }
 
+function hairSprite(fig: Figure, view: string) {
+  const g = gKey(fig);
+  const hair = hairName(fig);
+  const def = defaultHairName(fig.gender ?? 0);
+  if (hair === def) return null;
+  return firstSpr([`${g}-hair-${hair}-${view}`, `${g}-hair-${hair}-se`]);
+}
+
 function pickPose(fig: Figure, dir: 0 | 1 | 2 | 3, walking: boolean, sit: boolean, frame: number) {
   const g = gKey(fig);
   const view = viewOf(dir);
@@ -363,6 +371,8 @@ function pickPose(fig: Figure, dir: 0 | 1 | 2 | 3, walking: boolean, sit: boolea
     const which = frame % 2;
     return firstSpr([`${g}-${view}-walk${which}`, `${g}-se-walk${which}`, `${g}-se-walk0`, `${g}-se-walk1`, `${g}-se-idle`]);
   }
+  const styled = hairSprite(fig, view);
+  if (styled) return styled;
   return firstSpr([`${g}-${view}-idle`, `${g}-se-idle`]);
 }
 
@@ -511,43 +521,73 @@ function sampleScalp(body: HTMLCanvasElement): [number, number, number] {
   return [(r / n) | 0, (g / n) | 0, (b / n) | 0];
 }
 
-/** Wipe previous hair completely, fill the scalp, stamp only the chosen hair. */
-function stampHairLayer(body: HTMLCanvasElement, hairSrc: HTMLCanvasElement) {
+function layerHair(g: string, view: string, hair: string) {
+  return spr(`${g}-hair-${hair}-${view}-layer`) || spr(`${g}-hair-${hair}-se-layer`);
+}
+
+function defaultHairMask(g: string, view: string) {
+  return spr(`${g}-${view}-idle-layer`) || spr(`${g}-se-idle-layer`);
+}
+
+/** Cut the baked-in hairstyle off the pose, then draw only the chosen hair. */
+function replaceHair(body: HTMLCanvasElement, g: string, view: string, hair: string) {
+  const mask = defaultHairMask(g, view);
+  const neu = layerHair(g, view, hair);
+  const full = spr(`${g}-hair-${hair}-${view}`) || spr(`${g}-hair-${hair}-se`);
+  const hairSrc = neu || (full ? extractHairOnly(full) : null);
   const ctx = body.getContext("2d")!;
   const bd = ctx.getImageData(0, 0, body.width, body.height);
-  const hd = hairSrc.getContext("2d")!.getImageData(0, 0, hairSrc.width, hairSrc.height);
+  const b = bd.data;
   const w = body.width;
   const h = body.height;
-  const b = bd.data;
-  const hair = hd.data;
   const scalp = sampleScalp(body);
-  const scalpTop = Math.floor(h * 0.14);
-  const scalpBot = Math.floor(h * 0.36);
-  const scalpL = Math.floor(w * 0.3);
-  const scalpR = Math.floor(w * 0.7);
-  const hairMaxY = Math.floor(h * 0.52);
+  const hairMaxY = Math.floor(h * 0.55);
+  const scalpTop = Math.floor(h * 0.12);
+  const scalpBot = Math.floor(h * 0.38);
+  const scalpL = Math.floor(w * 0.28);
+  const scalpR = Math.floor(w * 0.72);
+  const md = mask ? mask.getContext("2d")!.getImageData(0, 0, mask.width, mask.height).data : null;
+  const mw = mask?.width || 0;
+
+  const cut = (x: number, y: number) => {
+    const i = (y * w + x) * 4;
+    if (b[i + 3] < 8) return;
+    if (y >= scalpTop && y <= scalpBot && x >= scalpL && x <= scalpR) {
+      b[i] = scalp[0];
+      b[i + 1] = scalp[1];
+      b[i + 2] = scalp[2];
+      b[i + 3] = 255;
+    } else {
+      b[i + 3] = 0;
+    }
+  };
+
   for (let y = 0; y < hairMaxY; y++) {
     for (let x = 0; x < w; x++) {
       const i = (y * w + x) * 4;
-      if (b[i + 3] < 12) continue;
-      if (!isLooseHair(b[i], b[i + 1], b[i + 2])) continue;
-      if (y >= scalpTop && y <= scalpBot && x >= scalpL && x <= scalpR) {
-        b[i] = scalp[0];
-        b[i + 1] = scalp[1];
-        b[i + 2] = scalp[2];
-        b[i + 3] = 255;
-      } else {
-        b[i + 3] = 0;
+      if (b[i + 3] < 8) continue;
+      if (isLooseHair(b[i], b[i + 1], b[i + 2])) {
+        cut(x, y);
+        continue;
+      }
+      if (md && y < (mask?.height || 0) && x < mw) {
+        const mi = (y * mw + x) * 4;
+        if (md[mi + 3] > 24 && isLooseHair(md[mi], md[mi + 1], md[mi + 2])) cut(x, y);
       }
     }
   }
-  const hw = hairSrc.width;
-  const hh = hairSrc.height;
-  for (let y = 0; y < Math.min(h, hh); y++) {
-    for (let x = 0; x < Math.min(w, hw); x++) {
-      const i = (y * w + x) * 4;
-      const hi = (y * hw + x) * 4;
-      if (hair[hi + 3] > 16 && isLooseHair(hair[hi], hair[hi + 1], hair[hi + 2])) {
+
+  if (hairSrc) {
+    const hd = hairSrc.getContext("2d")!.getImageData(0, 0, hairSrc.width, hairSrc.height);
+    const hair = hd.data;
+    const hw = hairSrc.width;
+    const hh = hairSrc.height;
+    for (let y = 0; y < Math.min(h, hh); y++) {
+      for (let x = 0; x < Math.min(w, hw); x++) {
+        const hi = (y * hw + x) * 4;
+        if (hair[hi + 3] < 20) continue;
+        if (!isLooseHair(hair[hi], hair[hi + 1], hair[hi + 2])) continue;
+        const i = (y * w + x) * 4;
         b[i] = hair[hi];
         b[i + 1] = hair[hi + 1];
         b[i + 2] = hair[hi + 2];
@@ -572,8 +612,9 @@ function compose(fig: Figure, dir: 0 | 1 | 2 | 3, walking: boolean, sit: boolean
 
   const customTop = top !== "hoodie";
   const customBot = bot !== "pants";
-  const needHair = hair !== defHair;
-  const key = `${g}|pose|${body.id}|${top}|${bot}|${hair}|${view}|${frame}|v2`;
+  const usingHairBody = body.id.includes("-hair-");
+  const needHair = hair !== defHair && !usingHairBody;
+  const key = `${g}|pose|${body.id}|${top}|${bot}|${hair}|${view}|${frame}|v3`;
   const hit = composeCache.get(key);
   if (hit) return { id: key, src: hit };
 
@@ -592,12 +633,7 @@ function compose(fig: Figure, dir: 0 | 1 | 2 | 3, walking: boolean, sit: boolean
       if (b) replaceBot(out, b.src, bot === "dress" || bot === "skirt" || bot === "pleat");
     }
   }
-  if (needHair) {
-    const full = spr(`${g}-hair-${hair}-${view}`) || spr(`${g}-hair-${hair}-se`);
-    const layer = spr(`${g}-hair-${hair}-${view}-layer`) || spr(`${g}-hair-${hair}-se-layer`);
-    const src = full || layer;
-    if (src) stampHairLayer(out, extractHairOnly(src));
-  }
+  if (needHair) replaceHair(out, g, view, hair);
 
   composeCache.set(key, out);
   if (composeCache.size > 220) {
