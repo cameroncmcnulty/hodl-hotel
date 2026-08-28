@@ -10,7 +10,7 @@ import { drawRoom, tileAt } from "@/lib/game/draw";
 import { astar, canPlaceFurn, furnAt } from "@/lib/game/path";
 import { iso } from "@/lib/game/iso";
 import { face, motAt, setPath, tickMot, type Mot } from "@/lib/game/motion";
-import { loadAvatars } from "@/lib/game/avatar";
+import { loadAvatars, loadLookSprites } from "@/lib/game/avatar";
 import { loadSprites, spriteCache } from "@/lib/game/sprites";
 import { api, authInit, clearClientToken } from "@/lib/clientAuth";
 import type { Ad, ChatLine, Occupant, Placed, Room } from "@/lib/types";
@@ -99,6 +99,11 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
   useEffect(() => {
     loadAvatars();
   }, []);
+
+  useEffect(() => {
+    loadLookSprites(meState.figure, 1);
+    for (const o of snap?.occupants || []) loadLookSprites(o.figure, o.dir ?? 1);
+  }, [meState.figure, snap]);
 
   useEffect(() => {
     if (phone !== "shop") return;

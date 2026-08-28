@@ -186,14 +186,7 @@ function makeBase(idle, hairMask) {
       const [r, g, b, a] = px(out, x, y);
       if (a < 8) continue;
       const xn = x / w;
-      const hairHere =
-        isHair(r, g, b, a) ||
-        isHairInk(r, g, b, a, yn, xn) ||
-        (hairMask &&
-          x < hairMask.width &&
-          y < hairMask.height &&
-          isHair(...px(hairMask, x, y)));
-      if (hairHere) {
+      if (yn < 0.4 && !isSkin(r, g, b, a)) {
         if (yn > 0.18 && yn < 0.34 && xn > 0.38 && xn < 0.62) setPx(out, x, y, skin[0], skin[1], skin[2], 255);
         else setPx(out, x, y, 0, 0, 0, 0);
         continue;
@@ -303,6 +296,7 @@ const tests = [
   ["girl-default", "f", "se", "long", "hoodie", "pants"],
   ["girl-bob-blouse-skirt", "f", "se", "bob", "blouse", "skirt"],
   ["girl-pony-cami-shorts", "f", "se", "pony", "cami", "shorts"],
+  ["boy-buzz-jacket-pants", "m", "se", "buzz", "jacket", "pants"],
 ];
 
 for (const [label, g, view, hair, top, bot] of tests) {

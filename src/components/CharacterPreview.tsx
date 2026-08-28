@@ -10,7 +10,7 @@ import {
   GENDERS,
   HAIR_C,
   hairsFor,
-  loadAvatars,
+  loadLookSprites,
   SKIN,
   topsFor,
   TOPS,
@@ -143,8 +143,14 @@ export function CharacterPreview({
   const ref = useRef<HTMLCanvasElement>(null);
   const [tick, setTick] = useState(0);
   useEffect(() => {
-    loadAvatars().then(() => setTick((n) => n + 1));
-  }, []);
+    let live = true;
+    loadLookSprites(figure, dir).then(() => {
+      if (live) setTick((n) => n + 1);
+    });
+    return () => {
+      live = false;
+    };
+  }, [figure, dir]);
   useEffect(() => {
     const c = ref.current;
     if (!c) return;

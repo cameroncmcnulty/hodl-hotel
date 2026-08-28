@@ -111,6 +111,9 @@ export function clampFigure(f: Partial<Figure> | undefined): Figure {
   };
 }
 
+const SPRITE_V = 20;
+const inflight = new Map<string, Promise<HTMLCanvasElement | null>>();
+
 function loadImage(src: string) {
   return new Promise<HTMLImageElement | null>((resolve) => {
     const img = new Image();
@@ -120,28 +123,77 @@ function loadImage(src: string) {
   });
 }
 
+function cacheCanvas(id: string, img: HTMLImageElement) {
+  const c = document.createElement("canvas");
+  c.width = img.width;
+  c.height = img.height;
+  const ctx = c.getContext("2d")!;
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(img, 0, 0);
+  sprites.set(id, c);
+  return c;
+}
+
+export async function loadSpriteId(id: string) {
+  if (sprites.has(id)) return sprites.get(id)!;
+  const hit = inflight.get(id);
+  if (hit) return hit;
+  const p = (async () => {
+    const img = await loadImage(`/art/avatars/${id}.png?v=${SPRITE_V}`);
+    if (!img) return null;
+    return cacheCanvas(id, img);
+  })();
+  inflight.set(id, p);
+  return p;
+}
+
+export function lookSpriteIds(fig: Figure, dir: 0 | 1 | 2 | 3 = 1) {
+  const f = clampFigure(fig);
+  const g = f.gender === 1 ? "f" : "m";
+  const view = dir === 2 || dir === 3 ? "ne" : "se";
+  const hair = hairName(f);
+  const top = topName(f);
+  const bot = botName(f);
+  return [
+    `${g}-base-${view}`,
+    `${g}-se-base`,
+    `${g}-hair-${hair}-${view}-layer`,
+    `${g}-hair-${hair}-se-layer`,
+    `${g}-top-${top}-${view}-layer`,
+    `${g}-top-${top}-se-layer`,
+    `${g}-bot-${bot}-${view}-layer`,
+    `${g}-bot-${bot}-se-layer`,
+  ];
+}
+
+export async function loadLookSprites(fig: Figure, dir: 0 | 1 | 2 | 3 = 1) {
+  await Promise.all(lookSpriteIds(fig, dir).map(loadSpriteId));
+}
+
 export function loadAvatars() {
   if (!loadPromise) {
-    loadPromise = (async () => {
-      const man = (await fetch("/art/avatars/manifest.json?v=19")
-        .then((r) => r.json())
-        .catch(() => [])) as string[];
-      await Promise.all(
-        man.map(async (file) => {
-          const img = await loadImage(`/art/avatars/${file}?v=19`);
-          if (!img) return;
-          const c = document.createElement("canvas");
-          c.width = img.width;
-          c.height = img.height;
-          const ctx = c.getContext("2d")!;
-          ctx.imageSmoothingEnabled = false;
-          ctx.drawImage(img, 0, 0);
-          sprites.set(file.replace(/\.png$/i, ""), c);
-        })
-      );
-      composeCache.clear();
-      recache.clear();
-    })();
+    loadPromise = Promise.all(
+      [
+        "m-se-idle",
+        "m-se-walk0",
+        "m-se-walk1",
+        "m-se-sit",
+        "m-ne-idle",
+        "m-ne-walk0",
+        "m-ne-walk1",
+        "f-se-idle",
+        "f-se-walk0",
+        "f-se-walk1",
+        "f-se-sit",
+        "f-ne-idle",
+        "f-ne-walk0",
+        "f-ne-walk1",
+        "m-base-se",
+        "f-base-se",
+        "m-base-ne",
+        "f-base-ne",
+      ].map(loadSpriteId)
+    ).then(() => undefined);
   }
   return loadPromise;
 }
@@ -826,11 +878,7 @@ export function drawAvatarFront(ctx: CanvasRenderingContext2D, fig: Figure, cx: 
   const destW = Math.round((destH * SPRITE_W) / SPRITE_H);
   const dx = Math.round(cx - destW / 2);
   const dy = Math.round(cy - destH * 0.92);
-  if (!made) {
-    ctx.fillStyle = "#14F195";
-    ctx.fillRect(dx + destW * 0.3, dy + destH * 0.2, destW * 0.4, destH * 0.7);
-    return;
-  }
+  if (!made) return;
   blit(ctx, recolor(made.src, f, made.id), dx, dy, destW, destH, flipOf(dir));
 }
 
