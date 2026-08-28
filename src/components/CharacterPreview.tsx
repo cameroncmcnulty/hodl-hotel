@@ -9,7 +9,7 @@ import {
   drawAvatarFront,
   EYE_LABEL,
   EYES,
-  FACE,
+  facesFor,
   GENDERS,
   HAIR_C,
   hairsFor,
@@ -164,11 +164,12 @@ export function FigureEditor({ figure, onChange }: { figure: Figure; onChange: (
   const hairs = hairsFor(f.gender ?? 0);
   const tops = topsFor(f.gender ?? 0);
   const bots = botsFor(f.gender ?? 0);
+  const faces = facesFor(f.gender ?? 0);
   const cycle = (key: keyof Figure, max: number, delta: number) => {
     onChange({ ...f, [key]: wrap(Number(f[key] ?? 0) + delta, max) });
   };
   const setGender = (i: number) => {
-    onChange({ ...f, gender: i, hair: 0, topCut: 0, botCut: 0 });
+    onChange({ ...f, gender: i, hair: 0, topCut: 0, botCut: 0, face: 0 });
   };
 
   const rows = [
@@ -185,10 +186,10 @@ export function FigureEditor({ figure, onChange }: { figure: Figure; onChange: (
     {
       kind: "face",
       color: EYES[f.eyes ?? 0],
-      label: `${FACE[f.face ?? 0]} · ${EYE_LABEL[f.eyes ?? 0]}`,
+      label: `${faces[f.face ?? 0] || "oval"} · ${EYE_LABEL[f.eyes ?? 0]}`,
       swatch: EYES[f.eyes ?? 0],
-      stylePrev: () => cycle("face", FACE.length - 1, -1),
-      styleNext: () => cycle("face", FACE.length - 1, 1),
+      stylePrev: () => cycle("face", faces.length - 1, -1),
+      styleNext: () => cycle("face", faces.length - 1, 1),
       colorPrev: () => cycle("eyes", EYES.length - 1, -1),
       colorNext: () => cycle("eyes", EYES.length - 1, 1),
     },
@@ -251,7 +252,7 @@ export function FigureEditor({ figure, onChange }: { figure: Figure; onChange: (
           <ArrowBtn label="next" onClick={() => setDirI((i) => wrap(i + 1, DIRS.length - 1))} />
         </div>
         <p className="mt-1 text-center text-[10px] text-white/80">
-          {hairs[f.hair]} · {FACE[f.face ?? 0]} · {EYE_LABEL[f.eyes ?? 0]} · {tops[f.topCut ?? 0]} · {bots[f.botCut ?? 0]}
+          {hairs[f.hair]} · {faces[f.face ?? 0]} · {EYE_LABEL[f.eyes ?? 0]} · {tops[f.topCut ?? 0]} · {bots[f.botCut ?? 0]}
         </p>
       </div>
 

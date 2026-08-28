@@ -20,7 +20,9 @@ export const SKIN = [
   "#1a0e08",
 ];
 export const EYES = ["#3b2214", "#5c3317", "#8b5a2b", "#3d5c2e", "#2e5aa6", "#4a6274", "#b8860b", "#1a1a1a"];
-export const FACE = ["default", "almond", "round", "lash"];
+export const FACE_BOY = ["oval", "square", "round", "angular"];
+export const FACE_GIRL = ["oval", "heart", "round", "soft"];
+export const FACE = FACE_BOY;
 export const EYE_LABEL = ["dark brown", "brown", "hazel", "green", "blue", "gray", "amber", "black"];
 export const HAIR_C = [
   "#1e5a68",
@@ -59,6 +61,9 @@ export function topsFor(gender: number) {
 }
 export function botsFor(gender: number) {
   return gender === 1 ? BOT_GIRL : BOT_BOY;
+}
+export function facesFor(gender: number) {
+  return gender === 1 ? FACE_GIRL : FACE_BOY;
 }
 export function defaultHairName(gender: number) {
   return gender === 1 ? "long" : "spike";
@@ -102,7 +107,7 @@ export function clampFigure(f: Partial<Figure> | undefined): Figure {
     topCut: n(f?.topCut, topsFor(gender).length - 1),
     botCut: n(f?.botCut, botsFor(gender).length - 1),
     eyes: n(f?.eyes, EYES.length - 1),
-    face: n(f?.face, FACE.length - 1),
+    face: n(f?.face, facesFor(gender).length - 1),
   };
 }
 
@@ -118,12 +123,12 @@ function loadImage(src: string) {
 export function loadAvatars() {
   if (!loadPromise) {
     loadPromise = (async () => {
-      const man = (await fetch("/art/avatars/manifest.json?v=17")
+      const man = (await fetch("/art/avatars/manifest.json?v=18")
         .then((r) => r.json())
         .catch(() => [])) as string[];
       await Promise.all(
         man.map(async (file) => {
-          const img = await loadImage(`/art/avatars/${file}?v=17`);
+          const img = await loadImage(`/art/avatars/${file}?v=18`);
           if (!img) return;
           const c = document.createElement("canvas");
           c.width = img.width;
@@ -204,7 +209,6 @@ function isIrisPx(r: number, g: number, b: number, yn: number, xn: number) {
 
 function applyEyesAndFace(d: Uint8ClampedArray, w: number, h: number, fig: Figure) {
   const eyeT = hexRgb(EYES[fig.eyes ?? 0] || EYES[0]);
-  const face = fig.face ?? 0;
   const iris: { x: number; y: number }[] = [];
   for (let y = Math.floor(h * 0.2); y < Math.floor(h * 0.32); y++) {
     for (let x = Math.floor(w * 0.32); x < Math.floor(w * 0.68); x++) {
@@ -216,31 +220,6 @@ function applyEyesAndFace(d: Uint8ClampedArray, w: number, h: number, fig: Figur
       d[i + 1] = t[1];
       d[i + 2] = t[2];
       iris.push({ x, y });
-    }
-  }
-  if (!face || !iris.length) return;
-  const dark = [Math.max(0, eyeT[0] - 40), Math.max(0, eyeT[1] - 40), Math.max(0, eyeT[2] - 40)];
-  const paint = (x: number, y: number, col: number[]) => {
-    if (x < 0 || y < 0 || x >= w || y >= h) return;
-    const i = (y * w + x) * 4;
-    if (d[i + 3] < 12) return;
-    d[i] = col[0];
-    d[i + 1] = col[1];
-    d[i + 2] = col[2];
-    d[i + 3] = 255;
-  };
-  for (const p of iris) {
-    if (face === 1) {
-      const left = p.x < w / 2;
-      paint(p.x + (left ? -2 : 2), p.y, dark);
-      paint(p.x + (left ? -3 : 3), p.y, dark);
-    } else if (face === 2) {
-      paint(p.x, p.y + 1, [d[(p.y * w + p.x) * 4], d[(p.y * w + p.x) * 4 + 1], d[(p.y * w + p.x) * 4 + 2]]);
-      paint(p.x + 1, p.y, dark);
-      paint(p.x - 1, p.y, dark);
-    } else if (face === 3) {
-      paint(p.x, p.y - 1, [20, 16, 16]);
-      paint(p.x + 1, p.y - 1, [20, 16, 16]);
     }
   }
 }
@@ -370,6 +349,16 @@ function pickPose(fig: Figure, dir: 0 | 1 | 2 | 3, walking: boolean, sit: boolea
   if (walking) {
     const which = frame % 2;
     return firstSpr([`${g}-${view}-walk${which}`, `${g}-se-walk${which}`, `${g}-se-walk0`, `${g}-se-walk1`, `${g}-se-idle`]);
+  }
+  const top = topName(fig);
+  const bot = botName(fig);
+  if (top !== "hoodie") {
+    const t = clothesSpr(g, "top", top, view);
+    if (t) return t;
+  }
+  if (bot !== "pants") {
+    const b = clothesSpr(g, "bot", bot, view);
+    if (b) return b;
   }
   const styled = hairSprite(fig, view);
   if (styled) return styled;
@@ -598,6 +587,43 @@ function replaceHair(body: HTMLCanvasElement, g: string, view: string, hair: str
   ctx.putImageData(bd, 0, 0);
 }
 
+function stampFace(body: HTMLCanvasElement, g: string, faceName: string) {
+  if (!faceName || faceName === "oval") return;
+  const src = spr(`${g}-face-${faceName}-se`);
+  if (!src) return;
+  const dctx = body.getContext("2d")!;
+  const dd = dctx.getImageData(0, 0, body.width, body.height);
+  const sd = src.getContext("2d")!.getImageData(0, 0, src.width, src.height);
+  const d = dd.data;
+  const s = sd.data;
+  const w = Math.min(body.width, src.width);
+  const h = Math.min(body.height, src.height);
+  const y0 = Math.floor(h * 0.14);
+  const y1 = Math.floor(h * 0.4);
+  const x0 = Math.floor(w * 0.22);
+  const x1 = Math.floor(w * 0.78);
+  const dw = body.width;
+  const sw = src.width;
+  for (let y = y0; y <= y1; y++) {
+    const yn = y / h;
+    for (let x = x0; x <= x1; x++) {
+      const si = (y * sw + x) * 4;
+      if (s[si + 3] < 20) continue;
+      const sr = s[si],
+        sg = s[si + 1],
+        sb = s[si + 2];
+      if (isLooseHair(sr, sg, sb)) continue;
+      if (yn > 0.33 && isGarmentPx(sr, sg, sb) && Math.max(sr, sg, sb) < 90) continue;
+      const di = (y * dw + x) * 4;
+      d[di] = sr;
+      d[di + 1] = sg;
+      d[di + 2] = sb;
+      d[di + 3] = s[si + 3];
+    }
+  }
+  dctx.putImageData(dd, 0, 0);
+}
+
 const composeCache = new Map<string, HTMLCanvasElement>();
 
 function compose(fig: Figure, dir: 0 | 1 | 2 | 3, walking: boolean, sit: boolean, frame: number) {
@@ -612,9 +638,12 @@ function compose(fig: Figure, dir: 0 | 1 | 2 | 3, walking: boolean, sit: boolean
 
   const customTop = top !== "hoodie";
   const customBot = bot !== "pants";
+  const usingTopBody = body.id.includes("-top-");
+  const usingBotBody = body.id.includes("-bot-");
   const usingHairBody = body.id.includes("-hair-");
   const needHair = hair !== defHair && !usingHairBody;
-  const key = `${g}|pose|${body.id}|${top}|${bot}|${hair}|${view}|${frame}|v3`;
+  const faceName = facesFor(fig.gender ?? 0)[fig.face ?? 0] || "oval";
+  const key = `${g}|pose|${body.id}|${top}|${bot}|${hair}|${faceName}|${view}|${frame}|v4`;
   const hit = composeCache.get(key);
   if (hit) return { id: key, src: hit };
 
@@ -624,15 +653,16 @@ function compose(fig: Figure, dir: 0 | 1 | 2 | 3, walking: boolean, sit: boolean
   out.getContext("2d")!.drawImage(body.src, 0, 0);
 
   if (!walking) {
-    if (customTop) {
+    if (customTop && !usingTopBody) {
       const t = clothesSpr(g, "top", top, view);
       if (t) replaceTop(out, t.src);
     }
-    if (customBot) {
+    if (customBot && !usingBotBody) {
       const b = clothesSpr(g, "bot", bot, view);
       if (b) replaceBot(out, b.src, bot === "dress" || bot === "skirt" || bot === "pleat");
     }
   }
+  if ((fig.face ?? 0) > 0) stampFace(out, g, faceName);
   if (needHair) replaceHair(out, g, view, hair);
 
   composeCache.set(key, out);
