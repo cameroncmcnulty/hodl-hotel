@@ -6,9 +6,9 @@ export const SPRITE_SRC: Record<string, string> = Object.fromEntries(
 
 function isMagenta(r: number, g: number, b: number) {
   const dist = Math.hypot(r - 255, g - 0, b - 255);
-  if (dist < 155) return true;
-  if (r > 155 && b > 150 && g < 145 && Math.abs(r - b) < 95) return true;
-  if (r > 190 && b > 140 && g < 175 && r + b > g * 2.15) return true;
+  if (dist < 170) return true;
+  if (r > 145 && b > 140 && g < 155 && Math.abs(r - b) < 110) return true;
+  if (r > 170 && b > 130 && g < 185 && r + b > g * 2) return true;
   return false;
 }
 
@@ -58,6 +58,26 @@ function keyAndTrim(img: HTMLImageElement) {
   for (let i = 0; i < d.length; i += 4) {
     if (d[i + 3] > 8 && isMagenta(d[i], d[i + 1], d[i + 2])) d[i + 3] = 0;
   }
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const o = (y * w + x) * 4;
+      if (d[o + 3] < 8) continue;
+      const edge =
+        x === 0 ||
+        y === 0 ||
+        x === w - 1 ||
+        y === h - 1 ||
+        d[((y * w + x - 1) * 4) + 3] < 8 ||
+        d[((y * w + x + 1) * 4) + 3] < 8 ||
+        d[(((y - 1) * w + x) * 4) + 3] < 8 ||
+        d[(((y + 1) * w + x) * 4) + 3] < 8;
+      if (!edge) continue;
+      const r = d[o],
+        g = d[o + 1],
+        b = d[o + 2];
+      if (r > 150 && b > 130 && g < 190 && r + b > g * 1.7) d[o + 3] = 0;
+    }
+  }
   ctx.putImageData(data, 0, 0);
 
   const trimmed = ctx.getImageData(0, 0, c.width, c.height);
@@ -106,8 +126,8 @@ export function loadSprite(id: string) {
   if (cache[id]) return Promise.resolve(cache[id]);
   if (id in inflight) return inflight[id];
   inflight[id] = (async () => {
-    const png = await loadImage(`/art/furn/${id}.png?v=15`);
-    const img = png || (await loadImage(`/art/furn/${id}.jpg?v=15`));
+    const png = await loadImage(`/art/furn/${id}.png?v=16`);
+    const img = png || (await loadImage(`/art/furn/${id}.jpg?v=16`));
     if (!img) return null;
     const canvas = keyAndTrim(img);
     if (canvas.width > 4) cache[id] = canvas;

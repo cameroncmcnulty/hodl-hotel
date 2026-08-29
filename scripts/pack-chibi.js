@@ -63,7 +63,84 @@ const MAP = {
 };
 
 function isMag(r, g, b) {
-  return r > 180 && b > 140 && g < 130 && r + b - g > 280;
+  if (r > 180 && b > 140 && g < 130 && r + b - g > 280) return true;
+  if (r > 200 && b > 180 && g < 90) return true;
+  return false;
+}
+
+function isSkin(r, g, b) {
+  if (r < 165) return false;
+  const rg = r - g,
+    rb = r - b;
+  if (rg < 18 || rg > 90) return false;
+  if (rb < 70 || rb > 140) return false;
+  if (b > g + 5) return false;
+  return true;
+}
+
+function srcFace(img, b) {
+  const yA = b.y0;
+  const yB = b.y0 + Math.floor(b.bh * 0.42);
+  let sx = 0,
+    sy = 0,
+    n = 0;
+  for (let y = yA; y < yB; y++) {
+    for (let x = b.x0; x <= b.x1; x++) {
+      const i = (y * img.w + x) * 4;
+      if (isMag(img.d[i], img.d[i + 1], img.d[i + 2])) continue;
+      if (!isSkin(img.d[i], img.d[i + 1], img.d[i + 2])) continue;
+      sx += x;
+      sy += y;
+      n++;
+    }
+  }
+  if (!n) return { x: (b.x0 + b.x1) / 2, y: b.y0 + b.bh * 0.28 };
+  return { x: sx / n, y: sy / n };
+}
+
+function isInk(r, g, b) {
+  return r + g + b < 48;
+}
+
+function thinOutline(img) {
+  const drop = [];
+  const dirs = [
+    [-1, 0],
+    [1, 0],
+    [0, -1],
+    [0, 1],
+  ];
+  for (let y = 0; y < img.h; y++) {
+    for (let x = 0; x < img.w; x++) {
+      const i = (y * img.w + x) * 4;
+      if (img.d[i + 3] < 16) continue;
+      if (isMag(img.d[i], img.d[i + 1], img.d[i + 2])) {
+        drop.push(i);
+        continue;
+      }
+      if (!isInk(img.d[i], img.d[i + 1], img.d[i + 2])) continue;
+      for (const [dx, dy] of dirs) {
+        const ax = x + dx,
+          ay = y + dy;
+        const open = ax < 0 || ay < 0 || ax >= img.w || ay >= img.h || img.d[(ay * img.w + ax) * 4 + 3] < 16;
+        if (!open) continue;
+        let fill = false;
+        for (let s = 1; s <= 4; s++) {
+          const ix = x - dx * s,
+            iy = y - dy * s;
+          if (ix < 0 || iy < 0 || ix >= img.w || iy >= img.h) break;
+          const ii = (iy * img.w + ix) * 4;
+          if (img.d[ii + 3] < 16) break;
+          if (!isInk(img.d[ii], img.d[ii + 1], img.d[ii + 2])) {
+            fill = true;
+            break;
+          }
+        }
+        if (fill) drop.push(i);
+      }
+    }
+  }
+  for (const i of drop) img.d[i + 3] = 0;
 }
 
 function decode(file) {
@@ -94,12 +171,17 @@ function blank() {
   return { w: W, h: H, d: Buffer.alloc(W * H * 4) };
 }
 
-function pack(img) {
+function pack(img, ref) {
   const b = bbox(img);
   const dw = Math.floor(b.bw / SAMPLE);
   const dh = Math.floor(b.bh / SAMPLE);
-  const ox = Math.floor((W - dw) / 2);
-  const oy = H - dh - 4;
+  const face = srcFace(img, b);
+  let ox = Math.floor((W - dw) / 2);
+  let oy = H - dh - 4;
+  if (ref) {
+    ox = Math.round(ref.x - (face.x - b.x0) / SAMPLE);
+    oy = Math.round(ref.y - (face.y - b.y0) / SAMPLE);
+  }
   const out = blank();
   for (let y = 0; y < dh; y++) {
     for (let x = 0; x < dw; x++) {
@@ -120,7 +202,25 @@ function pack(img) {
       out.d[o + 3] = 255;
     }
   }
+  thinOutline(out);
   return out;
+}
+
+function packedFace(img) {
+  let sx = 0,
+    sy = 0,
+    n = 0;
+  for (let y = 48; y < 88; y++) {
+    for (let x = 24; x < 72; x++) {
+      const i = (y * img.w + x) * 4;
+      if (img.d[i + 3] < 16) continue;
+      if (!isSkin(img.d[i], img.d[i + 1], img.d[i + 2])) continue;
+      sx += x;
+      sy += y;
+      n++;
+    }
+  }
+  return n ? { x: sx / n, y: sy / n } : { x: 48, y: 71 };
 }
 
 function savePng(file, img, dir = OUT) {
@@ -130,8 +230,16 @@ function savePng(file, img, dir = OUT) {
 }
 
 const packed = {};
+const boyRefImg = pack(decode(MAP["m-top-hoodie"]));
+const girlRefImg = pack(decode(MAP["f-top-hoodie"]));
+const boyRef = packedFace(boyRefImg);
+const girlRef = packedFace(girlRefImg);
+console.log("boy face ref", boyRef);
+console.log("girl face ref", girlRef);
+
 for (const [name, file] of Object.entries(MAP)) {
-  packed[name] = pack(decode(file));
+  const ref = name.startsWith("f-") ? girlRef : boyRef;
+  packed[name] = pack(decode(file), ref);
   savePng(name + ".png", packed[name]);
   console.log("packed", name, file);
 }
