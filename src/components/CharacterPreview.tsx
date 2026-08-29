@@ -3,151 +3,58 @@
 import { useEffect, useRef, useState } from "react";
 import type { Figure } from "@/lib/types";
 import {
-  BOTTOMS,
   botsFor,
   clampFigure,
+  COLOR_N,
   drawAvatarFront,
-  GENDERS,
-  HAIR_C,
   hairsFor,
   loadLookSprites,
-  SKIN,
   shoesFor,
-  SHOES,
+  SPRITE_V,
   topsFor,
-  TOPS,
 } from "@/lib/game/avatar";
-import { ChevronLeft, ChevronRight } from "lucide-react";
 
-const DIRS: (0 | 1 | 2 | 3)[] = [1, 0, 3, 2];
-
-function wrap(v: number, max: number) {
-  const n = max + 1;
-  return ((v % n) + n) % n;
+function gKey(gender: number) {
+  return gender === 1 ? "f" : "m";
 }
 
-function ArrowBtn({ dir, label, onClick }: { dir: "prev" | "next"; label: string; onClick: () => void }) {
+function src(id: string) {
+  return `/art/look/${id}.png?v=${SPRITE_V}`;
+}
+
+function Thumb({
+  id,
+  on,
+  onClick,
+}: {
+  id: string;
+  on: boolean;
+  onClick: () => void;
+}) {
   return (
     <button
       type="button"
-      aria-label={label}
       onClick={onClick}
-      className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-white/10 text-white transition hover:bg-white/20 active:bg-[#14F195] active:text-[#12121c]"
+      className={`overflow-hidden rounded-xl border-2 bg-[#3d4a55] ${on ? "border-[#14F195] ring-2 ring-[#14F195]" : "border-transparent hover:border-white/30"}`}
     >
-      {dir === "prev" ? <ChevronLeft size={18} /> : <ChevronRight size={18} />}
+      <img src={src(id)} alt="" className="h-16 w-12 object-contain sm:h-20 sm:w-14" style={{ imageRendering: "pixelated" }} />
     </button>
   );
 }
 
-function LookIcon({ kind, color }: { kind: "hair" | "skin" | "shirt" | "pants" | "shoes"; color: string }) {
-  return (
-    <span className="grid h-11 w-11 place-items-center rounded-2xl bg-white/10 ring-1 ring-white/10" aria-hidden>
-      <svg viewBox="0 0 32 32" width="26" height="26" fill="none">
-        {kind === "hair" && (
-          <>
-            <path
-              d="M8 18.5c0-7.2 3.4-13 8-13s8 5.8 8 13c0 2.2-1.2 3.5-3.2 3.5h-9.6C9.2 22 8 20.7 8 18.5Z"
-              fill={color}
-            />
-            <path
-              d="M8 18.5c0-7.2 3.4-13 8-13s8 5.8 8 13c0 2.2-1.2 3.5-3.2 3.5h-9.6C9.2 22 8 20.7 8 18.5Z"
-              stroke="#0b0b12"
-              strokeWidth="1.4"
-              strokeLinejoin="round"
-            />
-            <path d="M11.5 12.5c1.4-1.8 3.2-2.8 4.5-2.8" stroke="#fff" strokeOpacity="0.35" strokeWidth="1.2" strokeLinecap="round" />
-          </>
-        )}
-        {kind === "skin" && (
-          <>
-            <circle cx="16" cy="12.2" r="6.2" fill={color} stroke="#0b0b12" strokeWidth="1.4" />
-            <path d="M9.2 27c.8-4.6 3.6-7 6.8-7s6 2.4 6.8 7" fill={color} stroke="#0b0b12" strokeWidth="1.4" strokeLinejoin="round" />
-          </>
-        )}
-        {kind === "shirt" && (
-          <>
-            <path
-              d="M10.2 9.2 16 12.2l5.8-3 3.6 3.4-2.4 3.2V25H8.8v-9.2L6.6 12.6l3.6-3.4Z"
-              fill={color}
-              stroke="#0b0b12"
-              strokeWidth="1.4"
-              strokeLinejoin="round"
-            />
-            <path d="M16 12.2V25" stroke="#0b0b12" strokeOpacity="0.25" strokeWidth="1.2" />
-          </>
-        )}
-        {kind === "pants" && (
-          <>
-            <path
-              d="M10 7.5h12l-.8 6.2L19.6 26h-3.3l-.8-8.2L14.7 26h-3.3l-1.6-12.3L10 7.5Z"
-              fill={color}
-              stroke="#0b0b12"
-              strokeWidth="1.4"
-              strokeLinejoin="round"
-            />
-            <path d="M11.2 14.2h9.6" stroke="#0b0b12" strokeOpacity="0.28" strokeWidth="1.2" />
-          </>
-        )}
-        {kind === "shoes" && (
-          <>
-            <path
-              d="M7.5 20h7.2l2.2 5.2H6.6L7.5 20Z"
-              fill={color}
-              stroke="#0b0b12"
-              strokeWidth="1.4"
-              strokeLinejoin="round"
-            />
-            <path
-              d="M17.2 20h7.2l.8 5.2h-8.2L17.2 20Z"
-              fill={color}
-              stroke="#0b0b12"
-              strokeWidth="1.4"
-              strokeLinejoin="round"
-            />
-          </>
-        )}
-      </svg>
-    </span>
-  );
-}
+const TABS = ["skin", "hair", "top", "bot", "shoe"] as const;
 
-function ColorDots({
-  colors,
-  value,
-  onChange,
-  label,
-}: {
-  colors: string[];
-  value: number;
-  onChange: (i: number) => void;
-  label: string;
-}) {
+function TabIcon({ tab, on }: { tab: (typeof TABS)[number]; on: boolean }) {
+  const c = on ? "#12121c" : "#ffffffcc";
   return (
-    <div className="flex flex-wrap items-center gap-1.5" role="listbox" aria-label={label}>
-      {colors.map((c, i) => (
-        <button
-          key={`${c}-${i}`}
-          type="button"
-          role="option"
-          aria-selected={i === value}
-          aria-label={`${label} ${i + 1}`}
-          onClick={() => onChange(i)}
-          className={`h-6 w-6 shrink-0 rounded-full border-2 transition sm:h-7 sm:w-7 ${
-            i === value ? "border-white shadow-[0_0_0_2px_#14F195]" : "border-white/20 hover:border-white/50"
-          }`}
-          style={{ background: c }}
-        />
-      ))}
-    </div>
-  );
-}
-
-function Stepper({ label, onPrev, onNext }: { label: string; onPrev: () => void; onNext: () => void }) {
-  return (
-    <div className="flex w-[88px] items-center justify-between sm:w-[96px]">
-      <ArrowBtn dir="prev" label={`Previous ${label}`} onClick={onPrev} />
-      <ArrowBtn dir="next" label={`Next ${label}`} onClick={onNext} />
-    </div>
+    <svg viewBox="0 0 32 32" width="22" height="22" fill={c} aria-hidden>
+      {tab === "skin" && <circle cx="16" cy="12" r="7" />}
+      {tab === "skin" && <path d="M8 28c1-7 4-10 8-10s7 3 8 10" />}
+      {tab === "hair" && <path d="M8 18c0-8 3.5-14 8-14s8 6 8 14c0 2-1 4-3 4H11c-2 0-3-2-3-4Z" />}
+      {tab === "top" && <path d="M10 8 16 12l6-4 4 4-3 3v11H9V15L6 12l4-4Z" />}
+      {tab === "bot" && <path d="M10 8h12l-1 6-2 14h-3l-2-10-2 10h-3L11 14 10 8Z" />}
+      {tab === "shoe" && <path d="M6 18h9l3 8H6l0-8Zm12 0h8l2 8h-9l-1-8Z" />}
+    </svg>
   );
 }
 
@@ -194,132 +101,113 @@ export function CharacterPreview({
 
 export function FigureEditor({ figure, onChange }: { figure: Figure; onChange: (f: Figure) => void }) {
   const f = clampFigure({ ...figure, face: 0 });
-  const [dirI, setDirI] = useState(0);
-  const dir = DIRS[dirI];
+  const [tab, setTab] = useState<(typeof TABS)[number]>("skin");
+  const g = gKey(f.gender ?? 0);
   const hairs = hairsFor(f.gender ?? 0);
   const tops = topsFor(f.gender ?? 0);
   const bots = botsFor(f.gender ?? 0);
   const shoes = shoesFor(f.gender ?? 0);
-  const push = (patch: Partial<Figure>) => onChange({ ...f, face: 0, ...patch });
-  const cycle = (key: keyof Figure, max: number, delta: number) => {
-    push({ [key]: wrap(Number(f[key] ?? 0) + delta, max) });
-  };
+  const hairN = g === "f" ? 6 : 6;
+  const push = (patch: Partial<Figure>) => onChange(clampFigure({ ...f, face: 0, ...patch }));
 
-  const rows: {
-    id: "hair" | "skin" | "shirt" | "pants" | "shoes";
-    title: string;
-    color: string;
-    colors: string[];
-    value: number;
-    onColor: (i: number) => void;
-    step?: { onPrev: () => void; onNext: () => void };
-  }[] = [
-    {
-      id: "hair",
-      title: "HAIR",
-      color: HAIR_C[f.hairColor],
-      colors: HAIR_C,
-      value: f.hairColor,
-      onColor: (i) => push({ hairColor: i }),
-      step: {
-        onPrev: () => cycle("hair", hairs.length - 1, -1),
-        onNext: () => cycle("hair", hairs.length - 1, 1),
-      },
-    },
-    {
-      id: "skin",
-      title: "SKIN",
-      color: SKIN[f.skin],
-      colors: SKIN,
-      value: f.skin,
-      onColor: (i) => push({ skin: i }),
-    },
-    {
-      id: "shirt",
-      title: "SHIRT",
-      color: TOPS[f.top],
-      colors: TOPS,
-      value: f.top,
-      onColor: (i) => push({ top: i }),
-      step: {
-        onPrev: () => cycle("topCut", tops.length - 1, -1),
-        onNext: () => cycle("topCut", tops.length - 1, 1),
-      },
-    },
-    {
-      id: "pants",
-      title: "PANTS",
-      color: BOTTOMS[f.bottom],
-      colors: BOTTOMS,
-      value: f.bottom,
-      onColor: (i) => push({ bottom: i }),
-      step: {
-        onPrev: () => cycle("botCut", bots.length - 1, -1),
-        onNext: () => cycle("botCut", bots.length - 1, 1),
-      },
-    },
-    {
-      id: "shoes",
-      title: "SHOES",
-      color: SHOES[f.shoes],
-      colors: SHOES,
-      value: f.shoes,
-      onColor: (i) => push({ shoes: i }),
-      step:
-        shoes.length > 1
-          ? {
-              onPrev: () => cycle("shoeCut", shoes.length - 1, -1),
-              onNext: () => cycle("shoeCut", shoes.length - 1, 1),
-            }
-          : undefined,
-    },
-  ];
+  let picks: { id: string; on: boolean; click: () => void }[] = [];
+  if (tab === "skin") {
+    picks = Array.from({ length: 8 }, (_, i) => ({
+      id: `${g}-skin-${i}`,
+      on: f.skin === i,
+      click: () => push({ skin: i }),
+    }));
+  } else if (tab === "hair") {
+    picks = [
+      ...hairs.map((name, i) => ({
+        id: `${g}-hair-${name}-${f.hairColor}`,
+        on: f.hair === i,
+        click: () => push({ hair: i }),
+      })),
+      ...Array.from({ length: hairN }, (_, i) => ({
+        id: `${g}-hair-${hairs[f.hair] || hairs[0]}-${i}`,
+        on: f.hairColor === i,
+        click: () => push({ hairColor: i }),
+      })),
+    ];
+  } else if (tab === "top") {
+    picks = [
+      ...tops.map((name, i) => ({
+        id: `${g}-top-${name}-${f.top}`,
+        on: (f.topCut ?? 0) === i,
+        click: () => push({ topCut: i }),
+      })),
+      ...Array.from({ length: COLOR_N }, (_, i) => ({
+        id: `${g}-top-${tops[f.topCut ?? 0] || tops[0]}-${i}`,
+        on: f.top === i,
+        click: () => push({ top: i }),
+      })),
+    ];
+  } else if (tab === "bot") {
+    picks = [
+      ...bots.map((name, i) => ({
+        id: `${g}-bot-${name}-${f.bottom}`,
+        on: (f.botCut ?? 0) === i,
+        click: () => push({ botCut: i }),
+      })),
+      ...Array.from({ length: COLOR_N }, (_, i) => ({
+        id: `${g}-bot-${bots[f.botCut ?? 0] || bots[0]}-${i}`,
+        on: f.bottom === i,
+        click: () => push({ bottom: i }),
+      })),
+    ];
+  } else {
+    picks = [
+      ...shoes.map((name, i) => ({
+        id: `${g}-shoe-${name}-${f.shoes}`,
+        on: (f.shoeCut ?? 0) === i,
+        click: () => push({ shoeCut: i }),
+      })),
+      ...Array.from({ length: COLOR_N }, (_, i) => ({
+        id: `${g}-shoe-${shoes[f.shoeCut ?? 0] || shoes[0]}-${i}`,
+        on: f.shoes === i,
+        click: () => push({ shoes: i }),
+      })),
+    ];
+  }
 
   return (
     <div className="overflow-hidden rounded-3xl border border-white/10 bg-[#120e1c]/80 text-white shadow-xl">
-      <div className="grid grid-cols-2 gap-1 p-2">
-        {GENDERS.map((label, i) => (
+      <div className="flex justify-center gap-2 p-3">
+        {[0, 1].map((i) => (
           <button
-            key={label}
+            key={i}
             type="button"
-            className={`rounded-2xl px-3 py-2.5 text-sm capitalize transition ${
-              (f.gender ?? 0) === i ? "bg-[#14F195] font-bold text-[#12121c]" : "bg-white/10 text-white/80 hover:bg-white/15"
-            }`}
             onClick={() => push({ gender: i, hair: 0, topCut: 0, botCut: 0, shoeCut: 0, face: 0 })}
+            className={`overflow-hidden rounded-2xl border-2 ${(f.gender ?? 0) === i ? "border-[#14F195] ring-2 ring-[#14F195]" : "border-transparent"}`}
           >
-            {label}
+            <img src={src(`${gKey(i)}-skin-2`)} alt="" className="h-20 w-14 object-contain bg-[#3d4a55]" style={{ imageRendering: "pixelated" }} />
           </button>
         ))}
       </div>
-
-      <div className="flex flex-col gap-4 p-3 pt-1 md:flex-row md:items-start md:gap-5 md:p-4">
-        <div className="mx-auto w-[min(240px,100%)] shrink-0 md:mx-0 md:w-[260px]">
+      <div className="flex flex-col gap-3 p-3 pt-0 md:flex-row md:items-start">
+        <div className="mx-auto w-[min(240px,100%)] shrink-0 md:mx-0">
           <div className="overflow-hidden rounded-2xl bg-[#6f7f8c]">
-            <CharacterPreview figure={f} size={260} dir={dir} />
-          </div>
-          <div className="mt-2 flex items-center justify-center gap-2">
-            <ArrowBtn dir="prev" label="Turn left" onClick={() => setDirI((i) => wrap(i - 1, DIRS.length - 1))} />
-            <span className="min-w-[72px] text-center text-[11px] font-semibold uppercase tracking-wide text-white/60">
-              {dir === 1 || dir === 0 ? "Front" : "Back"}
-            </span>
-            <ArrowBtn dir="next" label="Turn right" onClick={() => setDirI((i) => wrap(i + 1, DIRS.length - 1))} />
+            <CharacterPreview figure={f} size={240} dir={1} />
           </div>
         </div>
-
         <div className="min-w-0 flex-1">
-          <div
-            className="grid items-center gap-x-2 gap-y-3 sm:gap-x-3"
-            style={{ gridTemplateColumns: "2.5rem 3.8rem 5.4rem minmax(0,1fr)" }}
-          >
-            {rows.map((row) => (
-              <div key={row.id} className="contents">
-                <LookIcon kind={row.id} color={row.color} />
-                <div className="text-[11px] font-bold uppercase tracking-[0.14em] text-white/80">{row.title}</div>
-                <div className="flex justify-center">
-                  {row.step ? <Stepper label={row.title} onPrev={row.step.onPrev} onNext={row.step.onNext} /> : <span className="w-[88px] sm:w-[96px]" />}
-                </div>
-                <ColorDots colors={row.colors} value={row.value} onChange={row.onColor} label={row.title} />
-              </div>
+          <div className="mb-3 flex justify-center gap-1">
+            {TABS.map((t) => (
+              <button
+                key={t}
+                type="button"
+                aria-label={t}
+                onClick={() => setTab(t)}
+                className={`grid h-11 w-11 place-items-center rounded-xl ${tab === t ? "bg-[#14F195]" : "bg-white/10 hover:bg-white/15"}`}
+              >
+                <TabIcon tab={t} on={tab === t} />
+              </button>
+            ))}
+          </div>
+          <div className="flex flex-wrap justify-center gap-1.5">
+            {picks.map((p) => (
+              <Thumb key={p.id + String(p.on)} id={p.id} on={p.on} onClick={p.click} />
             ))}
           </div>
         </div>
@@ -328,12 +216,6 @@ export function FigureEditor({ figure, onChange }: { figure: Figure; onChange: (
   );
 }
 
-export function LookStudio({
-  figure,
-  onChange,
-}: {
-  figure: Figure;
-  onChange: (f: Figure) => void;
-}) {
+export function LookStudio({ figure, onChange }: { figure: Figure; onChange: (f: Figure) => void }) {
   return <FigureEditor figure={figure} onChange={onChange} />;
 }

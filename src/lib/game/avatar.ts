@@ -1,59 +1,27 @@
 import type { Figure } from "../types";
 import { mix } from "./pix";
 
-export const SKIN = [
-  "#ffe9dc",
-  "#fbe0c8",
-  "#f3d1b0",
-  "#e8c19a",
-  "#d4a574",
-  "#c48a56",
-  "#b56c3a",
-  "#a05a32",
-  "#8d4e24",
-  "#7a4528",
-  "#6b3a20",
-  "#5a2e18",
-  "#4a2414",
-  "#3a1c10",
-  "#29140c",
-  "#1a0e08",
-];
-export const EYES = ["#3b2214", "#5c3317", "#8b5a2b", "#3d5c2e", "#2e5aa6", "#4a6274", "#b8860b", "#1a1a1a"];
-export const FACE_BOY = ["oval"];
-export const FACE_GIRL = ["oval"];
-export const FACE = FACE_BOY;
-export const EYE_LABEL = ["dark brown"];
-export const HAIR_C = [
-  "#704421",
-  "#1b1b1b",
-  "#c45c26",
-  "#e8d07a",
-  "#6b3fa0",
-  "#14F195",
-  "#ff6b5a",
-  "#f5c542",
-  "#2ec4b6",
-  "#dfe7ff",
-  "#f4e4d4",
-  "#4a2c0a",
-];
-export const TOPS = ["#9a9a9a", "#ff6b5a", "#9945FF", "#14F195", "#2ec4b6", "#f5c542", "#ffffff", "#ff8fab", "#3b82f6", "#1a1a1e"];
-export const BOTTOMS = ["#2a2a2a", "#1e3a5f", "#3b5cad", "#7c3aed", "#0f766e", "#9a3412", "#111111", "#f5c542"];
-export const SHOES = ["#c41e3a", "#f4f4f6", "#1a1a1a", "#ff8fab", "#14F195", "#3b82f6", "#f5c542", "#6b3fa0"];
-export const HAIR_BOY = ["short", "spike", "buzz", "mohawk"];
-export const HAIR_GIRL = ["pony", "bob", "long"];
-export const TOP_BOY = ["hoodie", "tee", "jacket"];
-export const TOP_GIRL = ["hoodie", "cami", "cardi"];
+export const SKIN = ["#f3d4c4", "#e8c4a8", "#d4a574", "#c48a56", "#b56c3a", "#8d4e24", "#6b3a20", "#3a1c10"];
+export const HAIR_C = ["#8b5a2b", "#5c3317", "#1b1b1b", "#e8d07a", "#c45c26", "#4a2c0a"];
+export const TOPS = ["#9a9a9a", "#1e3a8a", "#1a1a1e", "#c41e3a", "#166534"];
+export const BOTTOMS = ["#1a1a1e", "#1e3a5f", "#6d4c2f", "#9a9a9a", "#c4a574"];
+export const SHOES = ["#c41e3a", "#f4f4f6", "#1a1a1e", "#3b82f6", "#9a9a9a"];
+export const HAIR_BOY = ["messy", "side", "afro", "undercut", "spikes"];
+export const HAIR_GIRL = ["pony", "waves", "bob"];
+export const TOP_BOY = ["hoodie", "tee"];
+export const TOP_GIRL = ["hoodie", "tee"];
 export const BOT_BOY = ["pants", "shorts"];
-export const BOT_GIRL = ["skirt", "shorts", "pants"];
+export const BOT_GIRL = ["skirt", "pants", "shorts"];
 export const SHOE_BOY = ["sneakers"];
-export const SHOE_GIRL = ["sneakers"];
+export const SHOE_GIRL = ["sneakers", "flats"];
 export const HAIR_STYLES = HAIR_BOY;
 export const TOP_CUTS = TOP_BOY;
 export const BOT_CUTS = BOT_GIRL;
 export const ACC = ["none"];
 export const GENDERS = ["boy", "girl"];
+export const SKIN_N = 8;
+export const COLOR_N = 5;
+export const HAIR_COLOR_N = 6;
 
 export function hairsFor(gender: number) {
   return gender === 1 ? HAIR_GIRL : HAIR_BOY;
@@ -68,10 +36,10 @@ export function shoesFor(gender: number) {
   return gender === 1 ? SHOE_GIRL : SHOE_BOY;
 }
 export function facesFor(_gender: number) {
-  return FACE_BOY;
+  return ["oval"];
 }
 export function defaultHairName(gender: number) {
-  return gender === 1 ? "pony" : "short";
+  return gender === 1 ? "pony" : "messy";
 }
 
 export const DEFAULT_FIGURE: Figure = {
@@ -92,12 +60,12 @@ export const DEFAULT_FIGURE: Figure = {
 
 export const AVATAR_DRAW_H = 128;
 export const AVATAR_NAME_LIFT = 138;
-export const SPRITE_W = 784;
-export const SPRITE_H = 1168;
+export const SPRITE_W = 128;
+export const SPRITE_H = 176;
 
 const sprites = new Map<string, HTMLCanvasElement>();
 let loadPromise: Promise<void> | null = null;
-const SPRITE_V = 23;
+export const SPRITE_V = 30;
 const inflight = new Map<string, Promise<HTMLCanvasElement | null>>();
 
 export function clampFigure(f: Partial<Figure> | undefined): Figure {
@@ -105,12 +73,12 @@ export function clampFigure(f: Partial<Figure> | undefined): Figure {
   const gender = n(f?.gender, GENDERS.length - 1);
   return {
     gender,
-    skin: n(f?.skin, SKIN.length - 1),
+    skin: n(f?.skin, SKIN_N - 1),
     hair: n(f?.hair, hairsFor(gender).length - 1),
-    hairColor: n(f?.hairColor, HAIR_C.length - 1),
-    top: n(f?.top, TOPS.length - 1),
-    bottom: n(f?.bottom, BOTTOMS.length - 1),
-    shoes: n(f?.shoes, SHOES.length - 1),
+    hairColor: n(f?.hairColor, HAIR_COLOR_N - 1),
+    top: n(f?.top, COLOR_N - 1),
+    bottom: n(f?.bottom, COLOR_N - 1),
+    shoes: n(f?.shoes, COLOR_N - 1),
     acc: 0,
     topCut: n(f?.topCut, topsFor(gender).length - 1),
     botCut: n(f?.botCut, botsFor(gender).length - 1),
@@ -156,7 +124,7 @@ export async function loadSpriteId(id: string) {
   const hit = inflight.get(id);
   if (hit) return hit;
   const p = (async () => {
-    const img = await loadImage(`/art/avatars/${id}.png?v=${SPRITE_V}`);
+    const img = await loadImage(`/art/look/${id}.png?v=${SPRITE_V}`);
     if (!img) return null;
     return cacheCanvas(id, img);
   })();
@@ -195,16 +163,11 @@ export function lookSpriteIds(fig: Figure, dir: 0 | 1 | 2 | 3 = 1) {
   const bot = botName(f);
   const shoe = shoeName(f);
   return [
-    `${g}-base-${view}`,
-    `${g}-base-se`,
-    `${g}-hair-${hair}-${view}-layer`,
-    `${g}-hair-${hair}-se-layer`,
-    `${g}-top-${top}-${view}-layer`,
-    `${g}-top-${top}-se-layer`,
-    `${g}-bot-${bot}-${view}-layer`,
-    `${g}-bot-${bot}-se-layer`,
-    `${g}-shoe-${shoe}-${view}-layer`,
-    `${g}-shoe-${shoe}-se-layer`,
+    `${g}-skin-${f.skin}`,
+    `${g}-hair-${hair}-${f.hairColor}`,
+    `${g}-top-${top}-${f.top}`,
+    `${g}-bot-${bot}-${f.bottom}`,
+    `${g}-shoe-${shoe}-${f.shoes}`,
   ];
 }
 
@@ -214,41 +177,13 @@ export async function loadLookSprites(fig: Figure, dir: 0 | 1 | 2 | 3 = 1) {
 
 export function loadAvatars() {
   if (!loadPromise) {
-    loadPromise = Promise.all(
-      [
-        "m-base-se",
-        "f-base-se",
-        "m-base-ne",
-        "f-base-ne",
-        "m-hair-short-se-layer",
-        "m-top-hoodie-se-layer",
-        "m-bot-pants-se-layer",
-        "m-shoe-sneakers-se-layer",
-        "f-hair-pony-se-layer",
-        "f-top-hoodie-se-layer",
-        "f-bot-skirt-se-layer",
-        "f-shoe-sneakers-se-layer",
-      ].map(loadSpriteId)
-    ).then(() => undefined);
+    loadPromise = Promise.all(lookSpriteIds(DEFAULT_FIGURE, 1).map(loadSpriteId)).then(() => undefined);
   }
   return loadPromise;
 }
 
 export function lookReady(fig: Figure, dir: 0 | 1 | 2 | 3 = 1) {
-  const f = clampFigure(fig);
-  const g = gKey(f);
-  const view = viewOf(dir);
-  const hair = hairName(f);
-  const top = topName(f);
-  const bot = botName(f);
-  const shoe = shoeName(f);
-  return !!(
-    (sprites.get(`${g}-base-${view}`) || sprites.get(`${g}-base-se`)) &&
-    (sprites.get(`${g}-hair-${hair}-${view}-layer`) || sprites.get(`${g}-hair-${hair}-se-layer`)) &&
-    (sprites.get(`${g}-top-${top}-${view}-layer`) || sprites.get(`${g}-top-${top}-se-layer`)) &&
-    (sprites.get(`${g}-bot-${bot}-${view}-layer`) || sprites.get(`${g}-bot-${bot}-se-layer`)) &&
-    (sprites.get(`${g}-shoe-${shoe}-${view}-layer`) || sprites.get(`${g}-shoe-${shoe}-se-layer`))
-  );
+  return lookSpriteIds(fig, dir).every((id) => sprites.has(id));
 }
 
 export function avatarsReady() {
@@ -344,30 +279,21 @@ function stamp(dst: HTMLCanvasElement, src: HTMLCanvasElement | null) {
 const composeCache = new Map<string, HTMLCanvasElement>();
 
 function compose(fig: Figure, dir: 0 | 1 | 2 | 3) {
-  const g = gKey(fig);
-  const view = viewOf(dir);
-  const hair = hairName(fig);
-  const top = topName(fig);
-  const bot = botName(fig);
-  const shoe = shoeName(fig);
-  const base = firstSpr([`${g}-base-${view}`, `${g}-base-se`]);
-  const hairL = firstSpr([`${g}-hair-${hair}-${view}-layer`, `${g}-hair-${hair}-se-layer`]);
-  const topL = firstSpr([`${g}-top-${top}-${view}-layer`, `${g}-top-${top}-se-layer`]);
-  const botL = firstSpr([`${g}-bot-${bot}-${view}-layer`, `${g}-bot-${bot}-se-layer`]);
-  const shoeL = firstSpr([`${g}-shoe-${shoe}-${view}-layer`, `${g}-shoe-${shoe}-se-layer`]);
-  const body = base || firstSpr([`${g}-base-se`, `${g}-base-ne`]);
+  const ids = lookSpriteIds(fig, dir);
+  const layers = ids.map((id) => sprites.get(id) || null);
+  const body = layers[0];
   if (!body) return null;
-  const key = `n2|${g}|${view}|${hair}|${top}|${bot}|${shoe}|${fig.skin}|${fig.hairColor}|${fig.top}|${fig.bottom}|${fig.shoes}|${!!hairL}|${!!topL}|${!!botL}|${!!shoeL}`;
+  const key = `n3|${ids.join("|")}`;
   const hit = composeCache.get(key);
   if (hit) return hit;
   const out = document.createElement("canvas");
   out.width = body.width;
   out.height = body.height;
-  stamp(out, mapSkin(body, SKIN[fig.skin] || SKIN[0]));
-  if (shoeL) stamp(out, tintLayer(shoeL, SHOES[fig.shoes] || SHOES[0]));
-  if (botL) stamp(out, tintLayer(botL, BOTTOMS[fig.bottom] || BOTTOMS[0]));
-  if (topL) stamp(out, tintLayer(topL, TOPS[fig.top] || TOPS[0]));
-  if (hairL) stamp(out, tintLayer(hairL, HAIR_C[fig.hairColor] || HAIR_C[0]));
+  stamp(out, body);
+  stamp(out, layers[4]);
+  stamp(out, layers[3]);
+  stamp(out, layers[2]);
+  stamp(out, layers[1]);
   composeCache.set(key, out);
   if (composeCache.size > 180) {
     const first = composeCache.keys().next().value;
