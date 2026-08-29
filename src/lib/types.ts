@@ -191,11 +191,22 @@ export type AgentPatch = {
   note?: string;
 };
 
+export type AgentAttachment = {
+  name: string;
+  mime: string;
+  kind: "image" | "video" | "file";
+  size: number;
+  dataUrl?: string;
+  text?: string;
+  note?: string;
+};
+
 export type AgentMessage = {
   role: "user" | "assistant";
   content: string;
   at: string;
   segmentId?: string;
+  attachments?: AgentAttachment[];
 };
 
 export type AgentSegment = {

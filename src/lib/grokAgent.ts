@@ -2,7 +2,7 @@ import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from "
 import { extname, join, relative, resolve, sep } from "path";
 import { githubReady, repoList, repoRead, repoReadBlob, repoTree } from "./githubShip";
 import { HOTEL_BRIEF } from "./grokBrief";
-import type { AgentPatch } from "./types";
+import type { AgentAttachment, AgentPatch } from "./types";
 
 const ROOT = process.cwd();
 const ALLOW_EXT = new Set([".ts", ".tsx", ".js", ".mjs", ".css", ".json", ".md", ".txt", ".svg"]);
@@ -234,9 +234,10 @@ ${HOTEL_BRIEF}
 
 Reply in the thread: short, clear sentences, answer first. Keep the conversation going across follow-ups.
 If they want a change, inspect the code, then call propose_files with COMPLETE file contents. Do not propose files for questions, explanations, or "what if" talk. Nothing is applied until staff hits Push.
-The live desk has no local git checkout. File tools read GitHub. Never tell staff the repo is missing — call list_files on "src" and read_file on real paths like src/components/AdminCommand.tsx.`;
+The live desk has no local git checkout. File tools read GitHub. Never tell staff the repo is missing — call list_files on "src" and read_file on real paths like src/components/AdminCommand.tsx.
+Staff can attach pictures, video stills, and files. Look at attached images. Use attached source/text as the thing to inspect or apply.`;
 
-type Msg = { role: string; content?: string | null; tool_calls?: unknown; tool_call_id?: string; name?: string };
+type Msg = { role: string; content?: string | null | unknown; tool_calls?: unknown; tool_call_id?: string; name?: string };
 
 async function runTool(name: string, args: Record<string, unknown>) {
   if (name === "list_files") return listProject(String(args.path || "src"));
@@ -246,7 +247,50 @@ async function runTool(name: string, args: Record<string, unknown>) {
   return { error: "Unknown tool" };
 }
 
-export async function runGrok(opts: { prompt: string; history?: { role: "user" | "assistant"; content: string }[]; mode?: "preview" | "build" | "chat" }) {
+export function cleanAttachments(raw: unknown): AgentAttachment[] {
+  if (!Array.isArray(raw)) return [];
+  const out: AgentAttachment[] = [];
+  for (const item of raw.slice(0, 4)) {
+    if (!item || typeof item !== "object") continue;
+    const a = item as Record<string, unknown>;
+    const name = String(a.name || "file").slice(0, 180);
+    const mime = String(a.mime || "").slice(0, 80);
+    const kind = a.kind === "image" || a.kind === "video" ? a.kind : "file";
+    const size = Math.max(0, Number(a.size) || 0);
+    const note = a.note ? String(a.note).slice(0, 400) : undefined;
+    const text = a.text ? String(a.text).slice(0, 80_000) : undefined;
+    let dataUrl = typeof a.dataUrl === "string" ? a.dataUrl : undefined;
+    if (dataUrl && (!dataUrl.startsWith("data:image/jpeg") && !dataUrl.startsWith("data:image/png") && !dataUrl.startsWith("data:image/jpg"))) {
+      dataUrl = undefined;
+    }
+    if (dataUrl && dataUrl.length > 4_500_000) dataUrl = undefined;
+    out.push({ name, mime, kind, size, note, text, dataUrl });
+  }
+  return out;
+}
+
+function userPayload(prompt: string, attachments: AgentAttachment[]) {
+  const extras: string[] = [];
+  for (const a of attachments) {
+    if (a.text) extras.push(`Attached file ${a.name}:\n\`\`\`\n${a.text}\n\`\`\``);
+    else if (a.note) extras.push(`Attached ${a.kind} ${a.name}: ${a.note}`);
+    else if (a.kind !== "image") extras.push(`Attached ${a.kind}: ${a.name}`);
+  }
+  const text = [prompt, ...extras].filter(Boolean).join("\n\n") || "Please look at the attached files.";
+  const images = attachments.filter((a) => a.dataUrl);
+  if (!images.length) return text;
+  return [
+    { type: "text", text },
+    ...images.map((img) => ({ type: "image_url", image_url: { url: img.dataUrl, detail: "high" as const } })),
+  ];
+}
+
+export async function runGrok(opts: {
+  prompt: string;
+  history?: { role: "user" | "assistant"; content: string }[];
+  mode?: "preview" | "build" | "chat";
+  attachments?: AgentAttachment[];
+}) {
   const key = process.env.XAI_API_KEY;
   const model = process.env.XAI_MODEL || "grok-4.5";
   if (!key) {
@@ -270,13 +314,15 @@ export async function runGrok(opts: { prompt: string; history?: { role: "user" |
     : files.github
       ? `File tools read GitHub ${files.repo}@${files.branch}. There is no local src/ on this server. list_files("src") works.`
       : "WARNING: no local src/ and no GITHUB_TOKEN — file tools will fail until GitHub is configured.";
+  const attachments = cleanAttachments(opts.attachments);
+  const patches: AgentPatch[] = [];
+  const log: string[] = [];
+  if (attachments.length) log.push(`attachments ${attachments.map((a) => a.name).join(", ")}`);
   const messages: Msg[] = [
     { role: "system", content: SYSTEM + `\n${modeNote}\n${fileNote}` },
     ...(opts.history || []).slice(-8),
-    { role: "user", content: opts.prompt },
+    { role: "user", content: userPayload(opts.prompt, attachments) },
   ];
-  const patches: AgentPatch[] = [];
-  const log: string[] = [];
   let reply = "";
   for (let i = 0; i < 8; i++) {
     const res = await fetch("https://api.x.ai/v1/chat/completions", {

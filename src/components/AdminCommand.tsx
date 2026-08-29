@@ -1,20 +1,21 @@
 "use client";
 
+import { GrokComposer } from "@/components/GrokComposer";
 import { GrokHelpPane, HelpBubble } from "@/components/GrokSegments";
 import { Logo } from "@/components/Logo";
 import { api, clearClientToken } from "@/lib/clientAuth";
 import { HOTEL_BRIEF } from "@/lib/grokBrief";
-import type { AgentJob, AgentSegment } from "@/lib/types";
+import type { AgentAttachment, AgentJob, AgentSegment } from "@/lib/types";
 import {
   Activity,
   Bot,
   ClipboardList,
   Coins,
+  Copy,
   Flag,
   LogOut,
   Megaphone,
   Plus,
-  Send,
   Settings,
   Sparkles,
   Trash2,
@@ -116,15 +117,16 @@ export function AdminCommand() {
     load();
   }
 
-  async function send(text?: string) {
-    const prompt = (text ?? draft).trim();
-    if (!prompt || busy) return;
+  async function send(text?: string, attachments: AgentAttachment[] = []) {
+    const prompt = (text ?? draft).trim() || (attachments.length ? "Please look at the attached files." : "");
+    if ((!prompt && !attachments.length) || busy) return;
     setDraft("");
     if (boxRef.current) boxRef.current.style.height = "44px";
     setBusy("chat");
     setAgentErr("");
+    const userMsg = { role: "user" as const, content: prompt, at: new Date().toISOString(), attachments };
     const optimistic: AgentJob = job
-      ? { ...job, messages: [...(job.messages || []), { role: "user", content: prompt, at: new Date().toISOString() }], status: "running" }
+      ? { ...job, messages: [...(job.messages || []), userMsg], status: "running" }
       : {
           id: "pending",
           prompt,
@@ -133,7 +135,7 @@ export function AdminCommand() {
           plan: "",
           reply: "",
           patches: [],
-          messages: [{ role: "user", content: prompt, at: new Date().toISOString() }],
+          messages: [userMsg],
           log: [],
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
@@ -141,7 +143,7 @@ export function AdminCommand() {
     setJob(optimistic);
     const { res, j } = await api("/api/admin/agent", {
       method: "POST",
-      body: JSON.stringify({ op: "chat", prompt, jobId: job && job.id !== "pending" ? job.id : undefined }),
+      body: JSON.stringify({ op: "chat", prompt, attachments, jobId: job && job.id !== "pending" ? job.id : undefined }),
     });
     setBusy("");
     if (!res.ok) {
@@ -238,7 +240,7 @@ export function AdminCommand() {
   const messages = useMemo(() => {
     if (job?.messages?.length) return job.messages;
     if (!job) return [];
-    const out: { role: "user" | "assistant"; content: string; at: string; segmentId?: string }[] = [];
+    const out: { role: "user" | "assistant"; content: string; at: string; segmentId?: string; attachments?: AgentAttachment[] }[] = [];
     if (job.prompt) out.push({ role: "user", content: job.prompt, at: job.createdAt });
     if (job.reply) out.push({ role: "assistant", content: job.reply, at: job.updatedAt, segmentId: job.segments?.[0]?.id });
     return out;
@@ -400,10 +402,34 @@ export function AdminCommand() {
                             m.role === "user" ? "bg-mint text-ink" : "bg-white/10 text-white/90"
                           }`}
                         >
+                          {!!m.attachments?.length && (
+                            <div className="mb-2 flex flex-wrap gap-1.5">
+                              {m.attachments.map((a, ai) =>
+                                a.dataUrl ? (
+                                  <img key={`${a.name}-${ai}`} src={a.dataUrl} alt={a.name} className="max-h-36 max-w-full rounded-xl" />
+                                ) : (
+                                  <span key={`${a.name}-${ai}`} className="rounded-lg bg-black/20 px-2 py-1 text-[11px]">
+                                    {a.name}
+                                  </span>
+                                )
+                              )}
+                            </div>
+                          )}
                           {text}
                         </div>
-                        {m.role === "user" && job && job.id !== "pending" && (
-                          <div className="flex justify-end">
+                        <div className={`flex gap-1 ${m.role === "user" ? "justify-end" : "justify-start"}`}>
+                          <button
+                            type="button"
+                            className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] text-white/35 hover:bg-white/10 hover:text-white"
+                            onClick={async () => {
+                              await navigator.clipboard.writeText(m.content);
+                              setCopied(true);
+                              setTimeout(() => setCopied(false), 1600);
+                            }}
+                          >
+                            <Copy size={11} /> Copy
+                          </button>
+                          {m.role === "user" && job && job.id !== "pending" && (
                             <button
                               type="button"
                               className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] text-white/35 hover:bg-coral/20 hover:text-coral"
@@ -412,8 +438,8 @@ export function AdminCommand() {
                             >
                               <Trash2 size={11} /> Delete prompt
                             </button>
-                          </div>
-                        )}
+                          )}
+                        </div>
                         {seg && job && (
                           <HelpBubble
                             seg={seg}
@@ -436,34 +462,7 @@ export function AdminCommand() {
                 )}
                 {agentErr && <p className="text-sm text-coral">{agentErr}</p>}
               </div>
-              <form
-                className="border-t border-white/10 p-3"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  send();
-                }}
-              >
-                <div className="flex items-end gap-2 rounded-2xl border border-white/15 bg-white/5 px-3 py-2">
-                  <textarea
-                    ref={boxRef}
-                    className="max-h-40 min-h-[44px] flex-1 resize-none bg-transparent text-sm outline-none placeholder:text-white/35"
-                    rows={1}
-                    value={draft}
-                    placeholder="Message Grok…"
-                    onChange={(e) => setDraft(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && !e.shiftKey) {
-                        e.preventDefault();
-                        send();
-                      }
-                    }}
-                  />
-                  <button type="submit" className="rounded-xl bg-mint p-2 text-ink disabled:opacity-40" disabled={!draft.trim() || !!busy} aria-label="Send">
-                    <Send size={16} />
-                  </button>
-                </div>
-                <p className="mt-1.5 px-1 text-[11px] text-white/35">Enter to send · Shift+Enter for a new line</p>
-              </form>
+              <GrokComposer draft={draft} setDraft={setDraft} busy={!!busy} onSend={send} boxRef={boxRef} />
             </section>
 
             <GrokHelpPane

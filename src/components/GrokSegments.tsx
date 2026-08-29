@@ -2,7 +2,7 @@
 
 import { allHelp, helpTitle } from "@/lib/grokHelp";
 import type { AgentJob, AgentSegment } from "@/lib/types";
-import { Eye, Rocket, Trash2 } from "lucide-react";
+import { Copy, Eye, Rocket, Trash2 } from "lucide-react";
 
 const btn = "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium disabled:opacity-40";
 
@@ -125,6 +125,24 @@ export function GrokHelpPane({
                 {p.path.split("/").slice(-2).join("/")}
               </button>
             ))}
+          </div>
+          <div className="flex justify-end gap-1">
+            <button
+              type="button"
+              className={`${btn} bg-white/10`}
+              onClick={() => navigator.clipboard.writeText(current || "")}
+              disabled={!current}
+            >
+              <Copy size={11} /> Copy current
+            </button>
+            <button
+              type="button"
+              className={`${btn} bg-white/10`}
+              onClick={() => navigator.clipboard.writeText(proposed?.content || "")}
+              disabled={!proposed?.content}
+            >
+              <Copy size={11} /> Copy proposed
+            </button>
           </div>
           <pre className="max-h-20 overflow-auto rounded-xl bg-black/40 p-2 font-mono text-[10px] text-white/40">{current || "Current file"}</pre>
           <pre className="min-h-0 flex-1 overflow-auto rounded-xl bg-black/40 p-2 font-mono text-[10px] text-mint/90">{proposed?.content || ""}</pre>

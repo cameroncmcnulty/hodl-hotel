@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/adminAuth";
 import { githubReady } from "@/lib/githubShip";
-import { applyLocal, currentFile, filesReady, runGrok, xaiReady } from "@/lib/grokAgent";
+import { applyLocal, cleanAttachments, currentFile, filesReady, runGrok, xaiReady } from "@/lib/grokAgent";
 import { ensureSegments } from "@/lib/grokHelp";
 import { loadDB, log, saveDB } from "@/lib/store";
 
@@ -104,8 +104,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true, job });
   }
 
-  const prompt = String(body.prompt || "").trim();
-  if (!prompt) return NextResponse.json({ error: "Write a message first" }, { status: 400 });
+  const attachments = cleanAttachments(body.attachments);
+  const prompt = String(body.prompt || "").trim() || (attachments.length ? "Please look at the attached files." : "");
+  if (!prompt) return NextResponse.json({ error: "Write a message or attach a file first" }, { status: 400 });
   const mode = op === "preview" ? "preview" : op === "build" ? "build" : "chat";
   const now = new Date().toISOString();
   let job = db.agentJobs.find((j) => j.id === body.jobId);
@@ -128,7 +129,20 @@ export async function POST(req: Request) {
     db.agentJobs = db.agentJobs.slice(0, 40);
   }
   if (!job.messages) job.messages = [];
-  job.messages.push({ role: "user", content: prompt, at: now });
+  job.messages.push({
+    role: "user",
+    content: prompt,
+    at: now,
+    attachments: attachments.map((a) => ({
+      name: a.name,
+      mime: a.mime,
+      kind: a.kind,
+      size: a.size,
+      note: a.note,
+      text: a.text ? a.text.slice(0, 4000) : undefined,
+      dataUrl: a.dataUrl && a.dataUrl.length < 400_000 ? a.dataUrl : undefined,
+    })),
+  });
   job.prompt = prompt;
   job.status = "running";
   job.error = undefined;
@@ -141,7 +155,7 @@ export async function POST(req: Request) {
       .filter((m) => m.content)
       .slice(-12)
       .map((m) => ({ role: m.role, content: m.content }));
-    const out = await runGrok({ prompt, mode, history });
+    const out = await runGrok({ prompt, mode, history, attachments });
     job.reply = out.reply;
     job.plan = out.plan || out.reply;
     ensureSegments(job);
