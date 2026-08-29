@@ -109,6 +109,15 @@ export class Pix {
     }
   }
 
+  /** Vertical capsule — rounded limbs like the sheet bodies. */
+  capsule(x: number, y: number, w: number, h: number, hex: string) {
+    const r = Math.max(1.2, w / 2);
+    this.discShade(x + r, y + r, r, r, hex);
+    const midH = Math.max(0, Math.round(h - w));
+    if (midH > 0) this.block(Math.round(x), Math.round(y + r), Math.round(w), midH, hex);
+    this.discShade(x + r, y + h - r, r, r, hex);
+  }
+
   /** Triangle pointing up: tip at (cx, y0), base at y1 with half-width hw. */
   spike(cx: number, y0: number, y1: number, hw: number, hex: string) {
     const h = y1 - y0;
