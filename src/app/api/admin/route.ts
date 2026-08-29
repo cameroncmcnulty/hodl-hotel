@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { CATALOG } from "@/lib/catalog";
 import { githubReady } from "@/lib/githubShip";
 import { ensureSegments } from "@/lib/grokHelp";
-import { xaiReady } from "@/lib/grokAgent";
+import { filesReady, xaiReady } from "@/lib/grokAgent";
 import { sessionUserId } from "@/lib/session";
 import { findUser, loadDB, log, occupantCount, saveDB } from "@/lib/store";
 
@@ -61,6 +61,7 @@ export async function GET() {
     }),
     grok: xaiReady(),
     github: githubReady(),
+    files: filesReady(),
     me: { id: a.u.id, username: a.u.username, email: a.u.email },
   });
 }

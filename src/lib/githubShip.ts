@@ -16,6 +16,84 @@ export function githubReady() {
   return { ready: !!token(), repo: repo(), branch: branch() };
 }
 
+export function githubRepoName() {
+  return repo();
+}
+
+export function githubBranchName() {
+  return branch();
+}
+
+type RepoNode = { path: string; type: "blob" | "tree"; sha: string; size: number };
+
+const g = globalThis as typeof globalThis & { __hodlTree?: { at: number; key: string; items: RepoNode[] } };
+
+export async function repoTree(): Promise<RepoNode[]> {
+  const key = `${repo()}@${branch()}`;
+  const now = Date.now();
+  if (g.__hodlTree && g.__hodlTree.key === key && now - g.__hodlTree.at < 45_000) return g.__hodlTree.items;
+  const [owner, name] = repo().split("/");
+  if (!owner || !name) throw new Error("GITHUB_REPO must be owner/name");
+  const ref = (await gh(`/repos/${owner}/${name}/git/ref/heads/${branch()}`)) as { object: { sha: string } };
+  const commit = (await gh(`/repos/${owner}/${name}/git/commits/${ref.object.sha}`)) as { tree: { sha: string } };
+  const tree = (await gh(`/repos/${owner}/${name}/git/trees/${commit.tree.sha}?recursive=1`)) as {
+    tree?: { path?: string; type?: string; sha?: string; size?: number }[];
+  };
+  const items: RepoNode[] = (tree.tree || [])
+    .filter((t) => t.path && t.sha)
+    .map((t) => ({
+      path: t.path!,
+      type: t.type === "tree" ? "tree" : "blob",
+      sha: t.sha!,
+      size: t.size || 0,
+    }));
+  g.__hodlTree = { at: now, key, items };
+  return items;
+}
+
+export async function repoList(rel: string) {
+  const prefix = rel.replace(/^\/+|\/+$/g, "");
+  const items = await repoTree();
+  const seen = new Set<string>();
+  const entries: { name: string; dir: boolean; path: string }[] = [];
+  for (const it of items) {
+    if (prefix && it.path !== prefix && !it.path.startsWith(`${prefix}/`)) continue;
+    if (it.path === prefix) continue;
+    const rest = prefix ? it.path.slice(prefix.length + 1) : it.path;
+    const name = rest.split("/")[0];
+    if (!name || seen.has(name)) continue;
+    seen.add(name);
+    entries.push({ name, dir: rest.includes("/") || it.type === "tree", path: prefix ? `${prefix}/${name}` : name });
+    if (entries.length >= 80) break;
+  }
+  return { path: prefix || ".", entries, source: "github" as const, repo: repo(), branch: branch() };
+}
+
+export async function repoRead(rel: string) {
+  const [owner, name] = repo().split("/");
+  const encoded = rel
+    .split("/")
+    .filter(Boolean)
+    .map((p) => encodeURIComponent(p))
+    .join("/");
+  const json = (await gh(`/repos/${owner}/${name}/contents/${encoded}?ref=${encodeURIComponent(branch())}`)) as {
+    type?: string;
+    content?: string;
+    path?: string;
+  };
+  if (json.type === "dir") return { error: "That path is a folder" };
+  if (!json.content) return { error: "File not found on GitHub" };
+  const content = Buffer.from(json.content.replace(/\n/g, ""), "base64").toString("utf8");
+  return { path: json.path || rel, content, source: "github" as const };
+}
+
+export async function repoReadBlob(sha: string) {
+  const [owner, name] = repo().split("/");
+  const json = (await gh(`/repos/${owner}/${name}/git/blobs/${sha}`)) as { content?: string };
+  if (!json.content) return "";
+  return Buffer.from(json.content.replace(/\n/g, ""), "base64").toString("utf8");
+}
+
 async function gh(path: string, init: RequestInit = {}) {
   const t = token();
   if (!t) throw new Error("GITHUB_TOKEN is not set");

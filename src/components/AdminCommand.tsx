@@ -58,6 +58,7 @@ type Desk = {
   agentJobs?: AgentJob[];
   grok?: { ready: boolean; model: string };
   github?: { ready: boolean; repo: string; branch: string };
+  files?: { local: boolean; github: boolean; repo: string; branch: string };
   me?: { username: string; email: string };
 };
 
@@ -298,6 +299,8 @@ export function AdminCommand() {
               {data.grok?.ready ? `Grok ready · ${data.grok.model}` : "Set XAI_API_KEY to unlock Grok"}
               {" · "}
               {data.github?.ready ? `Ship → ${data.github.repo}` : "Set GITHUB_TOKEN to push production"}
+              {" · "}
+              {data.files?.local ? "files on disk" : data.files?.github ? `files via GitHub ${data.files.branch}` : "no file access"}
             </p>
           </div>
           <div className="flex gap-2 text-xs">

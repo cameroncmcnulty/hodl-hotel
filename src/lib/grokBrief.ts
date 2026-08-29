@@ -3,7 +3,7 @@ export const HOTEL_BRIEF = `HODL HOTEL — staff briefing for desk Grok
 Live: hodlhotel.app  |  Repo: cameroncmcnulty/hodl-hotel  |  Branch: main
 Stack: Next.js 15 App Router, React 19, Solana, Vercel.
 You already have tools: list_files, read_file, search_code, propose_files.
-Always inspect live files with tools before changing anything. Propose complete file contents. Nothing applies until staff hits Ship.
+The live desk is on Vercel with no local checkout. Those tools read GitHub cameroncmcnulty/hodl-hotel (main) — src/ is there. Do not tell staff files are missing; call list_files on "src" then read_file. Propose complete file contents. Nothing applies until staff hits Push.
 
 BRANDING (do not break)
 - Original cartoon social hotel. Not Habbo. No sports/soccer rebrand. No generic mascots.

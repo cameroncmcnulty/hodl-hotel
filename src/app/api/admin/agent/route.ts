@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/adminAuth";
 import { githubReady } from "@/lib/githubShip";
-import { applyLocal, currentFile, runGrok, xaiReady } from "@/lib/grokAgent";
+import { applyLocal, currentFile, filesReady, runGrok, xaiReady } from "@/lib/grokAgent";
 import { ensureSegments } from "@/lib/grokHelp";
 import { loadDB, log, saveDB } from "@/lib/store";
 
@@ -15,6 +15,7 @@ export async function GET() {
   return NextResponse.json({
     grok: xaiReady(),
     github: githubReady(),
+    files: filesReady(),
     jobs: (db.agentJobs || []).slice(0, 40).map((j) => {
       ensureSegments(j);
       return j;
@@ -32,7 +33,7 @@ export async function POST(req: Request) {
   if (!db.agentJobs) db.agentJobs = [];
 
   if (op === "file") {
-    const content = currentFile(String(body.path || ""));
+    const content = await currentFile(String(body.path || ""));
     return NextResponse.json({ path: body.path, content });
   }
 

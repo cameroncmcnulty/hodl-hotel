@@ -1,5 +1,6 @@
 import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from "fs";
 import { extname, join, relative, resolve, sep } from "path";
+import { githubReady, repoList, repoRead, repoReadBlob, repoTree } from "./githubShip";
 import { HOTEL_BRIEF } from "./grokBrief";
 import type { AgentPatch } from "./types";
 
@@ -11,6 +12,17 @@ export function xaiReady() {
   return { ready: !!process.env.XAI_API_KEY, model: process.env.XAI_MODEL || "grok-4.5" };
 }
 
+export function filesReady() {
+  const gh = githubReady();
+  return {
+    local: existsSync(join(ROOT, "src")),
+    github: gh.ready,
+    repo: gh.repo,
+    branch: gh.branch,
+    cwd: ROOT,
+  };
+}
+
 function safePath(rel: string) {
   const clean = rel.replace(/\\/g, "/").replace(/^\/+/, "");
   if (!clean || clean.includes("..")) return null;
@@ -20,18 +32,22 @@ function safePath(rel: string) {
   return { abs, rel: clean };
 }
 
-export function readProjectFile(rel: string) {
-  const p = safePath(rel);
-  if (!p || !existsSync(p.abs) || !statSync(p.abs).isFile()) return { error: "File not found" };
-  if (![...ALLOW_EXT].includes(extname(p.abs)) && !p.rel.startsWith("src/") && !p.rel.startsWith("public/")) {
-    return { error: "That file type is locked" };
-  }
-  const buf = readFileSync(p.abs);
-  if (buf.length > 120_000) return { error: "File too large to read" };
-  return { path: p.rel, content: buf.toString("utf8") };
+function lockedType(rel: string) {
+  const ext = extname(rel);
+  if (ALLOW_EXT.has(ext)) return false;
+  return !(rel.startsWith("src/") || rel.startsWith("public/"));
 }
 
-export function listProject(rel = "src") {
+function readLocalFile(rel: string) {
+  const p = safePath(rel);
+  if (!p || !existsSync(p.abs) || !statSync(p.abs).isFile()) return { error: "File not found" };
+  if (lockedType(p.rel)) return { error: "That file type is locked" };
+  const buf = readFileSync(p.abs);
+  if (buf.length > 120_000) return { error: "File too large to read" };
+  return { path: p.rel, content: buf.toString("utf8"), source: "local" as const };
+}
+
+function listLocal(rel = "src") {
   const p = safePath(rel || "src");
   if (!p || !existsSync(p.abs)) return { error: "Folder not found" };
   const names = readdirSync(p.abs).slice(0, 80).map((name) => {
@@ -39,12 +55,13 @@ export function listProject(rel = "src") {
     const st = statSync(abs);
     return { name, dir: st.isDirectory(), path: `${p.rel}/${name}`.replace(/\\/g, "/") };
   });
-  return { path: p.rel, entries: names };
+  return { path: p.rel, entries: names, source: "local" as const };
 }
 
-function searchProject(query: string, folder = "src") {
+function searchLocal(query: string, folder = "src") {
   const p = safePath(folder);
   if (!p) return { error: "Bad folder" };
+  if (!existsSync(p.abs)) return { error: "Folder not found" };
   const hits: { path: string; line: number; text: string }[] = [];
   const q = query.toLowerCase();
   function walk(dir: string, rel: string) {
@@ -70,7 +87,97 @@ function searchProject(query: string, folder = "src") {
     }
   }
   walk(p.abs, p.rel);
-  return { hits };
+  return { hits, source: "local" as const };
+}
+
+function noSrcHelp() {
+  const gh = githubReady();
+  if (!gh.ready) {
+    return "Live desk has no local src/ checkout (Vercel). Set GITHUB_TOKEN so tools can read the GitHub repo.";
+  }
+  return `Live desk has no local src/. Tools should use GitHub ${gh.repo}@${gh.branch}.`;
+}
+
+export async function readProjectFile(rel: string) {
+  const local = readLocalFile(rel);
+  if ("content" in local) return local;
+  if (!githubReady().ready) return { error: `${local.error}. ${noSrcHelp()}` };
+  const p = safePath(rel);
+  if (!p) return { error: "Bad path" };
+  if (lockedType(p.rel)) return { error: "That file type is locked" };
+  try {
+    return await repoRead(p.rel);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "GitHub read failed" };
+  }
+}
+
+export async function listProject(rel = "src") {
+  const folder = !rel || rel === "." ? "src" : rel;
+  const local = listLocal(folder);
+  if (!("error" in local)) return local;
+  if (!githubReady().ready) return { error: `${local.error}. ${noSrcHelp()}` };
+  const p = safePath(folder);
+  if (!p) return { error: "Bad path" };
+  try {
+    return await repoList(p.rel);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "GitHub list failed" };
+  }
+}
+
+async function searchProject(query: string, folder = "src") {
+  const local = searchLocal(query, folder);
+  if (!("error" in local) && local.hits.length) return local;
+  if (!githubReady().ready) {
+    return { error: `${"error" in local ? local.error : "No hits"}. ${noSrcHelp()}`, hits: [] as { path: string; line: number; text: string }[] };
+  }
+  const p = safePath(folder || "src");
+  if (!p) return { error: "Bad folder" };
+  const q = query.toLowerCase();
+  try {
+    const tree = await repoTree();
+    const prefix = p.rel;
+    const blobs = tree.filter((it) => {
+      if (it.type !== "blob") return false;
+      if (!it.path.startsWith(prefix)) return false;
+      if (it.size > 200_000) return false;
+      const ext = extname(it.path);
+      if (!ALLOW_EXT.has(ext) && !it.path.startsWith("src/") && !it.path.startsWith("public/")) return false;
+      const parts = it.path.split("/");
+      return !parts.some((part) => DENY.includes(part) || part.startsWith(".env"));
+    });
+    blobs.sort((a, b) => {
+      const ah = a.path.toLowerCase().includes(q) ? 0 : 1;
+      const bh = b.path.toLowerCase().includes(q) ? 0 : 1;
+      return ah - bh || a.path.localeCompare(b.path);
+    });
+    const hits: { path: string; line: number; text: string }[] = [];
+    const take = blobs.slice(0, 28);
+    for (let i = 0; i < take.length && hits.length < 40; i += 7) {
+      const chunk = take.slice(i, i + 7);
+      const texts = await Promise.all(
+        chunk.map(async (it) => {
+          try {
+            return { path: it.path, text: await repoReadBlob(it.sha) };
+          } catch {
+            return { path: it.path, text: "" };
+          }
+        })
+      );
+      for (const file of texts) {
+        file.text.split("\n").forEach((text, line) => {
+          if (hits.length < 40 && text.toLowerCase().includes(q)) {
+            hits.push({ path: file.path, line: line + 1, text: text.trim().slice(0, 180) });
+          }
+        });
+      }
+      if (hits.length >= 12 && take[0]?.path.toLowerCase().includes(q)) break;
+    }
+    return { hits, source: "github" as const, scanned: take.length };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "GitHub search failed", hits: [] };
+  }
 }
 
 const TOOLS = [
@@ -78,7 +185,7 @@ const TOOLS = [
     type: "function",
     function: {
       name: "list_files",
-      description: "List a folder in the HODL Hotel repo.",
+      description: "List a folder in cameroncmcnulty/hodl-hotel on GitHub main (same files as production). Example path: src or src/components.",
       parameters: { type: "object", properties: { path: { type: "string" } } },
     },
   },
@@ -86,7 +193,7 @@ const TOOLS = [
     type: "function",
     function: {
       name: "read_file",
-      description: "Read a source file.",
+      description: "Read a source file from the GitHub repo. Example: src/components/AdminCommand.tsx",
       parameters: { type: "object", properties: { path: { type: "string" } }, required: ["path"] },
     },
   },
@@ -94,7 +201,7 @@ const TOOLS = [
     type: "function",
     function: {
       name: "search_code",
-      description: "Search src for a string.",
+      description: "Search the GitHub repo for a string. Default folder src.",
       parameters: { type: "object", properties: { query: { type: "string" }, folder: { type: "string" } }, required: ["query"] },
     },
   },
@@ -126,11 +233,12 @@ const SYSTEM = `You are Grok, chatting live with hotel staff in the HODL Hotel c
 ${HOTEL_BRIEF}
 
 Reply in the thread: short, clear sentences, answer first. Keep the conversation going across follow-ups.
-If they want a change, inspect the code, then call propose_files with COMPLETE file contents. Do not propose files for questions, explanations, or "what if" talk. Nothing is applied until staff hits Ship.`;
+If they want a change, inspect the code, then call propose_files with COMPLETE file contents. Do not propose files for questions, explanations, or "what if" talk. Nothing is applied until staff hits Push.
+The live desk has no local git checkout. File tools read GitHub. Never tell staff the repo is missing — call list_files on "src" and read_file on real paths like src/components/AdminCommand.tsx.`;
 
 type Msg = { role: string; content?: string | null; tool_calls?: unknown; tool_call_id?: string; name?: string };
 
-function runTool(name: string, args: Record<string, unknown>) {
+async function runTool(name: string, args: Record<string, unknown>) {
   if (name === "list_files") return listProject(String(args.path || "src"));
   if (name === "read_file") return readProjectFile(String(args.path || ""));
   if (name === "search_code") return searchProject(String(args.query || ""), String(args.folder || "src"));
@@ -156,8 +264,14 @@ export async function runGrok(opts: { prompt: string; history?: { role: "user" |
       : mode === "build"
         ? "Inspect, then propose_files with complete files for the requested change."
         : "Live chat. Answer in the thread. Propose files only when they ask you to change, fix, or ship something.";
+  const files = filesReady();
+  const fileNote = files.local
+    ? "File tools read the local checkout, then GitHub if needed."
+    : files.github
+      ? `File tools read GitHub ${files.repo}@${files.branch}. There is no local src/ on this server. list_files("src") works.`
+      : "WARNING: no local src/ and no GITHUB_TOKEN — file tools will fail until GitHub is configured.";
   const messages: Msg[] = [
-    { role: "system", content: SYSTEM + `\n${modeNote}` },
+    { role: "system", content: SYSTEM + `\n${modeNote}\n${fileNote}` },
     ...(opts.history || []).slice(-8),
     { role: "user", content: opts.prompt },
   ];
@@ -195,7 +309,7 @@ export async function runGrok(opts: { prompt: string; history?: { role: "user" |
             }
           }
         }
-        const result = runTool(call.function.name, args);
+        const result = await runTool(call.function.name, args);
         messages.push({ role: "tool", tool_call_id: call.id, name: call.function.name, content: JSON.stringify(result).slice(0, 24_000) });
       }
       continue;
@@ -218,7 +332,7 @@ export function applyLocal(patches: AgentPatch[]) {
   return wrote;
 }
 
-export function currentFile(rel: string) {
-  const got = readProjectFile(rel);
+export async function currentFile(rel: string) {
+  const got = await readProjectFile(rel);
   return "content" in got ? got.content : "";
 }
