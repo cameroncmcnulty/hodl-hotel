@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { CATALOG, furn } from "@/lib/catalog";
 import { BACKPACK_SLOTS } from "@/lib/constants";
 import { FREE_LAYOUT_IDS, PREMIUM_LAYOUTS } from "@/lib/layouts";
-import { sessionUserId } from "@/lib/session";
+import { sessionJson, sessionUserId } from "@/lib/session";
 import { findUser, loadDB, log, publicUser, reloadDB, saveDB } from "@/lib/store";
 
 export const dynamic = "force-dynamic";
@@ -16,14 +16,14 @@ export async function GET() {
 
 export async function POST(req: Request) {
   const id = await sessionUserId();
-  if (!id) return NextResponse.json({ error: "Session expired. Log in again." }, { status: 401 });
+  if (!id) return NextResponse.json({ error: "Sign in" }, { status: 401 });
   let db = loadDB();
   let u = findUser(db, id);
   if (!u) {
     db = reloadDB();
     u = findUser(db, id);
   }
-  if (!u) return NextResponse.json({ error: "Session expired. Log in again." }, { status: 401 });
+  if (!u) return NextResponse.json({ error: "Desk is busy — tap Buy again." }, { status: 409 });
   const body = await req.json().catch(() => ({}));
   if (body.layoutId) {
     const layout = PREMIUM_LAYOUTS.find((l) => l.id === body.layoutId);
@@ -36,7 +36,7 @@ export async function POST(req: Request) {
     u.ownedLayoutIds.push(layout.id);
     log(db, "buy", `${u.username} unlocked floor plan ${layout.name}`);
     saveDB(db);
-    return NextResponse.json({ user: publicUser(u), plan: layout });
+    return sessionJson({ user: publicUser(u), plan: layout }, u.id);
   }
   const { catalogId, qty } = body;
   const def = furn(String(catalogId || ""));
@@ -72,9 +72,12 @@ export async function POST(req: Request) {
   log(db, "buy", `${u.username} bought ${n}× ${def.name}`);
   saveDB(db);
   void BACKPACK_SLOTS;
-  return NextResponse.json({
-    user: publicUser(u),
-    item: def,
-    message: `Purchase successful — ${def.name} is in your backpack.`,
-  });
+  return sessionJson(
+    {
+      user: publicUser(u),
+      item: def,
+      message: `Purchase successful — ${def.name} is in your backpack.`,
+    },
+    u.id
+  );
 }

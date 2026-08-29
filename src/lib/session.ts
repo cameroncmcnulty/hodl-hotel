@@ -53,9 +53,9 @@ export function attachSession(res: NextResponse, userId: string) {
   return token;
 }
 
-export function sessionJson(data: Record<string, unknown>, userId: string) {
+export function sessionJson(data: Record<string, unknown>, userId: string, status = 200) {
   const token = signSession(userId);
-  const res = NextResponse.json({ ...data, token });
+  const res = NextResponse.json({ ...data, token }, { status });
   res.cookies.set(COOKIE, token, cookieOpts());
   return res;
 }

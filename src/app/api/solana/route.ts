@@ -2,10 +2,11 @@ import { NextResponse } from "next/server";
 import { COIN_PACKS, PURCHASE_AGE, TREASURY_WALLET } from "@/lib/constants";
 import { ageYears } from "@/lib/moderate";
 import { cancelInvoice, checkInvoice, createInvoice, publicInvoice, solNetwork } from "@/lib/pay";
-import { sessionUserId } from "@/lib/session";
-import { findUser, loadDB, log, publicUser, saveDB } from "@/lib/store";
+import { sessionJson, sessionUserId } from "@/lib/session";
+import { findUser, loadDB, log, publicUser, reloadDB, saveDB } from "@/lib/store";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 export async function GET(req: Request) {
@@ -32,9 +33,13 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   const id = await sessionUserId();
   if (!id) return NextResponse.json({ error: "Sign in" }, { status: 401 });
-  const db = loadDB();
-  const u = findUser(db, id);
-  if (!u) return NextResponse.json({ error: "Sign in" }, { status: 401 });
+  let db = loadDB();
+  let u = findUser(db, id);
+  if (!u) {
+    db = reloadDB();
+    u = findUser(db, id);
+  }
+  if (!u) return NextResponse.json({ error: "Desk is busy — tap Buy again." }, { status: 409 });
   if (ageYears(u.birthday) < PURCHASE_AGE) {
     return NextResponse.json({ error: "You must be 18+ to buy coins with Solana" }, { status: 403 });
   }
@@ -44,19 +49,19 @@ export async function POST(req: Request) {
   if (body.op === "faucet" && process.env.NODE_ENV !== "production") {
     u.coins += 500;
     saveDB(db);
-    return NextResponse.json({ user: publicUser(u), note: "Local test coins" });
+    return sessionJson({ user: publicUser(u), note: "Local test coins" }, u.id);
   }
 
   if (body.op === "wallet") {
     u.wallet = String(body.wallet || "");
     saveDB(db);
-    return NextResponse.json({ user: publicUser(u) });
+    return sessionJson({ user: publicUser(u) }, u.id);
   }
 
   if (body.op === "invoice") {
     try {
       const inv = createInvoice(u.id, String(body.packId || ""));
-      return NextResponse.json({ invoice: publicInvoice(inv), network: solNetwork() });
+      return sessionJson({ invoice: publicInvoice(inv), network: solNetwork() }, u.id);
     } catch (e) {
       return NextResponse.json({ error: e instanceof Error ? e.message : "Could not open a desk ticket" }, { status: 400 });
     }
@@ -65,16 +70,19 @@ export async function POST(req: Request) {
   if (body.op === "check") {
     const out = await checkInvoice(String(body.invoiceId || ""), u.id);
     if ("error" in out && out.status) return NextResponse.json({ error: out.error }, { status: out.status });
-    return NextResponse.json({
-      invoice: out.invoice ? publicInvoice(out.invoice) : null,
-      user: out.user ? publicUser(out.user) : undefined,
-    });
+    return sessionJson(
+      {
+        invoice: out.invoice ? publicInvoice(out.invoice) : null,
+        user: out.user ? publicUser(out.user) : undefined,
+      },
+      u.id
+    );
   }
 
   if (body.op === "cancel") {
     const inv = cancelInvoice(String(body.invoiceId || ""), u.id);
     if (!inv) return NextResponse.json({ error: "Ticket not found" }, { status: 404 });
-    return NextResponse.json({ invoice: publicInvoice(inv) });
+    return sessionJson({ invoice: publicInvoice(inv) }, u.id);
   }
 
   const pack = COIN_PACKS.find((p) => p.id === body.packId);
@@ -125,5 +133,5 @@ export async function POST(req: Request) {
   });
   log(db, "sol", `${u.username} bought ${pack.name} (${pack.coins} coins)`);
   saveDB(db);
-  return NextResponse.json({ user: publicUser(u), pack });
+  return sessionJson({ user: publicUser(u), pack }, u.id);
 }

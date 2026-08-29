@@ -16,7 +16,11 @@ import { api, authInit, clearClientToken } from "@/lib/clientAuth";
 import type { Ad, ChatLine, Occupant, Placed, Room } from "@/lib/types";
 import {
   Backpack,
+  Briefcase,
+  Coins,
   Copy,
+  Crown,
+  Gem,
   Handshake,
   LogOut,
   Map,
@@ -26,10 +30,11 @@ import {
   Settings,
   ShoppingBag,
   Smartphone,
+  Sparkles,
   Users,
   Wallet,
 } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 
 type Me = {
   id: string;
@@ -52,6 +57,29 @@ type Snap = {
 };
 
 let leaveTimer: ReturnType<typeof setTimeout> | undefined;
+
+const PACK_META: Record<string, { Icon: typeof Coins; tint: string; blurb: string }> = {
+  pocket: { Icon: Coins, tint: "from-zinc-300 to-zinc-500", blurb: "Starter stack" },
+  carry: { Icon: Briefcase, tint: "from-sky-400 to-blue-600", blurb: "Studio kit" },
+  suite: { Icon: Sparkles, tint: "from-[#14F195] to-[#9945FF]", blurb: "Most popular" },
+  penthouse: { Icon: Crown, tint: "from-amber-300 to-orange-500", blurb: "Decorator crate" },
+  whale: { Icon: Gem, tint: "from-violet-400 to-fuchsia-600", blurb: "Diamond hands" },
+};
+
+function SolMark({ className = "h-4 w-4" }: { className?: string }) {
+  const id = useId().replace(/:/g, "");
+  return (
+    <svg viewBox="0 0 397.7 311.7" className={className} aria-hidden>
+      <linearGradient id={id} x1="360.8" y1="351.4" x2="141.3" y2="-69.3" gradientUnits="userSpaceOnUse">
+        <stop offset="0" stopColor="#00FFA3" />
+        <stop offset="1" stopColor="#DC1FFF" />
+      </linearGradient>
+      <path fill={`url(#${id})`} d="M64.6 237.9c2.4-2.4 5.7-3.8 9.2-3.8h317.4c5.8 0 8.7 7 4.6 11.1l-62.7 62.7c-2.4 2.4-5.7 3.8-9.2 3.8H6.5c-5.8 0-8.7-7-4.6-11.1l62.7-62.7z" />
+      <path fill={`url(#${id})`} d="M64.6 3.8C67.1 1.4 70.4 0 73.8 0h317.4c5.8 0 8.7 7 4.6 11.1l-62.7 62.7c-2.4 2.4-5.7 3.8-9.2 3.8H6.5c-5.8 0-8.7-7-4.6-11.1L64.6 3.8z" />
+      <path fill={`url(#${id})`} d="M333.1 120.1c-2.4-2.4-5.7-3.8-9.2-3.8H6.5c-5.8 0-8.7 7-4.6 11.1l62.7 62.7c2.4 2.4 5.7 3.8 9.2 3.8h317.4c5.8 0 8.7-7 4.6-11.1l-62.7-62.7z" />
+    </svg>
+  );
+}
 
 export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -84,6 +112,8 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
     error?: string;
   } | null>(null);
   const [payTick, setPayTick] = useState(0);
+  const [packId, setPackId] = useState<string>("suite");
+  const [buying, setBuying] = useState(false);
   const tRef = useRef(0);
   const cam = useRef({ x: 400, y: 200 });
   const zoomRef = useRef(1);
@@ -576,26 +606,49 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
     return j.user as Me | null;
   }
 
+  async function authedPost(url: string, body: Record<string, unknown>) {
+    const send = () => api(url, { method: "POST", body: JSON.stringify(body) });
+    let { res, j } = await send();
+    if (res.status === 401) {
+      const user = await refreshMe();
+      if (user) {
+        ({ res, j } = await send());
+      } else {
+        setStatus("Session expired — sending you to login");
+        setTimeout(() => {
+          clearClientToken();
+          location.href = "/login";
+        }, 900);
+        return { res, j, dead: true as const };
+      }
+    }
+    if (res.status === 409 && /desk is busy|tap buy again/i.test(String(j.error || ""))) {
+      ({ res, j } = await send());
+    }
+    return { res, j, dead: false as const };
+  }
+
   async function openNav() {
     setPhone("nav");
-    setNav(await fetch("/api/nav", { credentials: "include" }).then((r) => r.json()));
+    setNav((await api("/api/nav")).j);
   }
   async function openSocial() {
     setPhone("friends");
-    setSocial(await fetch("/api/social", { credentials: "include" }).then((r) => r.json()));
+    setSocial((await api("/api/social")).j);
   }
   async function openMsgs() {
     setPhone("msgs");
-    setSocial(await fetch("/api/social", { credentials: "include" }).then((r) => r.json()));
+    setSocial((await api("/api/social")).j);
   }
 
 
   async function buyPlan(id: string) {
-    const { j } = await api("/api/shop", { method: "POST", body: JSON.stringify({ layoutId: id }) });
+    const { j, dead } = await authedPost("/api/shop", { layoutId: id });
+    if (dead) return;
     if (j.error) setStatus(j.error);
     else {
       setStatus(`Unlocked ${j.plan.name}`);
-      refreshMe();
+      if (j.user) setMe((prev) => ({ ...prev, ...j.user }));
     }
   }
 
@@ -616,21 +669,8 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
       setStatus(`Need ${def.price.toLocaleString()} coins — you have ${meState.coins.toLocaleString()}`);
       return;
     }
-    const { res, j } = await api("/api/shop", { method: "POST", body: JSON.stringify({ catalogId: id }) });
-    if (res.status === 401 || /sign in|session expired/i.test(String(j.error || ""))) {
-      const me = await api("/api/auth/me");
-      if (me.j?.user) {
-        setMe((prev) => ({ ...prev, ...me.j.user }));
-        setStatus("Shop hiccup — tap Buy again.");
-        return;
-      }
-      setStatus("Session expired — sending you to login");
-      setTimeout(() => {
-        clearClientToken();
-        location.href = "/login";
-      }, 900);
-      return;
-    }
+    const { j, dead } = await authedPost("/api/shop", { catalogId: id });
+    if (dead) return;
     if (j.error) {
       setStatus(j.error);
       return;
@@ -639,16 +679,22 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
     setStatus(j.message || `Purchase successful — ${j.item?.name || "item"} is in your backpack.`);
   }
 
-  async function buyCoins(packId: string) {
+  async function buyCoins() {
     const pack = COIN_PACKS.find((p) => p.id === packId);
-    if (!pack) return;
-    const { j } = await api("/api/solana", { method: "POST", body: JSON.stringify({ op: "invoice", packId }) });
+    if (!pack) {
+      setStatus("Pick a coin pack first");
+      return;
+    }
+    setBuying(true);
+    const { j, dead } = await authedPost("/api/solana", { op: "invoice", packId: pack.id });
+    setBuying(false);
+    if (dead) return;
     if (j.error) {
       setStatus(j.error);
       return;
     }
     setPay(j.invoice);
-    setStatus("Send SOL to the desk wallet below.");
+    setStatus(`Send ${pack.sol} SOL to the desk wallet.`);
   }
 
   async function pollPay(invoiceId: string) {
@@ -998,6 +1044,11 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
           {phone === "coins" && (
             <PhoneApp
               title="Wallet"
+              extra={
+                <span className="mr-1 inline-flex items-center gap-1 rounded-full bg-white/10 px-2 py-1 text-[11px] text-mint">
+                  <Coins size={12} /> {meState.coins.toLocaleString()}c
+                </span>
+              }
               onBack={() => {
                 if (pay && pay.status === "waiting") {
                   api("/api/solana", { method: "POST", body: JSON.stringify({ op: "cancel", invoiceId: pay.id }) });
@@ -1011,13 +1062,17 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
                 goHome();
               }}
             >
-              <p className="mb-1 text-3xl font-display font-semibold text-mint">{meState.coins.toLocaleString()}c</p>
-              <p className="mb-4 text-xs text-white/50">Virtual coins have no cash value. 18+ only. SOL is forwarded to the hotel treasury after we see it.</p>
               {pay ? (
                 <div className="grid gap-3">
-                  <p className="text-sm">
-                    Send <b className="text-mint">{pay.sol} SOL</b> for <b>{pay.coins.toLocaleString()}c</b>
-                  </p>
+                  <div className="flex items-center gap-2 rounded-2xl border border-mint/30 bg-mint/10 px-3 py-2">
+                    <SolMark className="h-7 w-7" />
+                    <div>
+                      <p className="text-sm font-semibold">
+                        Send {pay.sol} SOL
+                      </p>
+                      <p className="text-[11px] text-white/60">for {pay.coins.toLocaleString()} coins</p>
+                    </div>
+                  </div>
                   <p className="text-xs text-white/50">
                     {pay.status === "waiting" && `Waiting on chain · ${payRemain()} left`}
                     {pay.status === "received" && "Payment seen — forwarding to treasury…"}
@@ -1033,11 +1088,11 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
                     </button>
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    <button type="button" className="rounded-full bg-white/10 px-3 py-1.5 text-xs" onClick={() => copyText(String(pay.sol), "Amount")}>
-                      Copy {pay.sol} SOL
+                    <button type="button" className="inline-flex items-center gap-1 rounded-full bg-white/10 px-3 py-1.5 text-xs" onClick={() => copyText(String(pay.sol), "Amount")}>
+                      <SolMark className="h-3.5 w-3.5" /> Copy {pay.sol} SOL
                     </button>
-                    <a className="rounded-full bg-mint px-3 py-1.5 text-xs font-semibold text-black" href={`solana:${pay.address}?amount=${pay.sol}&label=HODL%20Hotel`} >
-                      Open wallet
+                    <a className="inline-flex items-center gap-1 rounded-full bg-mint px-3 py-1.5 text-xs font-semibold text-black" href={`solana:${pay.address}?amount=${pay.sol}&label=HODL%20Hotel`} >
+                      <Wallet size={12} /> Open wallet
                     </a>
                     {pay.status === "waiting" || pay.status === "received" ? (
                       <button type="button" className="rounded-full bg-white/10 px-3 py-1.5 text-xs" onClick={() => pollPay(pay.id)}>
@@ -1053,13 +1108,23 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
                   {pay.error && pay.status !== "expired" ? <p className="text-xs text-coral">{pay.error}</p> : null}
                 </div>
               ) : (
-                <div className="grid gap-2">
+                <div className="flex min-h-full flex-col">
+                  <div className="mb-3 flex items-center gap-3 rounded-2xl border border-white/10 bg-gradient-to-r from-[#9945FF]/25 to-[#14F195]/15 px-3 py-3">
+                    <div className="grid h-12 w-12 place-items-center rounded-2xl bg-black/30">
+                      <SolMark className="h-7 w-7" />
+                    </div>
+                    <div>
+                      <p className="font-display text-2xl font-semibold text-mint">{meState.coins.toLocaleString()}c</p>
+                      <p className="text-[11px] text-white/55">Hotel coins · 18+ Solana checkout</p>
+                    </div>
+                  </div>
+                  <p className="mb-2 text-[11px] leading-relaxed text-white/45">Pick a pack, then tap Buy. SOL goes to a one-time desk wallet and is forwarded to the treasury.</p>
                   {typeof window !== "undefined" && window.location.hostname === "localhost" ? (
                     <button
                       type="button"
-                      className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-left text-xs text-white/70"
+                      className="mb-2 rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-left text-xs text-white/70"
                       onClick={async () => {
-                        const { j } = await api("/api/solana", { method: "POST", body: JSON.stringify({ op: "faucet" }) });
+                        const { j } = await authedPost("/api/solana", { op: "faucet" });
                         if (j.user) setMe((prev) => ({ ...prev, coins: j.user.coins }));
                         setStatus(j.error || "Local faucet: +500 coins");
                       }}
@@ -1067,17 +1132,48 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
                       Local test: +500 coins
                     </button>
                   ) : null}
-                  {COIN_PACKS.map((p) => (
-                    <button key={p.id} className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-3 py-3 text-left hover:border-mint" onClick={() => buyCoins(p.id)}>
-                      <span>
-                        <b>{p.name}</b>
-                        <div className="text-xs text-white/50">{p.tag}</div>
-                      </span>
-                      <span className="text-sm text-mint">
-                        {p.coins}c · {p.sol} SOL
-                      </span>
-                    </button>
-                  ))}
+                  <div className="grid gap-2">
+                    {COIN_PACKS.map((p) => {
+                      const meta = PACK_META[p.id] || PACK_META.pocket;
+                      const Icon = meta.Icon;
+                      const on = packId === p.id;
+                      return (
+                        <button
+                          key={p.id}
+                          type="button"
+                          onClick={() => setPackId(p.id)}
+                          className={`flex items-center gap-3 rounded-2xl border px-3 py-3 text-left transition ${
+                            on ? "border-mint bg-mint/15 ring-1 ring-mint" : "border-white/10 bg-white/5 hover:border-white/25"
+                          }`}
+                        >
+                          <div className={`grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-gradient-to-br text-white ${meta.tint}`}>
+                            <Icon size={20} />
+                          </div>
+                          <span className="min-w-0 flex-1">
+                            <b className="block truncate">{p.name}</b>
+                            <span className="text-[11px] text-white/50">{p.tag}</span>
+                          </span>
+                          <span className="text-right">
+                            <span className="block text-sm font-semibold text-mint">{p.coins.toLocaleString()}c</span>
+                            <span className="inline-flex items-center gap-1 text-[11px] text-white/70">
+                              <SolMark className="h-3 w-3" /> {p.sol} SOL
+                            </span>
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <button
+                    type="button"
+                    disabled={buying || !packId}
+                    onClick={() => buyCoins()}
+                    className="btn-sol mt-3 sticky bottom-0 flex w-full items-center justify-center gap-2 py-3 text-sm font-bold disabled:opacity-60"
+                  >
+                    <SolMark className="h-4 w-4" />
+                    {buying
+                      ? "Opening desk…"
+                      : `Buy ${COIN_PACKS.find((p) => p.id === packId)?.name || "pack"} · ${COIN_PACKS.find((p) => p.id === packId)?.sol ?? ""} SOL`}
+                  </button>
                 </div>
               )}
             </PhoneApp>
