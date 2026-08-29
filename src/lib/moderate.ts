@@ -21,9 +21,9 @@ function squash(s: string) {
     .replace(/(.)\1{2,}/g, "$1$1");
 }
 
-export function bleepWord(word: string) {
-  if (word.length <= 2) return "#".repeat(word.length);
-  return word[0] + "#".repeat(Math.max(1, word.length - 2)) + word[word.length - 1];
+/** Replace a flagged token with HODL (keeps brand voice in chat bubbles). */
+export function bleepWord(_word: string) {
+  return "HODL";
 }
 
 export function moderate(input: string): { text: string; flagged: boolean } {
@@ -36,7 +36,7 @@ export function moderate(input: string): { text: string; flagged: boolean } {
     for (const bad of BLOCK) {
       if (q === bad || q.includes(bad)) {
         flagged = true;
-        return bleepWord(p);
+        return "HODL";
       }
     }
     return p;
