@@ -18,36 +18,28 @@ import {
   topsFor,
 } from "@/lib/game/avatar";
 
-const TABS = ["skin", "hair", "top", "bot", "shoe"] as const;
+const TABS = [
+  { id: "skin", label: "Skin" },
+  { id: "hair", label: "Hair" },
+  { id: "top", label: "Top" },
+  { id: "bot", label: "Bottom" },
+  { id: "shoe", label: "Shoes" },
+] as const;
 
-function TabIcon({ tab, on }: { tab: (typeof TABS)[number]; on: boolean }) {
-  const c = on ? "#12121c" : "#e8e4f0";
-  return (
-    <svg viewBox="0 0 32 32" width="20" height="20" fill={c} aria-hidden>
-      {tab === "skin" && (
-        <>
-          <circle cx="16" cy="11" r="6" />
-          <path d="M8 28c1-7 4-10 8-10s7 3 8 10" />
-        </>
-      )}
-      {tab === "hair" && <path d="M8 18c0-8 3.5-14 8-14s8 6 8 14c0 2-1 4-3 4H11c-2 0-3-2-3-4Z" />}
-      {tab === "top" && <path d="M10 8 16 12l6-4 4 4-3 3v11H9V15L6 12l4-4Z" />}
-      {tab === "bot" && <path d="M10 8h12l-1 6-2 14h-3l-2-10-2 10h-3L11 14 10 8Z" />}
-      {tab === "shoe" && <path d="M6 18h9l3 8H6Zm12 0h8l2 8h-9Z" />}
-    </svg>
-  );
-}
+type TabId = (typeof TABS)[number]["id"];
 
 function LookThumb({
   figure,
   on,
   onClick,
   scale = 1,
+  label,
 }: {
   figure: Figure;
   on: boolean;
   onClick: () => void;
   scale?: number;
+  label?: string;
 }) {
   const f = clampFigure(figure);
   const s = Math.max(1, Math.round(scale));
@@ -73,7 +65,8 @@ function LookThumb({
         on ? "ring-2 ring-[#14F195] ring-offset-2 ring-offset-[#1a1428]" : "ring-1 ring-white/10 hover:ring-white/30"
       }`}
     >
-      <canvas ref={ref} width={w} height={h} style={{ imageRendering: "pixelated", display: "block" }} />
+      <canvas ref={ref} width={w} height={h} style={{ imageRendering: "pixelated", display: "block", maxWidth: "100%", height: "auto" }} />
+      {label ? <span className="block bg-[#1a1428] py-1 text-center text-[11px] font-semibold uppercase tracking-wide text-white/80">{label}</span> : null}
     </button>
   );
 }
@@ -91,7 +84,7 @@ function Dot({ color, on, onClick }: { color: string; on: boolean; onClick: () =
 
 export function CharacterPreview({
   figure,
-  scale = 4,
+  scale = 2,
   dir = 1,
 }: {
   figure: Figure;
@@ -128,21 +121,26 @@ export function CharacterPreview({
 
 export function FigureEditor({ figure, onChange }: { figure: Figure; onChange: (f: Figure) => void }) {
   const f = clampFigure({ ...figure, face: 0 });
-  const [tab, setTab] = useState<(typeof TABS)[number]>("skin");
+  const [tab, setTab] = useState<TabId>("skin");
   const g = f.gender ?? 0;
   const hairs = hairsFor(g);
   const tops = topsFor(g);
   const bots = botsFor(g);
   const shoes = shoesFor(g);
   const push = (patch: Partial<Figure>) => onChange(clampFigure({ ...f, face: 0, ...patch }));
+  const heading = TABS.find((t) => t.id === tab)?.label || "";
 
   return (
     <div className="rounded-3xl border border-white/10 bg-[#1a1428] p-4 text-white shadow-2xl">
-      <div className="flex justify-center gap-3 pb-4">
-        {[0, 1].map((i) => (
+      <div className="mb-4 flex justify-center gap-4">
+        {[
+          { i: 0, label: "Boy" },
+          { i: 1, label: "Girl" },
+        ].map(({ i, label }) => (
           <LookThumb
             key={`gender-${i}`}
-            scale={2}
+            scale={1}
+            label={label}
             figure={{ ...f, gender: i, hair: 0, topCut: 0, botCut: 0, shoeCut: 0 }}
             on={g === i}
             onClick={() => push({ gender: i, hair: 0, topCut: 0, botCut: 0, shoeCut: 0 })}
@@ -150,24 +148,27 @@ export function FigureEditor({ figure, onChange }: { figure: Figure; onChange: (
         ))}
       </div>
 
-      <div className="grid gap-4 md:grid-cols-[minmax(0,192px)_minmax(0,1fr)] md:items-start">
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,168px)_minmax(0,1fr)] lg:items-start">
         <div className="overflow-hidden rounded-2xl bg-[#5c6b78]">
-          <CharacterPreview figure={f} scale={4} dir={1} />
+          <CharacterPreview figure={f} scale={2} dir={1} />
         </div>
         <div>
-          <div className="mb-4 flex justify-center gap-2">
+          <div className="mb-3 flex flex-wrap justify-center gap-2">
             {TABS.map((t) => (
               <button
-                key={t}
+                key={t.id}
                 type="button"
-                aria-label={t}
-                onClick={() => setTab(t)}
-                className={`grid h-12 w-12 place-items-center rounded-2xl ${tab === t ? "bg-[#14F195]" : "bg-white/10 hover:bg-white/15"}`}
+                onClick={() => setTab(t.id)}
+                className={`rounded-full px-3 py-2 text-xs font-bold uppercase tracking-wider sm:px-4 sm:text-sm ${
+                  tab === t.id ? "bg-[#14F195] text-[#12121c]" : "bg-white/10 text-white/80 hover:bg-white/15"
+                }`}
               >
-                <TabIcon tab={t} on={tab === t} />
+                {t.label}
               </button>
             ))}
           </div>
+
+          <p className="mb-3 text-center text-xs font-semibold uppercase tracking-[0.2em] text-white/50">{heading}</p>
 
           {tab === "skin" && (
             <div className="flex flex-wrap justify-center gap-2">

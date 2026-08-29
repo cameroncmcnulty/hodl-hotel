@@ -1,9 +1,9 @@
 import type { Figure } from "../types";
 import { Pix, rgb, mix, hexMix } from "./pix";
 
-export const LOOK_W = 48;
-export const LOOK_H = 72;
-export const LOOK_SCALE = 2;
+export const LOOK_W = 80;
+export const LOOK_H = 128;
+export const LOOK_SCALE = 1;
 
 export const SKIN = ["#f3d4c4", "#e8c4a8", "#d4a574", "#c48a56", "#b56c3a", "#8d4e24", "#6b3a20", "#3a1c10"];
 export const HAIR_BOY_C = ["#8b5a2b", "#5c3317", "#1b1b1b", "#e8d07a", "#c45c26", "#4a2c0a"];
@@ -87,7 +87,7 @@ export function shoeColors(gender: number, cut: number) {
 
 export const DEFAULT_FIGURE: Figure = {
   gender: 0,
-  skin: 2,
+  skin: 1,
   hair: 0,
   hairColor: 0,
   top: 0,
@@ -147,9 +147,9 @@ function styleOf(f: Figure): Style {
   };
 }
 
-const CX = 24;
-const HEAD = { cx: 24, cy: 18, rx: 12, ry: 13 };
-const FACE_Y = 16;
+const CX = 40;
+const HEAD = { cx: 40, cy: 34, rx: 18, ry: 20 };
+const FACE_Y = 30;
 
 function inHead(x: number, y: number, pad = 0) {
   const dx = x - HEAD.cx;
@@ -161,196 +161,199 @@ function inHead(x: number, y: number, pad = 0) {
 
 function drawHead(p: Pix, skin: string, girl: boolean) {
   p.discShade(HEAD.cx, HEAD.cy, HEAD.rx, HEAD.ry, skin);
-  p.discShade(HEAD.cx, HEAD.cy + 2, HEAD.rx - 1, HEAD.ry - 2, skin);
-  p.discShade(11, 20, 2.8, 3.6, skin);
-  p.discShade(37, 20, 2.8, 3.6, skin);
-  p.block(21, 30, 6, 4, skin);
+  p.discShade(HEAD.cx, HEAD.cy + 3, HEAD.rx - 2, HEAD.ry - 3, skin);
+  p.discShade(21, 38, 4.2, 5.5, skin);
+  p.discShade(59, 38, 4.2, 5.5, skin);
+  p.block(36, 52, 8, 7, skin);
   if (girl) {
-    p.disc(17, 24, 1.7, 1.2, mix("#e89aa8", 8));
-    p.disc(31, 24, 1.7, 1.2, mix("#e89aa8", 8));
+    p.disc(30, 44, 2.2, 1.6, mix("#e89aa8", 12));
+    p.disc(50, 44, 2.2, 1.6, mix("#e89aa8", 12));
   }
 }
 
 function drawTorso(p: Pix, skin: string, girl: boolean, walk: 0 | 1) {
   const wob = walk ? 1 : 0;
-  if (girl) p.trap(16, 32, 33, 18, 30, 48, skin);
-  else p.trap(15, 33, 33, 17, 31, 48, skin);
-  p.discShade(CX, 47, girl ? 7 : 8, 3, skin);
-  p.capsule(10, 34, 5, 16, skin);
-  p.capsule(33, 34, 5, 16, skin);
-  p.capsule(16 + wob, 47, 6, 15, skin);
-  p.capsule(26 - wob, 47, 6, 15, skin);
+  if (girl) p.trap(26, 54, 56, 28, 52, 90, skin);
+  else p.trap(24, 56, 56, 26, 54, 90, skin);
+  p.capsule(17, 58, 8, 30, skin);
+  p.capsule(55, 58, 8, 30, skin);
+  p.capsule(29 + wob, 88, 9, 28, skin);
+  p.capsule(42 - wob, 88, 9, 28, skin);
 }
 
 function drawEye(p: Pix, cx: number, cy: number, girl: boolean) {
-  const ink: [number, number, number] = [22, 16, 26];
+  const ink: [number, number, number] = [20, 14, 22];
   const white: [number, number, number] = [255, 252, 250];
   const shine: [number, number, number] = [255, 255, 255];
-  p.disc(cx, cy, 3.8, 4.3, ink);
-  p.disc(cx, cy, 3.0, 3.5, white);
-  p.disc(cx, cy + 0.4, 2.55, 2.85, ink);
-  p.set(cx - 1, cy - 1, shine);
-  p.set(cx, cy - 1, shine);
   if (girl) {
-    p.set(cx - 3, cy - 3, ink);
-    p.set(cx + 3, cy - 3, ink);
+    p.disc(cx, cy, 5.4, 6.4, ink);
+    p.disc(cx, cy, 4.5, 5.5, white);
+    p.disc(cx, cy + 0.8, 3.3, 3.9, ink);
+    p.set(cx - 1, cy - 1, shine);
+    p.set(cx, cy - 1, shine);
+    p.set(cx - 5, cy - 5, ink);
+    p.set(cx - 6, cy - 4, ink);
+    p.set(cx + 5, cy - 5, ink);
+    p.set(cx + 6, cy - 4, ink);
+    return;
   }
+  p.disc(cx, cy, 3.6, 4.3, ink);
+  p.disc(cx, cy, 2.8, 3.5, white);
+  p.disc(cx, cy + 0.4, 2.5, 2.9, ink);
+  p.set(cx - 1, cy - 1, shine);
 }
 
 function drawFace(p: Pix, girl: boolean, back: boolean) {
   if (back) return;
-  drawEye(p, 19, 19, girl);
-  drawEye(p, 29, 19, girl);
+  if (girl) {
+    drawEye(p, 32, 36, true);
+    drawEye(p, 48, 36, true);
+  } else {
+    drawEye(p, 33, 36, false);
+    drawEye(p, 47, 36, false);
+  }
 }
 
-function hairCap(p: Pix, hex: string, extra = 1, hem = FACE_Y) {
-  p.discShade(HEAD.cx, HEAD.cy - 2, HEAD.rx + extra, HEAD.ry + extra - 1, hex, (x, y) => y <= hem + 1 || !inHead(x, y, -1));
-  p.discShade(HEAD.cx, HEAD.cy - 5, HEAD.rx + extra, HEAD.ry - 3, hex);
+function hairCap(p: Pix, hex: string, extra = 2, hem = FACE_Y) {
+  p.discShade(HEAD.cx, HEAD.cy - 3, HEAD.rx + extra, HEAD.ry + extra - 2, hex, (x, y) => y <= hem + 2 || !inHead(x, y, -1));
+  p.discShade(HEAD.cx, HEAD.cy - 8, HEAD.rx + extra + 1, HEAD.ry - 4, hex);
 }
 
 function drawHairBack(p: Pix, s: Style, hair: string, back: boolean) {
   if (s.hair === "pony") {
-    p.discShade(38, 22, 4, 4, hair);
-    p.discShade(40, 30, 4, 7, hair);
-    p.discShade(40, 40, 3.5, 7, hair);
-    p.discShade(39, 48, 3, 4, hair);
+    p.discShade(18, 22, 7, 6, hair);
+    p.discShade(14, 32, 7, 10, hair);
+    p.discShade(13, 46, 6, 10, hair);
+    p.discShade(14, 58, 5, 7, hair);
+    p.discShade(16, 66, 4, 5, hair);
   }
   if (s.hair === "pigtails") {
-    p.discShade(8, 18, 5, 5, hair);
-    p.discShade(40, 18, 5, 5, hair);
-    p.discShade(7, 26, 4.5, 6, hair);
-    p.discShade(41, 26, 4.5, 6, hair);
+    p.discShade(14, 32, 8, 8, hair);
+    p.discShade(66, 32, 8, 8, hair);
+    p.discShade(12, 44, 7, 9, hair);
+    p.discShade(68, 44, 7, 9, hair);
   }
   if (s.hair === "long" || s.hair === "waves") {
-    p.trap(10, 17, 18, 10, 16, 48, hair);
-    p.trap(31, 38, 18, 32, 38, 48, hair);
-    p.discShade(12, 48, 4, 3.5, hair);
-    p.discShade(36, 48, 4, 3.5, hair);
+    p.trap(18, 28, 36, 16, 28, 92, hair);
+    p.trap(52, 62, 36, 52, 64, 92, hair);
+    p.discShade(20, 92, 6, 5, hair);
+    p.discShade(60, 92, 6, 5, hair);
     if (s.hair === "waves") {
-      p.discShade(12, 26, 5, 6, hair);
-      p.discShade(12, 38, 5, 6, hair);
-      p.discShade(36, 26, 5, 6, hair);
-      p.discShade(36, 38, 5, 6, hair);
+      p.discShade(20, 52, 7, 8, hair);
+      p.discShade(20, 72, 7, 8, hair);
+      p.discShade(60, 52, 7, 8, hair);
+      p.discShade(60, 72, 7, 8, hair);
     }
   }
-  if (back) p.discShade(CX, 22, 9, 9, hair);
-}
-
-function drawHoodBack(p: Pix, top: string, isHoodie: boolean) {
-  if (!isHoodie) return;
-  p.discShade(CX, 18, 14, 13, top, (x, y) => y >= 10 && y <= 33 && (x <= 12 || x >= 36));
-  p.discShade(CX, 30, 9, 5, top, (x, y) => y >= 27 && y <= 34 && Math.abs(x - CX) >= 5);
+  if (back) p.discShade(CX, 40, 14, 14, hair);
 }
 
 function drawHairFront(p: Pix, s: Style, hair: string, back: boolean) {
-  const hem = back ? 28 : FACE_Y;
+  const hem = back ? 50 : FACE_Y;
   if (s.hair === "afro") {
-    p.discShade(CX, 16, 16, 15, hair);
+    p.discShade(CX, 30, 24, 22, hair);
     const bumps: [number, number, number, number][] = [
-      [12, 10, 5, 18],
-      [18, 6, 5, -16],
-      [24, 4, 6, 12],
-      [30, 6, 5, -20],
-      [36, 10, 5, 14],
-      [10, 16, 5, -14],
-      [38, 16, 5, 10],
-      [13, 22, 4, -18],
-      [35, 22, 4, 16],
-      [16, 9, 4, 20],
-      [32, 9, 4, -12],
-      [24, 9, 4, 8],
-      [20, 14, 3, -10],
-      [28, 13, 3, 14],
+      [22, 18, 7, 16],
+      [32, 12, 8, -14],
+      [40, 10, 9, 12],
+      [48, 12, 8, -18],
+      [58, 18, 7, 14],
+      [18, 30, 7, -12],
+      [62, 30, 7, 10],
+      [22, 42, 6, -16],
+      [58, 42, 6, 14],
+      [28, 16, 6, 18],
+      [52, 16, 6, -10],
+      [40, 18, 6, 8],
     ];
     for (const [x, y, r, amt] of bumps) p.discShade(x, y, r, r * 0.9, hexMix(hair, amt));
     return;
   }
   if (s.hair === "undercut") {
-    p.discShade(CX, 10, 9, 7, hair);
-    p.discShade(CX + 1, 8, 8, 6, hair);
-    p.discShade(22, 9, 4, 4, hair, (x, y) => y <= 13);
-    p.discShade(28, 8, 5, 5, hair, (x, y) => y <= 13);
-    p.discShade(18, 11, 3, 3, hair, (x, y) => y <= 12);
+    p.discShade(CX, 18, 14, 11, hair);
+    p.discShade(CX + 2, 16, 12, 9, hair);
+    p.discShade(36, 18, 6, 6, hair, (x, y) => y <= 24);
+    p.discShade(46, 16, 7, 7, hair, (x, y) => y <= 24);
     return;
   }
   if (s.hair === "spikes") {
-    hairCap(p, hair, 0, 14);
-    p.spike(15, 3, 12, 2.2, hair);
-    p.spike(19, 1, 12, 2.5, hair);
-    p.spike(23, 0, 12, 2.8, hair);
-    p.spike(27, 1, 12, 2.5, hair);
-    p.spike(31, 2, 12, 2.3, hair);
-    p.spike(34, 4, 12, 2, hair);
-    p.discShade(14, 12, 3, 4, hair, (x, y) => y <= 16);
-    p.discShade(34, 12, 3, 4, hair, (x, y) => y <= 16);
+    hairCap(p, hair, 1, 28);
+    p.spike(26, 6, 22, 3.2, hair);
+    p.spike(32, 4, 22, 3.6, hair);
+    p.spike(40, 2, 22, 4, hair);
+    p.spike(48, 4, 22, 3.6, hair);
+    p.spike(54, 6, 22, 3.2, hair);
+    p.discShade(24, 24, 5, 6, hair, (x, y) => y <= 30);
+    p.discShade(56, 24, 5, 6, hair, (x, y) => y <= 30);
     return;
   }
   if (s.hair === "messy") {
-    hairCap(p, hair, 1, 15);
-    p.discShade(16, 7, 4, 4, hair);
-    p.discShade(21, 5, 4, 4, hair);
-    p.discShade(26, 4, 4.5, 4.5, hair);
-    p.discShade(31, 6, 4, 4, hair);
-    p.discShade(34, 11, 4, 5, hair, (x, y) => y <= 17);
-    p.discShade(14, 13, 3.5, 4, hair, (x, y) => y <= 17);
-    p.trap(22, 36, 8, 26, 37, 16, hair);
+    hairCap(p, hair, 2, 31);
+    p.discShade(28, 16, 7, 7, hair);
+    p.discShade(36, 12, 8, 7, hair);
+    p.discShade(46, 12, 8, 7, hair);
+    p.discShade(54, 16, 7, 7, hair);
+    p.discShade(22, 32, 7, 8, hair, (x, y) => y <= 40);
+    p.discShade(58, 32, 7, 8, hair, (x, y) => y <= 40);
+    p.discShade(34, 28, 7, 5, hair, (x, y) => y <= 33);
+    p.discShade(48, 28, 6, 5, hair, (x, y) => y <= 33);
     return;
   }
   if (s.hair === "side") {
-    p.discShade(CX + 3, HEAD.cy - 3, HEAD.rx, HEAD.ry - 2, hair, (x, y) => y <= 15);
-    p.discShade(29, 9, 8, 7, hair, (x, y) => y <= 16);
-    p.discShade(33, 13, 5, 6, hair, (x, y) => y <= 18);
-    p.trap(18, 36, 6, 22, 37, 15, hair);
-    p.discShade(20, 10, 4, 3, hair, (x, y) => y <= 13);
+    p.discShade(CX + 4, HEAD.cy - 5, HEAD.rx + 1, HEAD.ry - 3, hair, (x, y) => y <= 30);
+    p.discShade(50, 18, 12, 10, hair, (x, y) => y <= 32);
+    p.discShade(54, 26, 8, 8, hair, (x, y) => y <= 34);
+    p.trap(32, 60, 12, 38, 62, 30, hair);
     return;
   }
   if (s.hair === "pony") {
-    hairCap(p, hair, 1, 15);
-    p.discShade(22, 11, 7, 4, hair, (x, y) => y <= 16);
-    p.discShade(16, 13, 4, 3, hair, (x, y) => y <= 16);
-    p.trap(32, 38, 16, 36, 42, 24, hair);
-    p.rect(35, 20, 5, 2, mix(hair, 40));
+    hairCap(p, hair, 2, 31);
+    p.discShade(34, 22, 10, 7, hair, (x, y) => y <= 32);
+    p.discShade(28, 28, 7, 5, hair, (x, y) => y <= 33);
+    p.discShade(50, 26, 8, 6, hair, (x, y) => y <= 33);
+    p.trap(20, 28, 28, 12, 22, 40, hair);
+    p.rect(16, 28, 8, 3, mix(hair, 36));
     return;
   }
   if (s.hair === "waves") {
-    hairCap(p, hair, 2, 15);
-    p.discShade(13, 18, 6, 9, hair, (x, y) => x <= 18 || y <= hem);
-    p.discShade(35, 18, 6, 9, hair, (x, y) => x >= 30 || y <= hem);
-    p.discShade(15, 14, 5, 4, hair, (x, y) => y <= 16);
-    p.discShade(33, 14, 5, 4, hair, (x, y) => y <= 16);
+    hairCap(p, hair, 3, 31);
+    p.discShade(22, 36, 9, 14, hair, (x, y) => x <= 30 || y <= hem);
+    p.discShade(58, 36, 9, 14, hair, (x, y) => x >= 50 || y <= hem);
+    p.discShade(28, 26, 8, 6, hair, (x, y) => y <= 32);
+    p.discShade(52, 26, 8, 6, hair, (x, y) => y <= 32);
     return;
   }
   if (s.hair === "bob") {
-    hairCap(p, hair, 2, 16);
-    p.discShade(CX, 19, 13, 12, hair, (x, y) => y <= 28 && (y <= hem || !inHead(x, y, -1)));
-    p.discShade(12, 20, 4.5, 7, hair);
-    p.discShade(36, 20, 4.5, 7, hair);
-    p.discShade(18, 13, 5, 3, hair, (x, y) => y <= 16);
-    p.discShade(30, 13, 4, 3, hair, (x, y) => y <= 16);
+    hairCap(p, hair, 3, 32);
+    p.discShade(CX, 36, 20, 18, hair, (x, y) => y <= 52 && (y <= hem || !inHead(x, y, -2)));
+    p.discShade(22, 38, 7, 10, hair);
+    p.discShade(58, 38, 7, 10, hair);
+    p.discShade(32, 24, 8, 5, hair, (x, y) => y <= 32);
+    p.discShade(50, 24, 7, 5, hair, (x, y) => y <= 32);
     return;
   }
   if (s.hair === "long") {
-    hairCap(p, hair, 1, 15);
-    p.trap(10, 17, 16, 10, 16, 48, hair);
-    p.trap(31, 38, 16, 32, 38, 48, hair);
-    p.discShade(18, 13, 6, 3, hair, (x, y) => y <= 16);
-    p.discShade(12, 22, 4, 6, hair);
-    p.discShade(36, 22, 4, 6, hair);
+    hairCap(p, hair, 2, 31);
+    p.trap(18, 28, 32, 16, 28, 92, hair);
+    p.trap(52, 62, 32, 52, 64, 92, hair);
+    p.discShade(30, 24, 8, 5, hair, (x, y) => y <= 32);
+    p.discShade(22, 42, 6, 8, hair);
+    p.discShade(58, 42, 6, 8, hair);
     return;
   }
   if (s.hair === "pigtails") {
-    hairCap(p, hair, 1, 15);
-    p.discShade(8, 16, 5.5, 5, hair);
-    p.discShade(40, 16, 5.5, 5, hair);
-    p.discShade(7, 24, 5, 6, hair);
-    p.discShade(41, 24, 5, 6, hair);
+    hairCap(p, hair, 2, 31);
+    p.discShade(14, 28, 8, 7, hair);
+    p.discShade(66, 28, 8, 7, hair);
+    p.discShade(12, 40, 8, 9, hair);
+    p.discShade(68, 40, 8, 9, hair);
     const band = mix(hair, 48);
-    p.rect(6, 19, 5, 2, band);
-    p.rect(37, 19, 5, 2, band);
-    p.discShade(18, 13, 5, 3, hair, (x, y) => y <= 16);
+    p.rect(10, 34, 8, 3, band);
+    p.rect(62, 34, 8, 3, band);
+    p.discShade(32, 24, 8, 5, hair, (x, y) => y <= 32);
     return;
   }
-  hairCap(p, hair, 1, hem);
+  hairCap(p, hair, 2, hem);
 }
 
 function punchFace(p: Pix, skin: string, back: boolean) {
@@ -362,94 +365,102 @@ function drawBottom(p: Pix, s: Style, bot: string, walk: 0 | 1) {
   const wob = walk ? 1 : 0;
   const belt = mix(bot, -28);
   if (s.bot === "skirt") {
-    p.trap(17, 31, 46, 11, 37, 58, bot);
-    p.discShade(CX, 57, 12, 3, bot);
-    p.rect(17, 46, 14, 2, belt);
-    p.rect(19, 49, 1, 8, mix(bot, -22));
-    p.rect(23, 49, 1, 8, mix(bot, 18));
-    p.rect(27, 49, 1, 8, mix(bot, -18));
-    p.rect(31, 49, 1, 7, mix(bot, 12));
+    p.trap(28, 52, 86, 20, 60, 104, bot);
+    p.rect(28, 86, 24, 3, belt);
+    p.rect(32, 90, 2, 12, mix(bot, -20));
+    p.rect(40, 90, 2, 12, mix(bot, 16));
+    p.rect(48, 90, 2, 12, mix(bot, -16));
     return;
   }
   if (s.bot === "shorts") {
     if (s.girl) {
-      p.trap(17, 31, 46, 13, 35, 55, bot);
-      p.rect(17, 46, 14, 2, belt);
-      p.rect(21, 48, 1, 6, mix(bot, -18));
-      p.rect(26, 48, 1, 6, mix(bot, 14));
+      p.trap(28, 52, 86, 24, 56, 100, bot);
+      p.rect(28, 86, 24, 3, belt);
       return;
     }
-    p.capsule(15 + wob, 46, 7, 10, bot);
-    p.capsule(26 - wob, 46, 7, 10, bot);
-    p.rect(16, 46, 16, 2, belt);
+    p.capsule(28 + wob, 86, 10, 16, bot);
+    p.capsule(42 - wob, 86, 10, 16, bot);
+    p.rect(28, 86, 24, 3, belt);
     return;
   }
-  p.capsule(15 + wob, 46, 7, 16, bot);
-  p.capsule(26 - wob, 46, 7, 16, bot);
-  p.rect(16, 46, 16, 2, belt);
+  p.capsule(28 + wob, 86, 10, 28, bot);
+  p.capsule(42 - wob, 86, 10, 28, bot);
+  p.rect(28, 86, 24, 3, belt);
+}
+
+function drawSocks(p: Pix, s: Style, walk: 0 | 1) {
+  if (!s.girl) return;
+  if (s.bot !== "skirt" && s.bot !== "shorts") return;
+  if (s.shoe === "flats") return;
+  const wob = walk ? 1 : 0;
+  const sock = "#f4f4f6";
+  p.capsule(31 + wob, 102, 7, 14, sock);
+  p.capsule(42 - wob, 102, 7, 14, sock);
 }
 
 function drawShoes(p: Pix, s: Style, shoe: string, walk: 0 | 1) {
   const wob = walk ? 1 : 0;
   const white = rgb("#f4f4f6");
-  const soleCol = mix("#c8c4cc", -20);
-  const lx = 16 + wob;
-  const rx = 32 - wob;
+  const soleCol: [number, number, number] = [236, 232, 236];
+  const lx = 28 + wob;
+  const rx = 52 - wob;
   if (s.shoe === "flats") {
-    p.discShade(lx, 64, 5.8, 3.4, shoe);
-    p.discShade(rx, 64, 5.8, 3.4, shoe);
-    p.rect(lx - 5, 65, 11, 2, mix(shoe, -40));
-    p.rect(rx - 5, 65, 11, 2, mix(shoe, -40));
-    p.rect(lx - 3, 62, 7, 1, mix(shoe, 28));
-    p.rect(rx - 3, 62, 7, 1, mix(shoe, 28));
-    p.disc(lx + 3, 63, 1.4, 1.4, mix(shoe, 40));
-    p.disc(rx + 3, 63, 1.4, 1.4, mix(shoe, 40));
+    p.discShade(lx, 118, 8, 5, shoe);
+    p.discShade(rx, 118, 8, 5, shoe);
+    p.rect(lx - 7, 120, 15, 3, mix(shoe, -40));
+    p.rect(rx - 7, 120, 15, 3, mix(shoe, -40));
+    p.rect(lx - 4, 115, 10, 2, mix(shoe, 28));
+    p.rect(rx - 4, 115, 10, 2, mix(shoe, 28));
+    p.disc(lx + 4, 117, 2, 2, mix(shoe, 40));
+    p.disc(rx + 4, 117, 2, 2, mix(shoe, 40));
     return;
   }
-  p.discShade(lx, 63, 5.8, 3.8, shoe);
-  p.discShade(rx, 63, 5.8, 3.8, shoe);
-  p.block(lx - 5, 61, 10, 5, shoe);
-  p.block(rx - 5, 61, 10, 5, shoe);
-  p.rect(lx - 6, 65, 12, 3, soleCol);
-  p.rect(rx - 6, 65, 12, 3, soleCol);
+  p.discShade(lx, 116, 8, 6, shoe);
+  p.discShade(rx, 116, 8, 6, shoe);
+  p.block(lx - 6, 112, 13, 9, shoe);
+  p.block(rx - 6, 112, 13, 9, shoe);
+  p.rect(lx - 8, 121, 16, 4, soleCol);
+  p.rect(rx - 8, 121, 16, 4, soleCol);
   const cap = shoe.toLowerCase() === "#f4f4f6" ? mix(shoe, -50) : white;
-  p.rect(lx - 5, 63, 4, 3, cap);
-  p.rect(rx + 1, 63, 4, 3, cap);
-  p.rect(lx - 1, 61, 3, 1, white);
-  p.rect(rx - 1, 61, 3, 1, white);
-  p.set(lx, 62, white);
-  p.set(rx, 62, white);
+  p.rect(lx - 6, 117, 5, 4, cap);
+  p.rect(rx + 1, 117, 5, 4, cap);
+  p.rect(lx - 1, 113, 4, 2, white);
+  p.rect(rx - 1, 113, 4, 2, white);
 }
 
 function drawTop(p: Pix, s: Style, top: string, skin: string) {
+  const stringCol = mix(top, 70);
   if (s.top === "hoodie") {
-    if (s.girl) p.trap(15, 33, 33, 17, 31, 48, top);
-    else p.trap(14, 34, 33, 16, 32, 48, top);
-    p.discShade(CX, 47, 8, 3, top);
-    p.capsule(9, 34, 6, 16, top);
-    p.capsule(33, 34, 6, 16, top);
-    p.block(9, 47, 6, 3, hexMix(top, -18));
-    p.block(33, 47, 6, 3, hexMix(top, -18));
-    p.trap(18, 30, 40, 19, 29, 47, hexMix(top, -14));
-    p.discShade(CX, 33, 7, 4, top);
-    p.rect(21, 34, 1, 5, mix(top, 44));
-    p.rect(26, 34, 1, 5, mix(top, 44));
-    p.discShade(CX, 32, 3.2, 2.4, skin, (x, y) => y >= 30 && y <= 34);
+    if (s.girl) p.trap(24, 56, 56, 26, 54, 92, top);
+    else p.trap(22, 58, 56, 24, 56, 92, top);
+    p.block(24, 70, 32, 22, top);
+    p.discShade(CX, 90, 15, 5, top);
+    p.capsule(16, 58, 10, 30, top);
+    p.capsule(54, 58, 10, 30, top);
+    p.block(16, 84, 10, 5, hexMix(top, -20));
+    p.block(54, 84, 10, 5, hexMix(top, -20));
+    p.trap(31, 49, 76, 33, 47, 90, hexMix(top, -10));
+    p.discShade(CX, 58, 7, 5, top);
+    p.trap(38, 42, 56, 39, 41, 64, skin);
+    p.rect(37, 60, 1, 12, stringCol);
+    p.rect(42, 60, 1, 12, stringCol);
+    p.rect(36, 72, 3, 2, stringCol);
+    p.rect(41, 72, 3, 2, stringCol);
     return;
   }
-  if (s.girl) p.trap(16, 32, 34, 18, 30, 48, top);
-  else p.trap(15, 33, 34, 17, 31, 48, top);
-  p.discShade(CX, 47, 7, 2.5, top);
-  p.capsule(10, 34, 6, 9, top);
-  p.capsule(32, 34, 6, 9, top);
-  p.block(10, 41, 6, 2, hexMix(top, -16));
-  p.block(32, 41, 6, 2, hexMix(top, -16));
-  p.discShade(CX, 34, 4, 3, skin, (x, y) => y >= 32 && y <= 37);
+  if (s.girl) p.trap(26, 54, 58, 28, 52, 90, top);
+  else p.trap(24, 56, 58, 26, 54, 90, top);
+  p.discShade(CX, 88, 12, 4, top);
+  p.capsule(17, 58, 10, 16, top);
+  p.capsule(53, 58, 10, 16, top);
+  p.block(17, 72, 10, 3, hexMix(top, -16));
+  p.block(53, 72, 10, 3, hexMix(top, -16));
+  p.discShade(CX, 60, 6, 5, skin, (x, y) => y >= 56 && y <= 66);
 }
 
 function drawHands(p: Pix, skin: string) {
-  p.discShade(11, 51, 3.4, 3.3, skin);
-  p.discShade(37, 51, 3.4, 3.3, skin);
+  p.discShade(20, 90, 5.2, 5, skin);
+  p.discShade(60, 90, 5.2, 5, skin);
 }
 
 export function paintLook(fig: Figure, opts: LookOpts = {}): Pix {
@@ -460,18 +471,18 @@ export function paintLook(fig: Figure, opts: LookOpts = {}): Pix {
   const walk = (opts.walk ?? 0) as 0 | 1;
   const p = new Pix(LOOK_W, LOOK_H);
 
-  drawHoodBack(p, pal.top, s.top === "hoodie");
   drawHairBack(p, { ...s, girl: s.girl }, pal.hair, back);
   drawHead(p, pal.skin, s.girl);
   drawTorso(p, pal.skin, s.girl, walk);
   drawBottom(p, s, pal.bot, walk);
+  drawSocks(p, s, walk);
   drawShoes(p, s, pal.shoe, walk);
   drawTop(p, s, pal.top, pal.skin);
   drawHands(p, pal.skin);
   drawHairFront(p, s, pal.hair, back);
   punchFace(p, pal.skin, back);
   drawFace(p, s.girl, back);
-  p.outline([18, 12, 22]);
+  p.outline([16, 10, 18]);
   return p;
 }
 

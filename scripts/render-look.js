@@ -61,7 +61,7 @@ function savePix(name, p, scale = 4) {
 }
 
 function fig(patch) {
-  return clampFigure({ gender: 0, skin: 2, hair: 0, hairColor: 0, top: 0, bottom: 0, shoes: 0, topCut: 0, botCut: 0, shoeCut: 0, acc: 0, ...patch });
+  return clampFigure({ gender: 0, skin: 1, hair: 0, hairColor: 0, top: 0, bottom: 0, shoes: 0, topCut: 0, botCut: 0, shoeCut: 0, acc: 0, ...patch });
 }
 
 function sheet(name, figs, cols = 5, bg = [92, 107, 120]) {
@@ -109,8 +109,8 @@ const looks = [
 ];
 sheet("heroes", looks, 6);
 
-savePix("boy-default", paintLook(fig({})), 6);
-savePix("girl-default", paintLook(fig({ gender: 1, hair: 0, topCut: 0, botCut: 0, hairColor: 5, top: 0, bottom: 1 })), 6);
+savePix("boy-default", paintLook(fig({})), 4);
+savePix("girl-default", paintLook(fig({ gender: 1, hair: 0, topCut: 0, botCut: 0, hairColor: 0, top: 0, bottom: 0, shoes: 0 })), 4);
 
 function hashPix(p) {
   let h = 0;
@@ -134,10 +134,10 @@ for (const gender of [0, 1]) {
         for (let shoeCut = 0; shoeCut < shoes; shoeCut++) {
           for (const skin of [0, 4, 7]) {
             const p = paintLook(fig({ gender, hair, topCut, botCut, shoeCut, skin, top: 1, bottom: 2, shoes: 3, hairColor: 2 }));
-            if (p.w !== 48 || p.h !== 72) throw new Error("size");
+            if (p.w !== 80 || p.h !== 128) throw new Error("size");
             let opaque = 0;
             for (let i = 3; i < p.d.length; i += 4) if (p.d[i] > 8) opaque++;
-            if (opaque < 400) throw new Error("empty sprite " + [gender, hair, topCut, botCut, shoeCut, skin].join(","));
+            if (opaque < 800) throw new Error("empty sprite " + [gender, hair, topCut, botCut, shoeCut, skin].join(","));
             seen.add(hashPix(p));
             combos++;
           }
