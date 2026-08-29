@@ -211,23 +211,18 @@ export function pixFromRgba(w: number, h: number, data: ArrayLike<number>) {
   return p;
 }
 
-function isOutline(r: number, g: number, b: number) {
-  return r + g + b < 70;
+function isInk(r: number, g: number, b: number) {
+  return r + g + b < 18;
 }
 
 function isSkinPx(r: number, g: number, b: number) {
-  if (r < 90) return false;
+  if (r < 165) return false;
   const rg = r - g;
   const rb = r - b;
-  if (rg < -10 || rg > 100) return false;
-  if (rb < 10 || rb > 145) return false;
-  if (g < 40 || b < 20) return false;
-  if (b > g + 8 && r > 200) return false;
+  if (rg < 18 || rg > 90) return false;
+  if (rb < 70 || rb > 140) return false;
+  if (b > g + 5) return false;
   return true;
-}
-
-function isWhite(r: number, g: number, b: number) {
-  return r > 228 && g > 228 && b > 220;
 }
 
 function isGreyClothes(r: number, g: number, b: number) {
@@ -236,9 +231,21 @@ function isGreyClothes(r: number, g: number, b: number) {
   return mx - mn < 26 && mx > 70 && mx < 215;
 }
 
+function inEyes(x: number, y: number) {
+  return y >= 48 && y <= 80 && x >= 24 && x <= 72;
+}
+
+function isEyePx(r: number, g: number, b: number, x: number, y: number) {
+  if (!inEyes(x, y)) return false;
+  if (r > 200 && g > 200 && b > 195) return true;
+  if (r + g + b < 90) return true;
+  return false;
+}
+
 function canHair(r: number, g: number, b: number, x: number, y: number, w: number) {
+  if (isEyePx(r, g, b, x, y)) return false;
   if (isSkinPx(r, g, b)) return false;
-  if (isWhite(r, g, b)) return false;
+  if (r > 228 && g > 228 && b > 220) return false;
   if (isGreyClothes(r, g, b)) return false;
   if (r > 210 && g > 180 && b < 120) return false;
   if (y > HAIR_BODY_Y) {
@@ -317,32 +324,41 @@ function stampHair(dst: Pix, src: Pix, mask: Uint8Array) {
   }
 }
 
-function tintPixels(
-  p: Pix,
-  hex: string,
-  keep: (x: number, y: number, r: number, g: number, b: number) => boolean,
-  refLum?: number
-) {
+function isSilhouette(p: Pix, x: number, y: number) {
+  return p.a(x - 1, y) < 16 || p.a(x + 1, y) < 16 || p.a(x, y - 1) < 16 || p.a(x, y + 1) < 16;
+}
+
+function tintPixels(p: Pix, hex: string, keep: (x: number, y: number) => boolean, contrast = 0.34) {
   const t = rgb(hex);
-  const tl = refLum != null ? refLum : t[0] * 0.32 + t[1] * 0.5 + t[2] * 0.18;
-  const den = tl || 1;
+  const hits: number[] = [];
+  let minL = 255;
+  let maxL = 0;
   for (let y = 0; y < p.h; y++) {
     for (let x = 0; x < p.w; x++) {
       if (p.a(x, y) < 16) continue;
+      if (!keep(x, y)) continue;
       const i = (y * p.w + x) * 4;
       const r = p.d[i],
         g = p.d[i + 1],
         b = p.d[i + 2];
-      if (isOutline(r, g, b) || isWhite(r, g, b)) continue;
-      if (!keep(x, y, r, g, b)) continue;
+      if (isInk(r, g, b) && isSilhouette(p, x, y)) continue;
       const lum = r * 0.32 + g * 0.5 + b * 0.18;
-      const s = lum / den;
-      p.set(x, y, [
-        Math.max(0, Math.min(255, Math.round(t[0] * s))),
-        Math.max(0, Math.min(255, Math.round(t[1] * s))),
-        Math.max(0, Math.min(255, Math.round(t[2] * s))),
-      ]);
+      if (lum < minL) minL = lum;
+      if (lum > maxL) maxL = lum;
+      hits.push(x, y, lum);
     }
+  }
+  if (hits.length < 12) return;
+  const span = maxL - minL;
+  const lo = 1 - contrast * 0.5;
+  for (let h = 0; h < hits.length; h += 3) {
+    const u = span < 8 ? 0.55 : (hits[h + 2] - minL) / span;
+    const s = lo + contrast * u;
+    p.set(hits[h], hits[h + 1], [
+      Math.max(0, Math.min(255, Math.round(t[0] * s))),
+      Math.max(0, Math.min(255, Math.round(t[1] * s))),
+      Math.max(0, Math.min(255, Math.round(t[2] * s))),
+    ]);
   }
 }
 
@@ -376,14 +392,21 @@ function paintChibi(f: Figure): Pix {
   stampHair(p, hair, mask);
   const skins = skinMask(p);
   const pal = palOf(f);
-  tintPixels(p, pal.skin, (x, y) => !!skins[y * p.w + x], 200);
-  tintPixels(p, pal.hair, (x, y) => !!mask[y * hair.w + x] && !skins[y * p.w + x]);
+  tintPixels(p, pal.skin, (x, y) => !!skins[y * p.w + x], 0.42);
+  tintPixels(p, pal.hair, (x, y) => !!mask[y * hair.w + x] && !skins[y * p.w + x], 0.52);
   tintPixels(
     p,
     pal.top,
-    (x, y) => y >= 82 && y < BOT_Y && !skins[y * p.w + x] && !mask[y * hair.w + x]
+    (x, y) =>
+      y >= 68 && y < BOT_Y && !inEyes(x, y) && !skins[y * p.w + x] && !mask[y * hair.w + x],
+    0.32
   );
-  tintPixels(p, pal.bot, (x, y) => y >= BOT_Y && y < shoeTop && !skins[y * p.w + x]);
+  tintPixels(p, pal.bot, (x, y) => {
+    if (y < BOT_Y || y >= shoeTop || skins[y * p.w + x]) return false;
+    const i = (y * p.w + x) * 4;
+    if (y > 142 && p.d[i] > 200 && p.d[i + 1] > 200 && p.d[i + 2] > 200) return false;
+    return true;
+  });
   tintPixels(p, pal.shoe, (x, y) => y >= shoeTop && !skins[y * p.w + x]);
   return p;
 }
