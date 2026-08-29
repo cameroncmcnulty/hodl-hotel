@@ -10,14 +10,14 @@ export const HAIR_BOY_C = ["#8b5a2b", "#5c3317", "#1b1b1b", "#e8d07a", "#c45c26"
 export const HAIR_GIRL_C = ["#8b5a2b", "#1a1a1a", "#111111", "#e8d07a", "#c45c26", "#ff8fab"];
 export const HAIR_C = HAIR_BOY_C;
 
-export const HAIR_BOY = ["messy", "side", "afro", "undercut", "spikes"];
-export const HAIR_GIRL = ["pony", "waves", "bob", "long", "pigtails"];
-export const TOP_BOY = ["hoodie", "tee"];
-export const TOP_GIRL = ["hoodie", "tee"];
-export const BOT_BOY = ["pants", "shorts"];
-export const BOT_GIRL = ["skirt", "pants", "shorts"];
-export const SHOE_BOY = ["sneakers"];
-export const SHOE_GIRL = ["sneakers", "flats"];
+export const HAIR_BOY = ["messy", "side", "afro", "undercut", "spikes", "mohawk"];
+export const HAIR_GIRL = ["pony", "waves", "bob", "long", "pigtails", "bun"];
+export const TOP_BOY = ["hoodie", "tee", "jacket", "tank", "sweater"];
+export const TOP_GIRL = ["hoodie", "tee", "jacket", "tank", "sweater"];
+export const BOT_BOY = ["pants", "shorts", "jeans", "cargo", "joggers"];
+export const BOT_GIRL = ["skirt", "pants", "shorts", "jeans", "pleat"];
+export const SHOE_BOY = ["sneakers", "hightops", "boots", "skate", "slides"];
+export const SHOE_GIRL = ["sneakers", "hightops", "boots", "skate", "flats"];
 export const HAIR_STYLES = HAIR_BOY;
 export const TOP_CUTS = TOP_BOY;
 export const BOT_CUTS = BOT_GIRL;
@@ -30,19 +30,37 @@ export const HAIR_COLOR_N = 6;
 const TOP_PAL: Record<string, string[]> = {
   "0-hoodie": ["#9a9a9a", "#1e3a8a", "#1a1a1e", "#c41e3a", "#166534"],
   "0-tee": ["#e8b931", "#c41e3a", "#f4f4f6", "#3b82f6", "#1a1a1e"],
+  "0-jacket": ["#1a1a1e", "#6d4c2f", "#c41e3a", "#1e3a5f", "#6b7280"],
+  "0-tank": ["#1a1a1e", "#f4f4f6", "#c41e3a", "#6b7280", "#1e3a8a"],
+  "0-sweater": ["#c4a574", "#1e3a5f", "#7f1d1d", "#6b7280", "#166534"],
   "1-hoodie": ["#ff8fab", "#7c3aed", "#f4f4f6", "#9a9a9a", "#3b82f6"],
   "1-tee": ["#ff8fab", "#f4f4f6", "#e8b931", "#c41e3a", "#1a1a1e"],
+  "1-jacket": ["#1a1a1e", "#ff8fab", "#7c3aed", "#f4f4f6", "#c41e3a"],
+  "1-tank": ["#1a1a1e", "#ff8fab", "#f4f4f6", "#7c3aed", "#c41e3a"],
+  "1-sweater": ["#ff8fab", "#f3e0c8", "#c4b5fd", "#9a9a9a", "#c41e3a"],
 };
 const BOT_PAL: Record<string, string[]> = {
   "0-pants": ["#1a1a1e", "#1e3a5f", "#6d4c2f", "#9a9a9a", "#c4a574"],
   "0-shorts": ["#9a9a9a", "#1e3a5f", "#1a1a1e", "#c41e3a", "#166534"],
+  "0-jeans": ["#2563eb", "#1e3a5f", "#1a1a1e", "#6b7280", "#93c5fd"],
+  "0-cargo": ["#c4a574", "#3f4f2f", "#1a1a1e", "#6d4c2f", "#9a9a9a"],
+  "0-joggers": ["#1a1a1e", "#6b7280", "#1e3a5f", "#c41e3a", "#3f4f2f"],
   "1-skirt": ["#1e3a8a", "#ff8fab", "#1a1a1e", "#9a9a9a", "#c41e3a"],
   "1-pants": ["#1a1a1e", "#1e3a5f", "#3b82f6", "#9a9a9a", "#6d4c2f"],
   "1-shorts": ["#ff8fab", "#1a1a1e", "#f4f4f6", "#1e3a8a", "#9a9a9a"],
+  "1-jeans": ["#3b82f6", "#1a1a1e", "#6b7280", "#93c5fd", "#1e3a5f"],
+  "1-pleat": ["#1a1a1e", "#ff8fab", "#f4f4f6", "#1e3a8a", "#c41e3a"],
 };
 const SHOE_PAL: Record<string, string[]> = {
   "0-sneakers": ["#c41e3a", "#f4f4f6", "#1a1a1e", "#3b82f6", "#9a9a9a"],
+  "0-hightops": ["#1a1a1e", "#c41e3a", "#f4f4f6", "#7c3aed", "#6b7280"],
+  "0-boots": ["#1a1a1e", "#6d4c2f", "#c41e3a", "#6b7280", "#f4f4f6"],
+  "0-skate": ["#1a1a1e", "#f4f4f6", "#c41e3a", "#3b82f6", "#6b7280"],
+  "0-slides": ["#1a1a1e", "#f4f4f6", "#c41e3a", "#3b82f6", "#6b7280"],
   "1-sneakers": ["#c41e3a", "#f4f4f6", "#1a1a1e", "#ff8fab", "#3b82f6"],
+  "1-hightops": ["#1a1a1e", "#ff8fab", "#f4f4f6", "#7c3aed", "#c41e3a"],
+  "1-boots": ["#1a1a1e", "#6d4c2f", "#c41e3a", "#ff8fab", "#f4f4f6"],
+  "1-skate": ["#1a1a1e", "#f4f4f6", "#ff8fab", "#3b82f6", "#c41e3a"],
   "1-flats": ["#ff8fab", "#c41e3a", "#f4f4f6", "#1a1a1e", "#7c3aed"],
 };
 
@@ -160,11 +178,12 @@ function inHead(x: number, y: number, pad = 0) {
 }
 
 function drawHead(p: Pix, skin: string, girl: boolean) {
-  p.discShade(HEAD.cx, HEAD.cy, HEAD.rx, HEAD.ry, skin);
-  p.discShade(HEAD.cx, HEAD.cy + 3, HEAD.rx - 2, HEAD.ry - 3, skin);
-  p.discShade(21, 38, 4.2, 5.5, skin);
-  p.discShade(59, 38, 4.2, 5.5, skin);
-  p.block(36, 52, 8, 7, skin);
+  p.block(24, 22, 32, 26, skin);
+  p.discShade(HEAD.cx, HEAD.cy - 2, 16, 14, skin);
+  p.discShade(HEAD.cx, HEAD.cy + 6, 17, 16, skin);
+  p.discShade(22, 38, 4, 5, skin);
+  p.discShade(58, 38, 4, 5, skin);
+  p.block(36, 50, 8, 6, skin);
   if (girl) {
     p.disc(30, 44, 2.2, 1.6, mix("#e89aa8", 12));
     p.disc(50, 44, 2.2, 1.6, mix("#e89aa8", 12));
@@ -245,6 +264,8 @@ function drawHairBack(p: Pix, s: Style, hair: string, back: boolean) {
       p.discShade(60, 72, 7, 8, hair);
     }
   }
+  if (s.hair === "mohawk") p.block(36, 10, 8, 22, hair);
+  if (s.hair === "bun") p.discShade(CX, 14, 9, 8, hair);
   if (back) p.discShade(CX, 40, 14, 14, hair);
 }
 
@@ -353,6 +374,23 @@ function drawHairFront(p: Pix, s: Style, hair: string, back: boolean) {
     p.discShade(32, 24, 8, 5, hair, (x, y) => y <= 32);
     return;
   }
+  if (s.hair === "mohawk") {
+    p.block(36, 8, 8, 22, hair);
+    p.spike(40, 2, 18, 4.5, hair);
+    p.spike(36, 6, 18, 3.2, hair);
+    p.spike(44, 6, 18, 3.2, hair);
+    p.discShade(40, 22, 6, 6, hair, (x, y) => y <= 28);
+    return;
+  }
+  if (s.hair === "bun") {
+    hairCap(p, hair, 1, 30);
+    p.discShade(CX, 12, 9, 8, hair);
+    p.discShade(CX, 10, 6, 5, hexMix(hair, 16));
+    p.rect(36, 18, 8, 3, mix(hair, 36));
+    p.discShade(32, 26, 7, 5, hair, (x, y) => y <= 32);
+    p.discShade(48, 26, 7, 5, hair, (x, y) => y <= 32);
+    return;
+  }
   hairCap(p, hair, 2, hem);
 }
 
@@ -361,15 +399,27 @@ function punchFace(p: Pix, skin: string, back: boolean) {
   p.discShade(HEAD.cx, HEAD.cy, HEAD.rx, HEAD.ry, skin, (x, y) => y >= FACE_Y && inHead(x, y, 0));
 }
 
+function drawLegs(p: Pix, bot: string, walk: 0 | 1, len: number, w = 10) {
+  const wob = walk ? 1 : 0;
+  p.block(28 + wob, 86, w, len, bot);
+  p.block(42 - wob, 86, w, len, bot);
+  p.discShade(28 + wob + w / 2, 86 + len, w / 2, 3, bot);
+  p.discShade(42 - wob + w / 2, 86 + len, w / 2, 3, bot);
+}
+
 function drawBottom(p: Pix, s: Style, bot: string, walk: 0 | 1) {
   const wob = walk ? 1 : 0;
-  const belt = mix(bot, -28);
-  if (s.bot === "skirt") {
-    p.trap(28, 52, 86, 20, 60, 104, bot);
+  const belt = mix(bot, -24);
+  if (s.bot === "skirt" || s.bot === "pleat") {
+    p.trap(28, 52, 86, 20, 60, s.bot === "pleat" ? 106 : 104, bot);
     p.rect(28, 86, 24, 3, belt);
-    p.rect(32, 90, 2, 12, mix(bot, -20));
-    p.rect(40, 90, 2, 12, mix(bot, 16));
-    p.rect(48, 90, 2, 12, mix(bot, -16));
+    p.rect(32, 90, 2, 12, mix(bot, -18));
+    p.rect(40, 90, 2, 12, mix(bot, 14));
+    p.rect(48, 90, 2, 12, mix(bot, -14));
+    if (s.bot === "pleat") {
+      p.rect(36, 90, 1, 14, mix(bot, 20));
+      p.rect(44, 90, 1, 14, mix(bot, -22));
+    }
     return;
   }
   if (s.bot === "shorts") {
@@ -378,84 +428,140 @@ function drawBottom(p: Pix, s: Style, bot: string, walk: 0 | 1) {
       p.rect(28, 86, 24, 3, belt);
       return;
     }
-    p.capsule(28 + wob, 86, 10, 16, bot);
-    p.capsule(42 - wob, 86, 10, 16, bot);
+    drawLegs(p, bot, walk, 16);
     p.rect(28, 86, 24, 3, belt);
     return;
   }
-  p.capsule(28 + wob, 86, 10, 28, bot);
-  p.capsule(42 - wob, 86, 10, 28, bot);
+  const len = s.bot === "joggers" ? 26 : 28;
+  drawLegs(p, bot, walk, len, s.bot === "cargo" ? 11 : 10);
   p.rect(28, 86, 24, 3, belt);
+  if (s.bot === "jeans") {
+    p.rect(31 + wob, 90, 1, 20, mix(bot, 28));
+    p.rect(45 - wob, 90, 1, 20, mix(bot, 28));
+  }
+  if (s.bot === "cargo") {
+    p.block(26 + wob, 96, 6, 8, hexMix(bot, -12));
+    p.block(48 - wob, 96, 6, 8, hexMix(bot, -12));
+  }
+  if (s.bot === "joggers") {
+    p.block(28 + wob, 110, 10, 4, hexMix(bot, -18));
+    p.block(42 - wob, 110, 10, 4, hexMix(bot, -18));
+  }
 }
 
 function drawSocks(p: Pix, s: Style, walk: 0 | 1) {
   if (!s.girl) return;
-  if (s.bot !== "skirt" && s.bot !== "shorts") return;
-  if (s.shoe === "flats") return;
+  if (s.bot !== "skirt" && s.bot !== "shorts" && s.bot !== "pleat") return;
+  if (s.shoe === "flats" || s.shoe === "slides") return;
   const wob = walk ? 1 : 0;
   const sock = "#f4f4f6";
-  p.capsule(31 + wob, 102, 7, 14, sock);
-  p.capsule(42 - wob, 102, 7, 14, sock);
+  p.block(31 + wob, 102, 7, 14, sock);
+  p.block(42 - wob, 102, 7, 14, sock);
+}
+
+function pairShoes(
+  p: Pix,
+  shoe: string,
+  walk: 0 | 1,
+  opts: { y: number; h: number; sole: number; toe: boolean; strap?: boolean; open?: boolean }
+) {
+  const wob = walk ? 1 : 0;
+  const white = rgb("#f4f4f6");
+  const soleCol: [number, number, number] = [232, 228, 232];
+  const lx = 28 + wob;
+  const rx = 52 - wob;
+  const y = opts.y;
+  if (opts.open) {
+    p.block(lx - 6, y + 4, 14, 5, shoe);
+    p.block(rx - 6, y + 4, 14, 5, shoe);
+    p.rect(lx - 7, y + 7, 16, opts.sole, soleCol);
+    p.rect(rx - 7, y + 7, 16, opts.sole, soleCol);
+    p.rect(lx - 2, y + 3, 8, 2, mix(shoe, 20));
+    p.rect(rx - 2, y + 3, 8, 2, mix(shoe, 20));
+    return;
+  }
+  p.block(lx - 6, y, 13, opts.h, shoe);
+  p.block(rx - 6, y, 13, opts.h, shoe);
+  p.discShade(lx, y + opts.h - 4, 7, 5, shoe);
+  p.discShade(rx, y + opts.h - 4, 7, 5, shoe);
+  p.rect(lx - 8, y + opts.h - 2, 16, opts.sole, soleCol);
+  p.rect(rx - 8, y + opts.h - 2, 16, opts.sole, soleCol);
+  if (opts.toe) {
+    const cap = shoe.toLowerCase() === "#f4f4f6" ? mix(shoe, -50) : white;
+    p.rect(lx - 6, y + opts.h - 6, 5, 4, cap);
+    p.rect(rx + 1, y + opts.h - 6, 5, 4, cap);
+    p.rect(lx - 1, y + 1, 4, 2, white);
+    p.rect(rx - 1, y + 1, 4, 2, white);
+  }
+  if (opts.strap) {
+    p.rect(lx - 4, y + 2, 10, 2, mix(shoe, 28));
+    p.rect(rx - 4, y + 2, 10, 2, mix(shoe, 28));
+    p.disc(lx + 4, y + 3, 1.6, 1.6, mix(shoe, 40));
+    p.disc(rx + 4, y + 3, 1.6, 1.6, mix(shoe, 40));
+  }
 }
 
 function drawShoes(p: Pix, s: Style, shoe: string, walk: 0 | 1) {
-  const wob = walk ? 1 : 0;
-  const white = rgb("#f4f4f6");
-  const soleCol: [number, number, number] = [236, 232, 236];
-  const lx = 28 + wob;
-  const rx = 52 - wob;
-  if (s.shoe === "flats") {
-    p.discShade(lx, 118, 8, 5, shoe);
-    p.discShade(rx, 118, 8, 5, shoe);
-    p.rect(lx - 7, 120, 15, 3, mix(shoe, -40));
-    p.rect(rx - 7, 120, 15, 3, mix(shoe, -40));
-    p.rect(lx - 4, 115, 10, 2, mix(shoe, 28));
-    p.rect(rx - 4, 115, 10, 2, mix(shoe, 28));
-    p.disc(lx + 4, 117, 2, 2, mix(shoe, 40));
-    p.disc(rx + 4, 117, 2, 2, mix(shoe, 40));
-    return;
-  }
-  p.discShade(lx, 116, 8, 6, shoe);
-  p.discShade(rx, 116, 8, 6, shoe);
-  p.block(lx - 6, 112, 13, 9, shoe);
-  p.block(rx - 6, 112, 13, 9, shoe);
-  p.rect(lx - 8, 121, 16, 4, soleCol);
-  p.rect(rx - 8, 121, 16, 4, soleCol);
-  const cap = shoe.toLowerCase() === "#f4f4f6" ? mix(shoe, -50) : white;
-  p.rect(lx - 6, 117, 5, 4, cap);
-  p.rect(rx + 1, 117, 5, 4, cap);
-  p.rect(lx - 1, 113, 4, 2, white);
-  p.rect(rx - 1, 113, 4, 2, white);
+  if (s.shoe === "flats") return pairShoes(p, shoe, walk, { y: 114, h: 8, sole: 3, toe: false, strap: true });
+  if (s.shoe === "slides") return pairShoes(p, shoe, walk, { y: 114, h: 8, sole: 3, toe: false, open: true });
+  if (s.shoe === "boots") return pairShoes(p, shoe, walk, { y: 106, h: 16, sole: 4, toe: false });
+  if (s.shoe === "hightops") return pairShoes(p, shoe, walk, { y: 108, h: 14, sole: 4, toe: true });
+  if (s.shoe === "skate") return pairShoes(p, shoe, walk, { y: 112, h: 12, sole: 5, toe: true });
+  pairShoes(p, shoe, walk, { y: 112, h: 10, sole: 4, toe: true });
+}
+
+function drawTorsoBox(p: Pix, s: Style, hex: string, y0 = 56, y1 = 92) {
+  if (s.girl) p.block(25, y0, 30, y1 - y0, hex);
+  else p.block(23, y0, 34, y1 - y0, hex);
 }
 
 function drawTop(p: Pix, s: Style, top: string, skin: string) {
   const stringCol = mix(top, 70);
   if (s.top === "hoodie") {
-    if (s.girl) p.trap(24, 56, 56, 26, 54, 92, top);
-    else p.trap(22, 58, 56, 24, 56, 92, top);
-    p.block(24, 70, 32, 22, top);
-    p.discShade(CX, 90, 15, 5, top);
-    p.capsule(16, 58, 10, 30, top);
-    p.capsule(54, 58, 10, 30, top);
-    p.block(16, 84, 10, 5, hexMix(top, -20));
-    p.block(54, 84, 10, 5, hexMix(top, -20));
-    p.trap(31, 49, 76, 33, 47, 90, hexMix(top, -10));
-    p.discShade(CX, 58, 7, 5, top);
-    p.trap(38, 42, 56, 39, 41, 64, skin);
-    p.rect(37, 60, 1, 12, stringCol);
-    p.rect(42, 60, 1, 12, stringCol);
-    p.rect(36, 72, 3, 2, stringCol);
-    p.rect(41, 72, 3, 2, stringCol);
+    drawTorsoBox(p, s, top, 56, 92);
+    p.block(16, 58, 10, 28, top);
+    p.block(54, 58, 10, 28, top);
+    p.block(16, 84, 10, 5, hexMix(top, -16));
+    p.block(54, 84, 10, 5, hexMix(top, -16));
+    p.block(31, 74, 18, 14, hexMix(top, -10));
+    p.trap(38, 42, 56, 39, 41, 62, skin);
+    p.rect(37, 58, 1, 10, stringCol);
+    p.rect(42, 58, 1, 10, stringCol);
+    p.rect(36, 67, 3, 2, stringCol);
+    p.rect(41, 67, 3, 2, stringCol);
     return;
   }
-  if (s.girl) p.trap(26, 54, 58, 28, 52, 90, top);
-  else p.trap(24, 56, 58, 26, 54, 90, top);
-  p.discShade(CX, 88, 12, 4, top);
-  p.capsule(17, 58, 10, 16, top);
-  p.capsule(53, 58, 10, 16, top);
-  p.block(17, 72, 10, 3, hexMix(top, -16));
-  p.block(53, 72, 10, 3, hexMix(top, -16));
-  p.discShade(CX, 60, 6, 5, skin, (x, y) => y >= 56 && y <= 66);
+  if (s.top === "jacket") {
+    p.block(28, 58, 24, 30, "#3a3a44");
+    p.block(16, 56, 14, 34, top);
+    p.block(50, 56, 14, 34, top);
+    p.trap(16, 30, 56, 16, 28, 66, hexMix(top, 18));
+    p.trap(50, 64, 56, 52, 64, 66, hexMix(top, 18));
+    p.block(16, 86, 14, 5, hexMix(top, -16));
+    p.block(50, 86, 14, 5, hexMix(top, -16));
+    return;
+  }
+  if (s.top === "tank") {
+    drawTorsoBox(p, s, top, 58, 92);
+    p.trap(36, 44, 56, 34, 46, 64, top);
+    p.block(36, 56, 8, 8, skin);
+    return;
+  }
+  if (s.top === "sweater") {
+    drawTorsoBox(p, s, top, 54, 92);
+    p.block(16, 58, 10, 30, top);
+    p.block(54, 58, 10, 30, top);
+    p.block(36, 52, 8, 6, top);
+    p.block(16, 84, 10, 5, hexMix(top, -14));
+    p.block(54, 84, 10, 5, hexMix(top, -14));
+    return;
+  }
+  drawTorsoBox(p, s, top, 58, 92);
+  p.block(16, 58, 11, 16, top);
+  p.block(53, 58, 11, 16, top);
+  p.block(16, 72, 11, 3, hexMix(top, -14));
+  p.block(53, 72, 11, 3, hexMix(top, -14));
+  p.discShade(CX, 58, 4, 3, skin, (x, y) => y >= 56 && y <= 62);
 }
 
 function drawHands(p: Pix, skin: string) {

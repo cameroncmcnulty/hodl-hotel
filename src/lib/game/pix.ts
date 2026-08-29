@@ -20,14 +20,13 @@ export function hexMix(hex: string, amt: number): string {
 }
 
 function tone(hex: string, x: number, y: number, x0: number, y0: number, w: number, h: number): [number, number, number] {
-  const lit = mix(hex, 30);
+  const lit = mix(hex, 22);
   const mid = rgb(hex);
-  const dim = mix(hex, -36);
-  const nx = w <= 1 ? 0.5 : (x - x0) / (w - 1);
-  const ny = h <= 1 ? 0.5 : (y - y0) / (h - 1);
-  const t = nx * 0.55 + ny * 0.45;
-  if (t < 0.28) return lit;
-  if (t > 0.72) return dim;
+  const dim = mix(hex, -26);
+  const i = x - x0;
+  const j = y - y0;
+  if (j === 0 || i <= 1) return lit;
+  if (j >= h - 1 || i >= w - 2) return dim;
   return mid;
 }
 

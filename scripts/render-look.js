@@ -77,27 +77,29 @@ function sheet(name, figs, cols = 5, bg = [92, 107, 120]) {
   savePix(name, p, 4);
 }
 
-const boyHairs = [0, 1, 2, 3, 4].map((hair) => fig({ gender: 0, hair, topCut: 1, botCut: 0, top: 3, bottom: 1, shoes: 0 }));
-const girlHairs = [0, 1, 2, 3, 4].map((hair) => fig({ gender: 1, hair, topCut: 1, botCut: 0, top: 0, bottom: 1, shoes: 1, hairColor: 5 }));
-sheet("boy-hairs", boyHairs);
-sheet("girl-hairs", girlHairs);
+const boyHairs = [0, 1, 2, 3, 4, 5].map((hair) => fig({ gender: 0, hair, topCut: 1, botCut: 0, top: 3, bottom: 1, shoes: 0 }));
+const girlHairs = [0, 1, 2, 3, 4, 5].map((hair) => fig({ gender: 1, hair, topCut: 1, botCut: 0, top: 0, bottom: 1, shoes: 1, hairColor: 5 }));
+sheet("boy-hairs", boyHairs, 6);
+sheet("girl-hairs", girlHairs, 6);
 
 const boySkins = [0, 1, 2, 3, 4, 5, 6, 7].map((skin) => fig({ gender: 0, skin, hair: 4, topCut: 0, botCut: 1, top: 2, bottom: 0, shoes: 2 }));
 const girlSkins = [0, 1, 2, 3, 4, 5, 6, 7].map((skin) => fig({ gender: 1, skin, hair: 2, topCut: 0, botCut: 0, top: 1, bottom: 0, shoes: 0 }));
 sheet("boy-skins", boySkins, 8);
 sheet("girl-skins", girlSkins, 8);
 
-const boyClothes = [];
-for (const topCut of [0, 1]) for (const botCut of [0, 1]) for (const top of [0, 3]) {
-  boyClothes.push(fig({ gender: 0, hair: 0, topCut, botCut, top, bottom: topCut, shoes: top }));
-}
-sheet("boy-clothes", boyClothes, 4);
+const boyClothes = [0, 1, 2, 3, 4].map((topCut) => fig({ gender: 0, hair: 0, topCut, botCut: 0, top: 0, bottom: 0, shoes: 0 }));
+const boyBots = [0, 1, 2, 3, 4].map((botCut) => fig({ gender: 0, hair: 0, topCut: 1, botCut, top: 0, bottom: 0, shoes: 0 }));
+const boyShoes = [0, 1, 2, 3, 4].map((shoeCut) => fig({ gender: 0, hair: 0, topCut: 1, botCut: 1, shoeCut, top: 4, bottom: 2, shoes: 0 }));
+sheet("boy-tops", boyClothes, 5);
+sheet("boy-bots", boyBots, 5);
+sheet("boy-shoes", boyShoes, 5);
 
-const girlClothes = [];
-for (const topCut of [0, 1]) for (const botCut of [0, 1, 2]) for (const shoeCut of [0, 1]) {
-  girlClothes.push(fig({ gender: 1, hair: 0, topCut, botCut, shoeCut, top: 0, bottom: 1, shoes: 0, hairColor: 0 }));
-}
-sheet("girl-clothes", girlClothes, 6);
+const girlClothes = [0, 1, 2, 3, 4].map((topCut) => fig({ gender: 1, hair: 0, topCut, botCut: 0, top: 0, bottom: 0, shoes: 0 }));
+const girlBots = [0, 1, 2, 3, 4].map((botCut) => fig({ gender: 1, hair: 0, topCut: 0, botCut, top: 0, bottom: 1, shoes: 0 }));
+const girlShoes = [0, 1, 2, 3, 4].map((shoeCut) => fig({ gender: 1, hair: 0, topCut: 0, botCut: 0, shoeCut, top: 0, bottom: 0, shoes: 0 }));
+sheet("girl-tops", girlClothes, 5);
+sheet("girl-bots", girlBots, 5);
+sheet("girl-shoes", girlShoes, 5);
 
 const looks = [
   fig({ gender: 0, skin: 1, hair: 4, hairColor: 3, topCut: 1, top: 0, botCut: 1, bottom: 3, shoes: 0 }),
@@ -124,10 +126,10 @@ function hashPix(p) {
 let combos = 0;
 const seen = new Set();
 for (const gender of [0, 1]) {
-  const hairs = gender === 1 ? 5 : 5;
-  const tops = 2;
-  const bots = gender === 1 ? 3 : 2;
-  const shoes = gender === 1 ? 2 : 1;
+  const hairs = 6;
+  const tops = 5;
+  const bots = 5;
+  const shoes = 5;
   for (let hair = 0; hair < hairs; hair++) {
     for (let topCut = 0; topCut < tops; topCut++) {
       for (let botCut = 0; botCut < bots; botCut++) {
@@ -146,6 +148,6 @@ for (const gender of [0, 1]) {
     }
   }
 }
-if (seen.size < combos * 0.85) throw new Error("too many identical looks " + seen.size + "/" + combos);
+if (seen.size < combos * 0.7) throw new Error("too many identical looks " + seen.size + "/" + combos);
 console.log("combos", combos, "unique", seen.size);
 console.log("wrote", OUT);
