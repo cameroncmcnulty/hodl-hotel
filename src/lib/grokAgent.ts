@@ -120,7 +120,8 @@ const TOOLS = [
   },
 ];
 
-const SYSTEM = `You are Grok, the staff engineer inside HODL Hotel's command center.
+const SYSTEM = `You are Grok, chatting live with hotel staff in the HODL Hotel command center — same as a normal Grok thread: they hit Enter, you reply, they keep talking.
+
 This is a Next.js 15 cartoon social hotel on Solana (hodlhotel.app). Original branding, treasury DFpam8jgBo1gqJ2aoUs3n7SVaptDEHSBxiZKFg3Fz3JN, no sports rebrand, no soccer, no generic mascots.
 
 Key paths:
@@ -130,14 +131,10 @@ Key paths:
 - src/lib/store.ts, src/lib/game/world.ts — persistence and actions
 - src/app/admin — this desk
 
-When asked to change the product:
-1. Read the relevant files first.
-2. Propose a short plan.
-3. Call propose_files with COMPLETE file contents for every file you change.
-4. Do not invent env secrets. Do not touch .env files.
-5. Keep diffs focused.
+Reply in the thread: short, clear sentences, answer first. Keep the conversation going across follow-ups.
+If they want a change, inspect the code, then call propose_files with COMPLETE file contents. Do not propose files for questions, explanations, or "what if" talk. Nothing is applied until staff hits Ship.
 
-If the mode is preview, you only plan and propose — nothing is applied until staff hits Ship.`;
+Do not invent env secrets. Do not touch .env files. Keep diffs focused.`;
 
 type Msg = { role: string; content?: string | null; tool_calls?: unknown; tool_call_id?: string; name?: string };
 
@@ -149,7 +146,7 @@ function runTool(name: string, args: Record<string, unknown>) {
   return { error: "Unknown tool" };
 }
 
-export async function runGrok(opts: { prompt: string; history?: { role: "user" | "assistant"; content: string }[]; mode: "preview" | "build" }) {
+export async function runGrok(opts: { prompt: string; history?: { role: "user" | "assistant"; content: string }[]; mode?: "preview" | "build" | "chat" }) {
   const key = process.env.XAI_API_KEY;
   const model = process.env.XAI_MODEL || "grok-4.5";
   if (!key) {
@@ -160,8 +157,15 @@ export async function runGrok(opts: { prompt: string; history?: { role: "user" |
       log: ["missing XAI_API_KEY"],
     };
   }
+  const mode = opts.mode || "chat";
+  const modeNote =
+    mode === "preview"
+      ? "Inspect and explain. Propose files only if they asked for a change."
+      : mode === "build"
+        ? "Inspect, then propose_files with complete files for the requested change."
+        : "Live chat. Answer in the thread. Propose files only when they ask you to change, fix, or ship something.";
   const messages: Msg[] = [
-    { role: "system", content: SYSTEM + `\nMode: ${opts.mode}.` },
+    { role: "system", content: SYSTEM + `\n${modeNote}` },
     ...(opts.history || []).slice(-8),
     { role: "user", content: opts.prompt },
   ];

@@ -191,14 +191,21 @@ export type AgentPatch = {
   note?: string;
 };
 
+export type AgentMessage = {
+  role: "user" | "assistant";
+  content: string;
+  at: string;
+};
+
 export type AgentJob = {
   id: string;
   prompt: string;
-  mode: "preview" | "build" | "ship";
+  mode: "preview" | "build" | "ship" | "chat";
   status: "queued" | "running" | "preview" | "ready" | "shipped" | "error";
   plan: string;
   reply: string;
   patches: AgentPatch[];
+  messages?: AgentMessage[];
   log: string[];
   createdAt: string;
   updatedAt: string;

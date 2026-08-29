@@ -11,14 +11,16 @@ import {
   Flag,
   LogOut,
   Megaphone,
+  Plus,
   Rocket,
+  Send,
   Settings,
   Shield,
   Sparkles,
   Users,
   Waypoints,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 const TABS = [
@@ -63,12 +65,23 @@ export function AdminCommand() {
   const [data, setData] = useState<Desk | null>(null);
   const [tab, setTab] = useState<(typeof TABS)[number]["id"]>("grok");
   const [err, setErr] = useState("");
-  const [prompt, setPrompt] = useState(STARTERS[0].prompt);
+  const [draft, setDraft] = useState("");
   const [job, setJob] = useState<AgentJob | null>(null);
   const [busy, setBusy] = useState("");
   const [file, setFile] = useState("");
   const [current, setCurrent] = useState("");
   const [agentErr, setAgentErr] = useState("");
+  const [showFiles, setShowFiles] = useState(true);
+  const [showChats, setShowChats] = useState(false);
+  const threadRef = useRef<HTMLDivElement>(null);
+  const boxRef = useRef<HTMLTextAreaElement>(null);
+
+  function growBox() {
+    const el = boxRef.current;
+    if (!el) return;
+    el.style.height = "0px";
+    el.style.height = `${Math.min(160, Math.max(44, el.scrollHeight))}px`;
+  }
 
   async function load() {
     const { res, j } = await api("/api/admin");
@@ -80,22 +93,59 @@ export function AdminCommand() {
   }
   useEffect(() => {
     load();
+    boxRef.current?.focus();
   }, []);
+
+  useEffect(() => {
+    threadRef.current?.scrollTo({ top: threadRef.current.scrollHeight, behavior: "smooth" });
+  }, [job?.messages, busy]);
+
+  useEffect(() => {
+    growBox();
+  }, [draft]);
 
   async function op(body: object) {
     await api("/api/admin", { method: "POST", body: JSON.stringify(body) });
     load();
   }
 
-  async function run(kind: "preview" | "build") {
-    setBusy(kind);
+  async function send(text?: string) {
+    const prompt = (text ?? draft).trim();
+    if (!prompt || busy) return;
+    setDraft("");
+    if (boxRef.current) boxRef.current.style.height = "44px";
+    setBusy("chat");
     setAgentErr("");
-    const { res, j } = await api("/api/admin/agent", { method: "POST", body: JSON.stringify({ op: kind, prompt }) });
+    const optimistic: AgentJob = job
+      ? { ...job, messages: [...(job.messages || []), { role: "user", content: prompt, at: new Date().toISOString() }], status: "running" }
+      : {
+          id: "pending",
+          prompt,
+          mode: "chat",
+          status: "running",
+          plan: "",
+          reply: "",
+          patches: [],
+          messages: [{ role: "user", content: prompt, at: new Date().toISOString() }],
+          log: [],
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+    setJob(optimistic);
+    const { res, j } = await api("/api/admin/agent", {
+      method: "POST",
+      body: JSON.stringify({ op: "chat", prompt, jobId: job && job.id !== "pending" ? job.id : undefined }),
+    });
     setBusy("");
-    if (!res.ok) return setAgentErr(j.error || "Grok failed");
+    if (!res.ok) {
+      setAgentErr(j.error || "Grok failed");
+      if (j.job) setJob(j.job);
+      return;
+    }
     setJob(j.job);
-    setFile(j.job?.patches?.[0]?.path || "");
+    if (j.job?.patches?.[0]?.path) setFile(j.job.patches[0].path);
     load();
+    boxRef.current?.focus();
   }
 
   async function ship() {
@@ -130,6 +180,14 @@ export function AdminCommand() {
   }, [file, job?.id]);
 
   const patch = useMemo(() => job?.patches.find((p) => p.path === file) || job?.patches[0], [job, file]);
+  const messages = useMemo(() => {
+    if (job?.messages?.length) return job.messages;
+    if (!job) return [];
+    return [
+      job.prompt ? { role: "user" as const, content: job.prompt, at: job.createdAt } : null,
+      job.reply ? { role: "assistant" as const, content: job.reply, at: job.updatedAt } : null,
+    ].filter((m): m is { role: "user" | "assistant"; content: string; at: string } => !!m);
+  }, [job]);
 
   async function logout() {
     await api("/api/auth/logout", { method: "POST" });
@@ -198,92 +256,181 @@ export function AdminCommand() {
         </header>
 
         {tab === "grok" && (
-          <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]">
-            <section className="panel flex min-h-[520px] flex-col p-4">
-              <div className="mb-3 flex items-center gap-2 text-sm font-semibold">
-                <Bot size={16} className="text-mint" /> Prompt
-              </div>
-              <div className="mb-3 flex flex-wrap gap-1">
-                {STARTERS.map((s) => (
-                  <button key={s.title} className="rounded-full bg-white/10 px-2.5 py-1 text-[11px] hover:bg-white/15" onClick={() => setPrompt(s.prompt)}>
-                    {s.title}
+          <div className="grid gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(280px,0.85fr)]">
+            <section className="panel flex h-[calc(100vh-8.5rem)] min-h-[480px] flex-col overflow-hidden">
+              <div className="relative flex items-center justify-between gap-2 border-b border-white/10 px-4 py-3">
+                <div className="flex items-center gap-2 text-sm font-semibold">
+                  <Bot size={16} className="text-mint" /> Grok
+                </div>
+                <div className="flex items-center gap-1">
+                  <button
+                    className="rounded-full bg-white/10 px-2.5 py-1 text-[11px] hover:bg-white/15 xl:hidden"
+                    onClick={() => setShowChats((v) => !v)}
+                  >
+                    Chats
                   </button>
-                ))}
-              </div>
-              <textarea
-                className="field min-h-[220px] flex-1 resize-y font-mono text-[13px] leading-relaxed"
-                value={prompt}
-                onChange={(e) => setPrompt(e.target.value)}
-                placeholder="Tell Grok what to inspect, fix, or build…"
-              />
-              {agentErr && <p className="mt-2 text-sm text-coral">{agentErr}</p>}
-              <div className="mt-3 flex flex-wrap gap-2">
-                <button className="btn-sol text-sm" disabled={!!busy} onClick={() => run("preview")}>
-                  {busy === "preview" ? "Planning…" : "Preview plan"}
-                </button>
-                <button className="btn-ink text-sm" disabled={!!busy} onClick={() => run("build")}>
-                  {busy === "build" ? "Building…" : "Build files"}
-                </button>
-                <button className="btn-ink text-sm" disabled={!job?.patches.length || !!busy} onClick={applyLocal}>
-                  Apply on this server
-                </button>
-                <button className="inline-flex items-center gap-1 rounded-xl bg-mint/20 px-4 py-2 text-sm font-semibold text-mint disabled:opacity-40" disabled={!job?.patches.length || !!busy} onClick={ship}>
-                  <Rocket size={14} /> {busy === "ship" ? "Shipping…" : "Ship to production"}
-                </button>
-              </div>
-              <p className="mt-3 text-[11px] leading-relaxed text-white/40">
-                Preview asks Grok to read the hotel and propose a plan. Build asks for full file patches. Ship commits those files to GitHub main (Vercel deploys from there).
-              </p>
-              {!!data.agentJobs?.length && (
-                <ul className="mt-4 max-h-40 space-y-1 overflow-auto text-xs">
-                  {data.agentJobs.map((j) => (
-                    <li key={j.id}>
-                      <button className={`w-full truncate rounded-lg px-2 py-1 text-left ${job?.id === j.id ? "bg-white/15" : "hover:bg-white/5"}`} onClick={() => { setJob(j); setFile(j.patches[0]?.path || ""); }}>
+                  <button
+                    className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2.5 py-1 text-[11px] hover:bg-white/15"
+                    onClick={() => {
+                      setJob(null);
+                      setFile("");
+                      setCurrent("");
+                      setAgentErr("");
+                      setShowChats(false);
+                      boxRef.current?.focus();
+                    }}
+                  >
+                    <Plus size={12} /> New chat
+                  </button>
+                </div>
+                {showChats && (
+                  <div className="absolute right-3 top-12 z-10 w-64 rounded-2xl border border-white/10 bg-ink p-2 shadow-xl xl:hidden">
+                    {(data.agentJobs || []).slice(0, 12).map((j) => (
+                      <button
+                        key={j.id}
+                        className="block w-full truncate rounded-lg px-2 py-1.5 text-left text-xs hover:bg-white/10"
+                        onClick={() => {
+                          setJob(j);
+                          setFile(j.patches[0]?.path || "");
+                          setShowChats(false);
+                        }}
+                      >
                         <span className="text-mint">{j.status}</span> · {j.prompt}
                       </button>
-                    </li>
-                  ))}
-                </ul>
+                    ))}
+                    {!data.agentJobs?.length && <p className="px-2 py-1 text-xs text-white/45">No chats yet.</p>}
+                  </div>
+                )}
+              </div>
+              <div ref={threadRef} className="min-h-0 flex-1 space-y-3 overflow-auto px-4 py-4">
+                {!messages.length && (
+                  <div className="mx-auto max-w-md pt-8 text-center">
+                    <p className="text-sm text-white/70">Type a message and hit Enter. Grok replies in this thread, and can inspect the hotel and propose files when you ask it to build or fix something.</p>
+                    <div className="mt-4 flex flex-wrap justify-center gap-1.5">
+                      {STARTERS.map((s) => (
+                        <button key={s.title} className="rounded-full bg-white/10 px-3 py-1.5 text-[12px] hover:bg-white/15" onClick={() => send(s.prompt)}>
+                          {s.title}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {messages.map((m, i) => (
+                  <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
+                    <div
+                      className={`max-w-[85%] whitespace-pre-wrap rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed ${
+                        m.role === "user" ? "bg-mint text-ink" : "bg-white/10 text-white/90"
+                      }`}
+                    >
+                      {m.content}
+                    </div>
+                  </div>
+                ))}
+                {busy === "chat" && (
+                  <div className="flex justify-start">
+                    <div className="rounded-2xl bg-white/10 px-3.5 py-2.5 text-sm text-white/50">Grok is thinking…</div>
+                  </div>
+                )}
+                {agentErr && <p className="text-sm text-coral">{agentErr}</p>}
+              </div>
+              {!!job?.patches.length && (
+                <div className="flex flex-wrap items-center gap-2 border-t border-white/10 px-4 py-2 text-xs">
+                  <span className="text-mint">{job.patches.length} file{job.patches.length === 1 ? "" : "s"} ready</span>
+                  <button className="rounded-full bg-white/10 px-2.5 py-1" onClick={() => setShowFiles((v) => !v)}>
+                    {showFiles ? "Hide preview" : "Show preview"}
+                  </button>
+                  <button className="rounded-full bg-white/10 px-2.5 py-1 disabled:opacity-40" disabled={!!busy} onClick={applyLocal}>
+                    Apply here
+                  </button>
+                  <button className="inline-flex items-center gap-1 rounded-full bg-mint/20 px-2.5 py-1 font-semibold text-mint disabled:opacity-40" disabled={!!busy} onClick={ship}>
+                    <Rocket size={12} /> {busy === "ship" ? "Shipping…" : "Ship"}
+                  </button>
+                  {job.shipSha && <span className="font-mono text-white/40">{job.shipSha.slice(0, 8)}</span>}
+                </div>
               )}
+              {!!job?.patches.length && showFiles && (
+                <div className="max-h-48 overflow-auto border-t border-white/10 p-3 xl:hidden">
+                  <p className="mb-2 text-[11px] uppercase tracking-wide text-white/40">Proposed files</p>
+                  <div className="mb-2 flex flex-wrap gap-1">
+                    {job.patches.map((p) => (
+                      <button key={p.path} className={`rounded-full px-2.5 py-1 text-[11px] ${file === p.path || patch?.path === p.path ? "bg-mint text-ink" : "bg-white/10"}`} onClick={() => setFile(p.path)}>
+                        {p.path.split("/").slice(-2).join("/")}
+                      </button>
+                    ))}
+                  </div>
+                  <pre className="max-h-28 overflow-auto rounded-xl bg-black/40 p-2 font-mono text-[11px] text-mint/90">{patch?.content || ""}</pre>
+                </div>
+              )}
+              <form
+                className="border-t border-white/10 p-3"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  send();
+                }}
+              >
+                <div className="flex items-end gap-2 rounded-2xl border border-white/15 bg-white/5 px-3 py-2">
+                  <textarea
+                    ref={boxRef}
+                    className="max-h-40 min-h-[44px] flex-1 resize-none bg-transparent text-sm outline-none placeholder:text-white/35"
+                    rows={1}
+                    value={draft}
+                    placeholder="Message Grok…"
+                    onChange={(e) => setDraft(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !e.shiftKey) {
+                        e.preventDefault();
+                        send();
+                      }
+                    }}
+                  />
+                  <button type="submit" className="rounded-xl bg-mint p-2 text-ink disabled:opacity-40" disabled={!draft.trim() || !!busy} aria-label="Send">
+                    <Send size={16} />
+                  </button>
+                </div>
+                <p className="mt-1.5 px-1 text-[11px] text-white/35">Enter to send · Shift+Enter for a new line</p>
+              </form>
             </section>
 
-            <section className="panel flex min-h-[520px] flex-col p-4">
-              <div className="mb-3 flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2 text-sm font-semibold">
-                  <Shield size={16} className="text-mint" /> Preview
-                </div>
-                {job?.shipSha && <span className="font-mono text-[11px] text-mint">{job.shipSha.slice(0, 8)} shipped</span>}
-              </div>
-              {!job && <p className="text-sm text-white/40">Run a preview to see Grok’s plan, files, and a before/after of the selected patch.</p>}
-              {job && (
-                <>
-                  <div className="mb-3 max-h-36 overflow-auto whitespace-pre-wrap rounded-xl bg-black/30 p-3 text-sm text-white/80">{job.reply || job.plan || "No write-up yet."}</div>
-                  {job.error && <p className="mb-2 text-sm text-coral">{job.error}</p>}
-                  {job.patches.length > 0 ? (
-                    <>
-                      <div className="mb-2 flex flex-wrap gap-1">
-                        {job.patches.map((p) => (
-                          <button key={p.path} className={`rounded-full px-2.5 py-1 text-[11px] ${file === p.path ? "bg-mint text-ink" : "bg-white/10"}`} onClick={() => setFile(p.path)}>
-                            {p.path}
-                          </button>
-                        ))}
-                      </div>
-                      <div className="grid min-h-0 flex-1 gap-2 lg:grid-cols-2">
-                        <pre className="max-h-[420px] overflow-auto rounded-xl bg-black/40 p-3 font-mono text-[11px] text-white/55">
-                          {current || "Current file (empty or new)"}
-                        </pre>
-                        <pre className="max-h-[420px] overflow-auto rounded-xl bg-black/40 p-3 font-mono text-[11px] text-mint/90">
-                          {patch?.content || "Proposed file"}
-                        </pre>
-                      </div>
-                    </>
-                  ) : (
-                    <p className="text-sm text-white/45">No file patches in this job — Grok answered in the plan only.</p>
-                  )}
-                  {!!job.log?.length && <p className="mt-2 font-mono text-[10px] text-white/35">{job.log.join(" · ")}</p>}
-                </>
+            <aside className="hidden min-h-[480px] flex-col xl:flex">
+              {showFiles && job?.patches.length ? (
+                <section className="panel flex min-h-0 flex-1 flex-col p-4">
+                  <div className="mb-3 flex items-center gap-2 text-sm font-semibold">
+                    <Shield size={16} className="text-mint" /> File preview
+                  </div>
+                  <div className="mb-2 flex flex-wrap gap-1">
+                    {job.patches.map((p) => (
+                      <button key={p.path} className={`rounded-full px-2.5 py-1 text-[11px] ${file === p.path || patch?.path === p.path ? "bg-mint text-ink" : "bg-white/10"}`} onClick={() => setFile(p.path)}>
+                        {p.path.split("/").slice(-2).join("/")}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="grid min-h-0 flex-1 gap-2">
+                    <pre className="max-h-[38%] overflow-auto rounded-xl bg-black/40 p-3 font-mono text-[11px] text-white/45">{current || "Current file"}</pre>
+                    <pre className="min-h-0 flex-1 overflow-auto rounded-xl bg-black/40 p-3 font-mono text-[11px] text-mint/90">{patch?.content || "Proposed file"}</pre>
+                  </div>
+                </section>
+              ) : (
+                <section className="panel flex-1 p-4 text-sm text-white/45">
+                  <p className="mb-3 font-semibold text-white/70">Recent chats</p>
+                  <ul className="space-y-1">
+                    {(data.agentJobs || []).map((j) => (
+                      <li key={j.id}>
+                        <button
+                          className={`w-full truncate rounded-lg px-2 py-1.5 text-left text-xs ${job?.id === j.id ? "bg-white/15" : "hover:bg-white/5"}`}
+                          onClick={() => {
+                            setJob(j);
+                            setFile(j.patches[0]?.path || "");
+                          }}
+                        >
+                          <span className="text-mint">{j.status}</span> · {j.prompt}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                  {!data.agentJobs?.length && <p>Chats will show up here.</p>}
+                </section>
               )}
-            </section>
+            </aside>
           </div>
         )}
 
