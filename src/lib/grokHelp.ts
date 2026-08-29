@@ -19,7 +19,25 @@ export function ensureSegments(job: AgentJob): AgentSegment[] {
       shipSha: job.shipSha,
     });
   }
+  if (!job.segments.length && job.prompt) {
+    job.segments.push({
+      id: `${job.id}-prompt`,
+      prompt: job.prompt,
+      reply: job.reply || "",
+      patches: job.patches || [],
+      status: job.patches?.length ? "preview" : "ready",
+      at: job.createdAt,
+      shipSha: job.shipSha,
+    });
+  }
   return job.segments;
+}
+
+export function liveRoute(paths: string[]) {
+  const blob = paths.join(" ");
+  if (/\/join|join\/page/.test(blob)) return "/join";
+  if (/(src\/app\/page\.tsx|LandingHero|LandingDesk|HotelBackdrop|landing)/.test(blob) && !/GameClient|\/play/.test(blob)) return "/";
+  return "/play";
 }
 
 export function allHelp(jobs: AgentJob[]) {

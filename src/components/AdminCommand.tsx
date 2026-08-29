@@ -1,6 +1,7 @@
 "use client";
 
 import { GrokComposer } from "@/components/GrokComposer";
+import { GrokPreview } from "@/components/GrokPreview";
 import { GrokHelpPane, HelpBubble } from "@/components/GrokSegments";
 import { Logo } from "@/components/Logo";
 import { api, clearClientToken } from "@/lib/clientAuth";
@@ -124,9 +125,12 @@ export function AdminCommand() {
     if (boxRef.current) boxRef.current.style.height = "44px";
     setBusy("chat");
     setAgentErr("");
-    const userMsg = { role: "user" as const, content: prompt, at: new Date().toISOString(), attachments };
+    const segId = crypto.randomUUID();
+    const nowIso = new Date().toISOString();
+    const userMsg = { role: "user" as const, content: prompt, at: nowIso, attachments, segmentId: segId };
+    const pendingSeg: AgentSegment = { id: segId, prompt, reply: "", patches: [], status: "running", at: nowIso, attachments };
     const optimistic: AgentJob = job
-      ? { ...job, messages: [...(job.messages || []), userMsg], status: "running" }
+      ? { ...job, messages: [...(job.messages || []), userMsg], segments: [...(job.segments || []), pendingSeg], status: "running" }
       : {
           id: "pending",
           prompt,
@@ -135,11 +139,14 @@ export function AdminCommand() {
           plan: "",
           reply: "",
           patches: [],
+          segments: [pendingSeg],
           messages: [userMsg],
           log: [],
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
+          createdAt: nowIso,
+          updatedAt: nowIso,
         };
+    setSelected(segId);
+    setShowFiles(true);
     setJob(optimistic);
     const { res, j } = await api("/api/admin/agent", {
       method: "POST",
@@ -237,6 +244,19 @@ export function AdminCommand() {
     };
   }, [file, job?.id]);
 
+  const deskJobs = useMemo(() => {
+    const list = data?.agentJobs || [];
+    if (!job) return list;
+    if (!list.some((j) => j.id === job.id)) return [job, ...list];
+    return list.map((j) => (j.id === job.id ? job : j));
+  }, [data?.agentJobs, job]);
+  const selectedPair = useMemo(() => {
+    for (const j of deskJobs) {
+      const seg = (j.segments || []).find((s) => s.id === selected);
+      if (seg) return { job: j, seg };
+    }
+    return null;
+  }, [deskJobs, selected]);
   const messages = useMemo(() => {
     if (job?.messages?.length) return job.messages;
     if (!job) return [];
@@ -315,7 +335,7 @@ export function AdminCommand() {
         </header>
 
         {tab === "grok" && (
-          <div className="grid gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(300px,0.9fr)]">
+          <div className={`grid gap-4 ${showFiles && selected ? "xl:grid-cols-[minmax(0,1fr)_minmax(340px,0.95fr)_minmax(280px,0.72fr)]" : "xl:grid-cols-[minmax(0,1.15fr)_minmax(300px,0.9fr)]"}`}>
             <section className="panel flex h-[70vh] min-h-[420px] flex-col overflow-hidden xl:h-[calc(100vh-8.5rem)]">
               <div className="relative flex items-center justify-between gap-2 border-b border-white/10 px-4 py-3">
                 <div className="flex items-center gap-2 text-sm font-semibold">
@@ -465,25 +485,35 @@ export function AdminCommand() {
               <GrokComposer draft={draft} setDraft={setDraft} busy={!!busy} onSend={send} boxRef={boxRef} />
             </section>
 
+            {showFiles && selectedPair && (
+              <GrokPreview
+                key={selectedPair.seg.id}
+                seg={selectedPair.seg}
+                file={file}
+                current={current}
+                busy={busy}
+                onFile={setFile}
+                onPush={() => ship(selectedPair.job, selectedPair.seg)}
+                onClose={() => setShowFiles(false)}
+              />
+            )}
+
             <GrokHelpPane
-              jobs={data.agentJobs || []}
+              jobs={deskJobs}
               currentJobId={job?.id}
               selectedId={selected}
               busy={busy}
-              file={file}
-              current={current}
-              showPreview={showFiles}
               onOpenChat={(j) => {
                 setJob(j);
                 const last = j.segments?.[j.segments.length - 1];
                 setSelected(last?.id || "");
                 setFile(last?.patches[0]?.path || j.patches[0]?.path || "");
+                setShowFiles(true);
               }}
               onPreview={openPreview}
               onPush={ship}
               onDeleteHelp={deleteHelp}
               onDeleteChat={deleteChat}
-              onFile={setFile}
             />
           </div>
         )}

@@ -2,7 +2,7 @@
 
 import { allHelp, helpTitle } from "@/lib/grokHelp";
 import type { AgentJob, AgentSegment } from "@/lib/types";
-import { Copy, Eye, Rocket, Trash2 } from "lucide-react";
+import { Eye, Rocket, Trash2 } from "lucide-react";
 
 const btn = "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium disabled:opacity-40";
 
@@ -24,18 +24,27 @@ export function HelpBubble({
   onDelete: () => void;
 }) {
   const shipped = seg.status === "shipped";
+  const running = seg.status === "running";
   return (
-    <div className={`rounded-2xl border px-3 py-2.5 ${active ? "border-mint/60 bg-mint/10" : "border-white/10 bg-black/25"}`}>
-      <p className={`${compact ? "text-xs" : "text-sm"} font-medium leading-snug text-white/90`}>{helpTitle(seg.prompt)}</p>
-      <p className="mt-0.5 text-[11px] text-white/45">
-        {seg.patches.length} file{seg.patches.length === 1 ? "" : "s"} · {shipped ? "pushed" : "ready"}
-        {seg.shipSha ? ` · ${seg.shipSha.slice(0, 8)}` : ""}
-      </p>
+    <div
+      className={`rounded-2xl border px-3 py-2.5 ${
+        active ? "border-mint bg-mint text-ink ring-2 ring-mint" : seg.patches.length ? "border-mint/40 bg-mint/10" : "border-white/10 bg-black/25"
+      }`}
+    >
+      <button type="button" className="block w-full text-left" onClick={onPreview}>
+        <p className={`${compact ? "text-xs" : "text-sm"} font-medium leading-snug ${active ? "text-ink" : "text-white/90"}`}>{helpTitle(seg.prompt)}</p>
+        <p className={`mt-0.5 text-[11px] ${active ? "text-ink/70" : "text-white/45"}`}>
+          {running
+            ? "Grok is working…"
+            : `${seg.patches.length} file${seg.patches.length === 1 ? "" : "s"} · ${shipped ? "pushed" : seg.patches.length ? "ready to preview" : "chat"}`}
+          {seg.shipSha ? ` · ${seg.shipSha.slice(0, 8)}` : ""}
+        </p>
+      </button>
       <div className="mt-2 flex flex-wrap gap-1">
-        <button type="button" className={`${btn} bg-white/10 hover:bg-white/15`} onClick={onPreview}>
+        <button type="button" className={`${btn} ${active ? "bg-ink text-mint" : "bg-white/10 hover:bg-white/15"}`} onClick={onPreview}>
           <Eye size={12} /> Preview
         </button>
-        <button type="button" className={`${btn} bg-mint/20 text-mint hover:bg-mint/30`} disabled={!!busy || shipped || !seg.patches.length} onClick={onPush}>
+        <button type="button" className={`${btn} bg-mint/20 text-mint hover:bg-mint/30`} disabled={!!busy || shipped || running || !seg.patches.length} onClick={onPush}>
           <Rocket size={12} /> {busy === "ship" ? "Pushing…" : "Push"}
         </button>
         <button type="button" className={`${btn} bg-coral/15 text-coral hover:bg-coral/25`} disabled={!!busy} onClick={onDelete}>
@@ -51,43 +60,32 @@ export function GrokHelpPane({
   currentJobId,
   selectedId,
   busy,
-  file,
-  current,
-  showPreview,
   onOpenChat,
   onPreview,
   onPush,
   onDeleteHelp,
   onDeleteChat,
-  onFile,
 }: {
   jobs: AgentJob[];
   currentJobId?: string;
   selectedId: string;
   busy: string;
-  file: string;
-  current: string;
-  showPreview: boolean;
   onOpenChat: (job: AgentJob) => void;
   onPreview: (job: AgentJob, seg: AgentSegment) => void;
   onPush: (job: AgentJob, seg: AgentSegment) => void;
   onDeleteHelp: (job: AgentJob, seg: AgentSegment) => void;
   onDeleteChat: (job: AgentJob) => void;
-  onFile: (path: string) => void;
 }) {
   const help = allHelp(jobs);
-  const active = help.find((h) => h.seg.id === selectedId);
-  const patches = active?.seg.patches || [];
-  const proposed = patches.find((p) => p.path === file) || patches[0];
 
   return (
     <aside className="panel flex min-h-[280px] flex-col overflow-hidden xl:h-[calc(100vh-8.5rem)]">
       <div className="border-b border-white/10 px-4 py-3">
-        <p className="text-sm font-semibold">Grok help</p>
-        <p className="text-[11px] text-white/40">Each fix or build is a bubble. Preview, push live, or delete it.</p>
+        <p className="text-sm font-semibold">Prompts</p>
+        <p className="text-[11px] text-white/40">Green bubble is the one you are managing. Preview the design, then Push.</p>
       </div>
       <div className="min-h-0 flex-1 space-y-2 overflow-auto p-3">
-        {help.length === 0 && <p className="px-1 text-xs text-white/40">When Grok proposes a fix or build, it shows up here.</p>}
+        {help.length === 0 && <p className="px-1 text-xs text-white/40">Send a prompt — it lands here so you can preview, push, or delete it.</p>}
         {help.map(({ job, seg }) => (
           <HelpBubble
             key={seg.id}
@@ -112,42 +110,6 @@ export function GrokHelpPane({
         ))}
         {!jobs.length && <p className="text-xs text-white/40">No chats yet.</p>}
       </div>
-      {showPreview && patches.length > 0 && (
-        <div className="grid max-h-[45%] min-h-[160px] gap-2 border-t border-white/10 p-3">
-          <div className="flex flex-wrap gap-1">
-            {patches.map((p) => (
-              <button
-                key={p.path}
-                type="button"
-                className={`rounded-full px-2.5 py-1 text-[11px] ${file === p.path || proposed?.path === p.path ? "bg-mint text-ink" : "bg-white/10"}`}
-                onClick={() => onFile(p.path)}
-              >
-                {p.path.split("/").slice(-2).join("/")}
-              </button>
-            ))}
-          </div>
-          <div className="flex justify-end gap-1">
-            <button
-              type="button"
-              className={`${btn} bg-white/10`}
-              onClick={() => navigator.clipboard.writeText(current || "")}
-              disabled={!current}
-            >
-              <Copy size={11} /> Copy current
-            </button>
-            <button
-              type="button"
-              className={`${btn} bg-white/10`}
-              onClick={() => navigator.clipboard.writeText(proposed?.content || "")}
-              disabled={!proposed?.content}
-            >
-              <Copy size={11} /> Copy proposed
-            </button>
-          </div>
-          <pre className="max-h-20 overflow-auto rounded-xl bg-black/40 p-2 font-mono text-[10px] text-white/40">{current || "Current file"}</pre>
-          <pre className="min-h-0 flex-1 overflow-auto rounded-xl bg-black/40 p-2 font-mono text-[10px] text-mint/90">{proposed?.content || ""}</pre>
-        </div>
-      )}
     </aside>
   );
 }

@@ -129,19 +129,33 @@ export async function POST(req: Request) {
     db.agentJobs = db.agentJobs.slice(0, 40);
   }
   if (!job.messages) job.messages = [];
+  ensureSegments(job);
+  const storedAtts = attachments.map((a) => ({
+    name: a.name,
+    mime: a.mime,
+    kind: a.kind,
+    size: a.size,
+    note: a.note,
+    text: a.text ? a.text.slice(0, 4000) : undefined,
+    dataUrl: a.dataUrl && a.dataUrl.length < 400_000 ? a.dataUrl : undefined,
+  }));
+  const segmentId = crypto.randomUUID();
+  const segment = {
+    id: segmentId,
+    prompt,
+    reply: "",
+    patches: [] as typeof job.patches,
+    status: "running" as const,
+    at: now,
+    attachments: storedAtts,
+  };
+  job.segments = [...(job.segments || []), segment];
   job.messages.push({
     role: "user",
     content: prompt,
     at: now,
-    attachments: attachments.map((a) => ({
-      name: a.name,
-      mime: a.mime,
-      kind: a.kind,
-      size: a.size,
-      note: a.note,
-      text: a.text ? a.text.slice(0, 4000) : undefined,
-      dataUrl: a.dataUrl && a.dataUrl.length < 400_000 ? a.dataUrl : undefined,
-    })),
+    segmentId,
+    attachments: storedAtts,
   });
   job.prompt = prompt;
   job.status = "running";
@@ -159,19 +173,30 @@ export async function POST(req: Request) {
     job.reply = out.reply;
     job.plan = out.plan || out.reply;
     ensureSegments(job);
-    let segmentId: string | undefined;
-    if (out.patches.length) {
-      const segment = {
-        id: crypto.randomUUID(),
-        prompt,
-        reply: out.reply,
-        patches: out.patches,
-        status: "preview" as const,
-        at: new Date().toISOString(),
-      };
-      job.segments = [...(job.segments || []), segment];
+    const live = (job.segments || []).find((s) => s.id === segmentId);
+    if (live) {
+      live.reply = out.reply;
+      live.at = new Date().toISOString();
+      if (out.patches.length) {
+        live.patches = out.patches;
+        live.status = "preview";
+        job.patches = out.patches;
+      } else {
+        live.status = "ready";
+      }
+    } else if (out.patches.length) {
+      job.segments = [
+        ...(job.segments || []),
+        {
+          id: segmentId,
+          prompt,
+          reply: out.reply,
+          patches: out.patches,
+          status: "preview" as const,
+          at: new Date().toISOString(),
+        },
+      ];
       job.patches = out.patches;
-      segmentId = segment.id;
     }
     job.log = [...(job.log || []), ...out.log];
     job.messages.push({
@@ -186,6 +211,8 @@ export async function POST(req: Request) {
     saveDB(db);
     return NextResponse.json({ job, grok: xaiReady(), github: githubReady() });
   } catch (e) {
+    const live = (job.segments || []).find((s) => s.id === segmentId);
+    if (live) live.status = "ready";
     job.status = "error";
     job.error = e instanceof Error ? e.message : "Grok failed";
     job.messages.push({ role: "assistant", content: job.error, at: new Date().toISOString() });

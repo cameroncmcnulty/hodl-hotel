@@ -214,9 +214,10 @@ export type AgentSegment = {
   prompt: string;
   reply: string;
   patches: AgentPatch[];
-  status: "preview" | "ready" | "shipped";
+  status: "running" | "preview" | "ready" | "shipped";
   at: string;
   shipSha?: string;
+  attachments?: AgentAttachment[];
 };
 
 export type AgentJob = {
