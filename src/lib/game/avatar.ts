@@ -58,14 +58,14 @@ export const DEFAULT_FIGURE: Figure = {
   face: 0,
 };
 
-export const AVATAR_DRAW_H = 128;
+export const AVATAR_DRAW_H = 152;
 export const AVATAR_NAME_LIFT = 138;
 export const SPRITE_W = 128;
-export const SPRITE_H = 176;
+export const SPRITE_H = 264;
 
 const sprites = new Map<string, HTMLCanvasElement>();
 let loadPromise: Promise<void> | null = null;
-export const SPRITE_V = 31;
+export const SPRITE_V = 32;
 const inflight = new Map<string, Promise<HTMLCanvasElement | null>>();
 
 export function clampFigure(f: Partial<Figure> | undefined): Figure {
@@ -290,8 +290,8 @@ function compose(fig: Figure, dir: 0 | 1 | 2 | 3) {
   out.width = body.width;
   out.height = body.height;
   stamp(out, body);
-  stamp(out, layers[4]);
   stamp(out, layers[3]);
+  stamp(out, layers[4]);
   stamp(out, layers[2]);
   stamp(out, layers[1]);
   composeCache.set(key, out);

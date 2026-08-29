@@ -109,6 +109,7 @@ export function CharacterPreview({
   dir?: 0 | 1 | 2 | 3;
 }) {
   const ref = useRef<HTMLCanvasElement>(null);
+  const h = Math.round(size * 1.35);
   useEffect(() => {
     let live = true;
     const draw = () => {
@@ -118,8 +119,8 @@ export function CharacterPreview({
       if (!ctx) return;
       ctx.imageSmoothingEnabled = false;
       ctx.fillStyle = "#5c6b78";
-      ctx.fillRect(0, 0, size, size);
-      drawAvatarFront(ctx, clampFigure(figure), size / 2, size * 0.94, Math.max(5.5, size / 34), dir);
+      ctx.fillRect(0, 0, size, h);
+      drawAvatarFront(ctx, clampFigure(figure), size / 2, h - 6, Math.max(6, h / 42), dir);
     };
     draw();
     loadLookSprites(figure, dir).then(() => {
@@ -128,14 +129,14 @@ export function CharacterPreview({
     return () => {
       live = false;
     };
-  }, [figure, dir, size]);
+  }, [figure, dir, size, h]);
   return (
     <canvas
       ref={ref}
       width={size}
-      height={size}
+      height={h}
       className="mx-auto block rounded-2xl"
-      style={{ imageRendering: "pixelated", width: size, height: size, maxWidth: "100%" }}
+      style={{ imageRendering: "pixelated", width: size, height: h, maxWidth: "100%" }}
     />
   );
 }
