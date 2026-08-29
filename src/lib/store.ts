@@ -225,7 +225,7 @@ export function pruneLive() {
   const now = Date.now();
   const L = live();
   for (const id of Object.keys(L.rooms)) {
-    L.rooms[id].occupants = L.rooms[id].occupants.filter((o) => now - o.lastBeat < 20000);
+    L.rooms[id].occupants = L.rooms[id].occupants.filter((o) => now - o.lastBeat < 45000);
   }
 }
 

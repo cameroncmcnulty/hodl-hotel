@@ -51,6 +51,8 @@ type Snap = {
   error?: string;
 };
 
+let leaveTimer: ReturnType<typeof setTimeout> | undefined;
+
 export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [snap, setSnap] = useState<Snap | null>(null);
@@ -128,21 +130,22 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
 
   const act = useCallback(async (body: { type: string; [k: string]: unknown }) => {
     const { res, j } = await api("/api/game", { method: "POST", body: JSON.stringify(body) });
-    if (res.status === 401 || /sign in|session expired/i.test(String(j.error || ""))) {
+    if (res.status === 401) {
       if (body.type === "ping") return j;
       const me = await api("/api/auth/me");
       if (me.j?.user) {
         setMe((prev) => ({ ...prev, ...me.j.user }));
-        if (body.type === "join") {
-          const retry = await api("/api/game", { method: "POST", body: JSON.stringify(body) });
-          if (retry.j?.room) {
-            setSnap(retry.j);
-            setRoomId(retry.j.room.id);
-            return retry.j;
-          }
+        const rid = String(body.roomId || snapRef.current?.room?.id || homeRoomId);
+        const retryJoin = await api("/api/game", { method: "POST", body: JSON.stringify({ type: "join", roomId: rid }) });
+        if (retryJoin.j?.room) {
+          setSnap(retryJoin.j);
+          setRoomId(retryJoin.j.room.id);
         }
-        setStatus("Couldn't save that — try once more.");
-        return j;
+        if (body.type !== "join") {
+          const retry = await api("/api/game", { method: "POST", body: JSON.stringify(body) });
+          return retry.j;
+        }
+        return retryJoin.j;
       }
       setStatus("Session expired — sending you to login");
       setTimeout(() => {
@@ -150,6 +153,16 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
         location.href = "/login";
       }, 900);
       return j;
+    }
+    if (j.error === "Join a room first" && body.type !== "leave" && body.type !== "join") {
+      const rid = snapRef.current?.room?.id || homeRoomId;
+      await api("/api/game", { method: "POST", body: JSON.stringify({ type: "join", roomId: rid }) });
+      const retry = await api("/api/game", { method: "POST", body: JSON.stringify(body) });
+      if (retry.j?.room) {
+        setSnap(retry.j);
+        setRoomId(retry.j.room.id);
+      }
+      return retry.j;
     }
     if (j.error && body.type !== "ping") setStatus(j.error);
     if (j.room) {
@@ -172,7 +185,7 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
       }
     }
     return j;
-  }, []);
+  }, [homeRoomId]);
 
   const walkTo = useCallback(
     (tx: number, ty: number) => {
@@ -199,18 +212,26 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
   );
 
   useEffect(() => {
+    if (leaveTimer) clearTimeout(leaveTimer);
     act({ type: "join", roomId: homeRoomId });
     return () => {
-      fetch("/api/game", authInit({ method: "POST", body: JSON.stringify({ type: "leave" }) }));
+      leaveTimer = setTimeout(() => {
+        fetch("/api/game", authInit({ method: "POST", body: JSON.stringify({ type: "leave" }) }));
+      }, 2500);
     };
   }, [act, homeRoomId]);
 
   useEffect(() => {
     if (!snap?.room) return;
+    let busy = false;
     const id = setInterval(() => {
-      const m = motions.current[meState.id];
-      act({ type: "ping", x: m?.x, y: m?.y, dir: m?.dir });
-    }, 280);
+      if (busy) return;
+      busy = true;
+      const m = motions.current[meIdRef.current];
+      Promise.resolve(act({ type: "ping", x: m?.x, y: m?.y, dir: m?.dir })).finally(() => {
+        busy = false;
+      });
+    }, 4000);
     return () => clearInterval(id);
   }, [act, snap?.room?.id]);
 

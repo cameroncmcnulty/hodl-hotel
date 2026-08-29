@@ -84,8 +84,9 @@ export function applyAction(userId: string, action: Action) {
     db = reloadDB();
     u = findUser(db, userId);
   }
-  if (!u) return { error: "Session expired. Log in again." };
-  if (u.bannedUntil && new Date(u.bannedUntil) > new Date()) return { error: "Account suspended" };
+  if (!u) return { error: "Hotel desk is catching up. Try that step again." };
+  const user = u;
+  if (user.bannedUntil && new Date(user.bannedUntil) > new Date()) return { error: "Account suspended" };
 
   pruneLive();
 
@@ -97,6 +98,23 @@ export function applyAction(userId: string, action: Action) {
       if (occ) return { roomId, occ };
     }
     return null;
+  };
+
+  const putInRoom = (roomId: string) => {
+    const room = findRoom(db, roomId);
+    if (!room) return null;
+    const live = liveRoom(room.id);
+    const already = live.occupants.find((o) => o.userId === userId);
+    if (already) {
+      already.lastBeat = Date.now();
+      already.username = user.username;
+      already.figure = user.figure;
+      return { roomId: room.id, occ: already };
+    }
+    const layout = layoutById(room.layoutId);
+    const occ = emptyOcc(user, layout.spawn.x, layout.spawn.y);
+    live.occupants.push(occ);
+    return { roomId: room.id, occ };
   };
 
   if (action.type === "join") {
@@ -129,7 +147,11 @@ export function applyAction(userId: string, action: Action) {
     return snapshot(room.id, userId);
   }
 
-  const here = current();
+  let here = current();
+  if (!here && action.type !== "leave") {
+    const fallback = u.roomHistory[0]?.roomId || u.ownedRoomIds[0];
+    if (fallback) here = putInRoom(fallback);
+  }
   if (!here) {
     if (action.type === "ping") return { ok: true, occupants: [] as Occupant[] };
     return { error: "Join a room first" };
