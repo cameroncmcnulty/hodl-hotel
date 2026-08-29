@@ -97,7 +97,7 @@ export const SPRITE_H = 1168;
 
 const sprites = new Map<string, HTMLCanvasElement>();
 let loadPromise: Promise<void> | null = null;
-const SPRITE_V = 22;
+const SPRITE_V = 23;
 const inflight = new Map<string, Promise<HTMLCanvasElement | null>>();
 
 export function clampFigure(f: Partial<Figure> | undefined): Figure {
@@ -205,7 +205,6 @@ export function lookSpriteIds(fig: Figure, dir: 0 | 1 | 2 | 3 = 1) {
     `${g}-bot-${bot}-se-layer`,
     `${g}-shoe-${shoe}-${view}-layer`,
     `${g}-shoe-${shoe}-se-layer`,
-    `${g}-se-idle`,
   ];
 }
 
@@ -229,8 +228,6 @@ export function loadAvatars() {
         "f-top-hoodie-se-layer",
         "f-bot-skirt-se-layer",
         "f-shoe-sneakers-se-layer",
-        "m-se-idle",
-        "f-se-idle",
       ].map(loadSpriteId)
     ).then(() => undefined);
   }
@@ -358,26 +355,25 @@ function compose(fig: Figure, dir: 0 | 1 | 2 | 3) {
   const topL = firstSpr([`${g}-top-${top}-${view}-layer`, `${g}-top-${top}-se-layer`]);
   const botL = firstSpr([`${g}-bot-${bot}-${view}-layer`, `${g}-bot-${bot}-se-layer`]);
   const shoeL = firstSpr([`${g}-shoe-${shoe}-${view}-layer`, `${g}-shoe-${shoe}-se-layer`]);
-  if (base && hairL && topL && botL && shoeL) {
-    const key = `n1|${g}|${view}|${hair}|${top}|${bot}|${shoe}|${fig.skin}|${fig.hairColor}|${fig.top}|${fig.bottom}|${fig.shoes}`;
-    const hit = composeCache.get(key);
-    if (hit) return hit;
-    const out = document.createElement("canvas");
-    out.width = base.width;
-    out.height = base.height;
-    stamp(out, mapSkin(base, SKIN[fig.skin] || SKIN[0]));
-    stamp(out, tintLayer(shoeL, SHOES[fig.shoes] || SHOES[0]));
-    stamp(out, tintLayer(botL, BOTTOMS[fig.bottom] || BOTTOMS[0]));
-    stamp(out, tintLayer(topL, TOPS[fig.top] || TOPS[0]));
-    stamp(out, tintLayer(hairL, HAIR_C[fig.hairColor] || HAIR_C[0]));
-    composeCache.set(key, out);
-    if (composeCache.size > 180) {
-      const first = composeCache.keys().next().value;
-      if (first) composeCache.delete(first);
-    }
-    return out;
+  const body = base || firstSpr([`${g}-base-se`, `${g}-base-ne`]);
+  if (!body) return null;
+  const key = `n2|${g}|${view}|${hair}|${top}|${bot}|${shoe}|${fig.skin}|${fig.hairColor}|${fig.top}|${fig.bottom}|${fig.shoes}|${!!hairL}|${!!topL}|${!!botL}|${!!shoeL}`;
+  const hit = composeCache.get(key);
+  if (hit) return hit;
+  const out = document.createElement("canvas");
+  out.width = body.width;
+  out.height = body.height;
+  stamp(out, mapSkin(body, SKIN[fig.skin] || SKIN[0]));
+  if (shoeL) stamp(out, tintLayer(shoeL, SHOES[fig.shoes] || SHOES[0]));
+  if (botL) stamp(out, tintLayer(botL, BOTTOMS[fig.bottom] || BOTTOMS[0]));
+  if (topL) stamp(out, tintLayer(topL, TOPS[fig.top] || TOPS[0]));
+  if (hairL) stamp(out, tintLayer(hairL, HAIR_C[fig.hairColor] || HAIR_C[0]));
+  composeCache.set(key, out);
+  if (composeCache.size > 180) {
+    const first = composeCache.keys().next().value;
+    if (first) composeCache.delete(first);
   }
-  return firstSpr([`${g}-se-idle`, `${g}-ne-idle`, "m-se-idle", "f-se-idle"]);
+  return out;
 }
 
 function blit(ctx: CanvasRenderingContext2D, src: HTMLCanvasElement, dx: number, dy: number, dw: number, dh: number, flip: boolean) {

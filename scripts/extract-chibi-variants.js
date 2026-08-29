@@ -16,76 +16,93 @@ const W = 784;
 const H = 1168;
 
 const JOBS = [
-  { file: "313.jpg", g: "m", kind: "hair", name: "spike", gender: "m" },
-  { file: "314.jpg", g: "m", kind: "hair", name: "buzz", gender: "m" },
-  { file: "323.jpg", g: "m", kind: "hair", name: "mohawk", gender: "m" },
-  { file: "316.jpg", g: "m", kind: "top", name: "tee", gender: "m" },
-  { file: "321.jpg", g: "m", kind: "top", name: "jacket", gender: "m" },
-  { file: "312.jpg", g: "m", kind: "bot", name: "shorts", gender: "m" },
-  { file: "320.jpg", g: "m", kind: "shoe", name: "boots", gender: "m" },
-  { file: "311.jpg", g: "f", kind: "hair", name: "bob", gender: "f" },
-  { file: "319.jpg", g: "f", kind: "hair", name: "long", gender: "f" },
-  { file: "315.jpg", g: "f", kind: "top", name: "cami", gender: "f" },
-  { file: "322.jpg", g: "f", kind: "top", name: "cardi", gender: "f" },
-  { file: "317.jpg", g: "f", kind: "bot", name: "shorts", gender: "f" },
-  { file: "318.jpg", g: "f", kind: "bot", name: "pants", gender: "f" },
+  { file: "313.jpg", g: "m", kind: "hair", name: "spike" },
+  { file: "314.jpg", g: "m", kind: "hair", name: "buzz" },
+  { file: "323.jpg", g: "m", kind: "hair", name: "mohawk" },
+  { file: "316.jpg", g: "m", kind: "top", name: "tee" },
+  { file: "321.jpg", g: "m", kind: "top", name: "jacket" },
+  { file: "312.jpg", g: "m", kind: "bot", name: "shorts" },
+  { file: "311.jpg", g: "f", kind: "hair", name: "bob" },
+  { file: "319.jpg", g: "f", kind: "hair", name: "long" },
+  { file: "315.jpg", g: "f", kind: "top", name: "cami" },
+  { file: "322.jpg", g: "f", kind: "top", name: "cardi" },
+  { file: "317.jpg", g: "f", kind: "bot", name: "shorts" },
+  { file: "318.jpg", g: "f", kind: "bot", name: "pants" },
 ];
 
-function isBg(r, g, b) {
-  if (r > 190 && b > 150 && g < 110) return true;
-  return false;
+function isMagenta(r, g, b) {
+  return r > 180 && b > 140 && g < 120;
 }
 function isOutline(r, g, b) {
-  return r < 18 && g < 18 && b < 18;
+  return r < 28 && g < 28 && b < 28;
 }
 function isSkin(r, g, b) {
-  return r > 220 && g > 145 && g < 220 && b > 100 && b < 190 && r - b > 40 && r > g;
+  return r > 210 && g > 140 && g < 225 && b > 95 && b < 195 && r - b > 35 && r > g - 6;
 }
 function isHair(r, g, b) {
-  if (r > 160) return false;
-  return r > 55 && r < 160 && g > 25 && g < 100 && b < 60 && r > g + 10;
+  if (r > 170) return false;
+  return r > 50 && r < 160 && g > 22 && g < 100 && b < 65 && r > g + 8;
 }
 function isGray(r, g, b) {
   const mx = Math.max(r, g, b),
     mn = Math.min(r, g, b);
-  return mx - mn < 22 && mx > 90 && mx < 190;
+  return mx - mn < 24 && mx > 85 && mx < 200;
 }
 function isPink(r, g, b) {
-  return r > 200 && g > 70 && g < 190 && b > 120 && r - g > 40;
+  return r > 190 && g > 70 && g < 195 && b > 115 && r - g > 35;
 }
 function isNavy(r, g, b) {
-  return b > r + 15 && b > g && r < 80 && g < 90 && b < 170;
+  return b > r + 12 && b > g && r < 90 && g < 100 && b < 180;
 }
 function isDark(r, g, b) {
-  return r < 55 && g < 55 && b < 55 && !isOutline(r, g, b);
+  return r < 60 && g < 60 && b < 60 && !isOutline(r, g, b);
 }
 function isWhite(r, g, b) {
-  return r > 200 && g > 200 && b > 200 && r < 252;
+  return r > 200 && g > 200 && b > 200;
+}
+function isBlue(r, g, b) {
+  return b > 55 && b >= r && b >= g - 15 && r < 130 && g < 150;
+}
+function isCream(r, g, b) {
+  return r > 190 && g > 170 && b > 130 && r - b < 80 && g - b > 10;
 }
 function isBrown(r, g, b) {
-  return r > 80 && r < 180 && g > 40 && g < 120 && b < 80 && r > g && g > b;
+  return r > 70 && r < 190 && g > 35 && g < 130 && b < 85 && r > g && g > b - 10;
+}
+function inFace(xn, yn) {
+  return yn > 0.24 && yn < 0.4 && xn > 0.34 && xn < 0.66;
 }
 
-function want(kind, r, g, b, yn, gender) {
-  if (isBg(r, g, b)) return false;
-  if (kind === "hair") return (isHair(r, g, b) || (isOutline(r, g, b) && yn < 0.42)) && yn < 0.52;
-  if (kind === "top") {
-    if (yn < 0.34 || yn > 0.7) return false;
-    if (isSkin(r, g, b) || isHair(r, g, b)) return false;
-    return true;
-  }
-  if (kind === "bot") {
-    if (yn < 0.56 || yn > 0.84) return false;
-    if (isSkin(r, g, b) || isHair(r, g, b) || isGray(r, g, b) || isPink(r, g, b)) return false;
-    if (r > 150 && g < 90 && b < 90) return false;
-    return true;
-  }
-  if (kind === "shoe") {
-    if (yn < 0.72) return false;
-    if (isSkin(r, g, b) || isHair(r, g, b)) return false;
-    return true;
-  }
-  return false;
+function seedFn(kind) {
+  if (kind === "hair") return (r, g, b, yn) => yn < 0.5 && isHair(r, g, b);
+  if (kind === "top")
+    return (r, g, b, yn) => {
+      if (yn < 0.34 || yn > 0.63) return false;
+      if (isSkin(r, g, b) || isHair(r, g, b) || isMagenta(r, g, b)) return false;
+      if (r > 130 && g < 90 && b < 90) return false;
+      if (isNavy(r, g, b) && yn > 0.58) return false;
+      return isWhite(r, g, b) || isGray(r, g, b) || isPink(r, g, b) || isBlue(r, g, b) || isCream(r, g, b) || (isDark(r, g, b) && yn < 0.58);
+    };
+  if (kind === "bot")
+    return (r, g, b, yn) => {
+      if (yn < 0.56 || yn > 0.82) return false;
+      if (isSkin(r, g, b) || isHair(r, g, b) || isMagenta(r, g, b) || isGray(r, g, b) || isPink(r, g, b) || isWhite(r, g, b)) return false;
+      if (r > 140 && g < 90 && b < 90) return false;
+      return isNavy(r, g, b) || isDark(r, g, b) || isBrown(r, g, b) || isBlue(r, g, b);
+    };
+  return () => false;
+}
+
+function growFn(kind) {
+  const seed = seedFn(kind);
+  return (r, g, b, yn, xn) => {
+    if (isMagenta(r, g, b) || isSkin(r, g, b)) return false;
+    if (seed(r, g, b, yn)) return true;
+    if (kind === "hair") return yn < 0.46 && isOutline(r, g, b) && !inFace(xn, yn);
+    if (kind === "top") return yn > 0.36 && yn < 0.64 && isOutline(r, g, b) && !inFace(xn, yn);
+    if (kind === "bot") return yn > 0.56 && yn < 0.83 && isOutline(r, g, b);
+    return false;
+  };
 }
 
 function scaleTo(raw, tw, th) {
@@ -105,14 +122,61 @@ function scaleTo(raw, tw, th) {
   return { width: tw, height: th, data: out };
 }
 
-function extractLayer(img, kind, gender) {
-  const out = Buffer.alloc(img.width * img.height * 4);
-  for (let i = 0; i < out.length; i += 4) {
-    out[i] = 255;
-    out[i + 1] = 0;
-    out[i + 2] = 255;
-    out[i + 3] = 255;
+function flood(img, kind) {
+  const w = img.width;
+  const h = img.height;
+  const seed = seedFn(kind);
+  const grow = growFn(kind);
+  const mark = Buffer.alloc(w * h);
+  const stack = [];
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const i = (y * w + x) * 4;
+      if (seed(img.data[i], img.data[i + 1], img.data[i + 2], y / h)) {
+        mark[y * w + x] = 1;
+        stack.push(y * w + x);
+      }
+    }
   }
+  while (stack.length) {
+    const i = stack.pop();
+    const x = i % w;
+    const y = (i / w) | 0;
+    for (const j of [i - 1, i + 1, i - w, i + w]) {
+      if (j < 0 || j >= w * h) continue;
+      if (mark[j]) continue;
+      const nx = j % w;
+      const ny = (j / w) | 0;
+      if (Math.abs(nx - x) + Math.abs(ny - y) !== 1) continue;
+      const p = j * 4;
+      if (!grow(img.data[p], img.data[p + 1], img.data[p + 2], ny / h, nx / w)) continue;
+      mark[j] = 1;
+      stack.push(j);
+    }
+  }
+  const data = Buffer.alloc(w * h * 4);
+  for (let i = 0; i < data.length; i += 4) {
+    data[i] = 255;
+    data[i + 1] = 0;
+    data[i + 2] = 255;
+    data[i + 3] = 255;
+  }
+  let n = 0;
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      if (!mark[y * w + x]) continue;
+      const si = (y * w + x) * 4;
+      data[si] = img.data[si];
+      data[si + 1] = img.data[si + 1];
+      data[si + 2] = img.data[si + 2];
+      data[si + 3] = 255;
+      n++;
+    }
+  }
+  return sanitize({ width: w, height: h, data, n }, kind);
+}
+
+function sanitize(img, kind) {
   let n = 0;
   for (let y = 0; y < img.height; y++) {
     const yn = y / img.height;
@@ -121,36 +185,43 @@ function extractLayer(img, kind, gender) {
       const r = img.data[i],
         g = img.data[i + 1],
         b = img.data[i + 2];
-      if (!want(kind, r, g, b, yn, gender)) continue;
-      out[i] = r;
-      out[i + 1] = g;
-      out[i + 2] = b;
-      out[i + 3] = 255;
-      n++;
+      if (r > 250 && g < 8 && b > 250) continue;
+      const xn = x / img.width;
+      let drop = false;
+      if (kind === "hair" && (yn > 0.46 || inFace(xn, yn))) drop = true;
+      if (kind === "top" && (yn < 0.36 || yn > 0.64 || inFace(xn, yn))) drop = true;
+      if (kind === "bot" && (yn < 0.56 || yn > 0.84)) drop = true;
+      if (drop) {
+        img.data[i] = 255;
+        img.data[i + 1] = 0;
+        img.data[i + 2] = 255;
+        img.data[i + 3] = 255;
+      } else n++;
     }
   }
-  return { width: img.width, height: img.height, data: out, n };
+  img.n = n;
+  return img;
 }
 
 function flipH(img) {
-  const out = Buffer.alloc(img.data.length);
-  for (let i = 0; i < out.length; i += 4) {
-    out[i] = 255;
-    out[i + 1] = 0;
-    out[i + 2] = 255;
-    out[i + 3] = 255;
+  const data = Buffer.alloc(img.data.length);
+  for (let i = 0; i < data.length; i += 4) {
+    data[i] = 255;
+    data[i + 1] = 0;
+    data[i + 2] = 255;
+    data[i + 3] = 255;
   }
   for (let y = 0; y < img.height; y++) {
     for (let x = 0; x < img.width; x++) {
       const si = (y * img.width + (img.width - 1 - x)) * 4;
       const di = (y * img.width + x) * 4;
-      out[di] = img.data[si];
-      out[di + 1] = img.data[si + 1];
-      out[di + 2] = img.data[si + 2];
-      out[di + 3] = img.data[si + 3];
+      data[di] = img.data[si];
+      data[di + 1] = img.data[si + 1];
+      data[di + 2] = img.data[si + 2];
+      data[di + 3] = img.data[si + 3];
     }
   }
-  return { width: img.width, height: img.height, data: out };
+  return { width: img.width, height: img.height, data };
 }
 
 function save(name, img) {
@@ -166,12 +237,10 @@ for (const job of JOBS) {
     continue;
   }
   const raw = jpeg.decode(fs.readFileSync(f), { useTArray: true, maxMemoryUsageInMB: 256 });
-  console.log(job.file, raw.width, raw.height);
   const scaled = scaleTo(raw, W, H);
-  const layer = extractLayer(scaled, job.kind, job.gender);
-  const id = `${job.g}-${job.kind}-${job.name}-se-layer`;
-  save(id, layer);
+  const layer = flood(scaled, job.kind);
+  save(`${job.g}-${job.kind}-${job.name}-se-layer`, layer);
   save(`${job.g}-${job.kind}-${job.name}-ne-layer`, flipH(layer));
-  console.log(id, layer.n);
+  console.log(`${job.g}-${job.kind}-${job.name}`, layer.n);
 }
 console.log("done");
