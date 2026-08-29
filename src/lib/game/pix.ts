@@ -81,17 +81,17 @@ export class Pix {
   discShade(cx: number, cy: number, rx: number, ry: number, base: string, pred?: (x: number, y: number) => boolean) {
     const rx2 = rx * rx || 1;
     const ry2 = ry * ry || 1;
-    const x0 = Math.floor(cx - rx);
-    const y0 = Math.floor(cy - ry);
-    const w = Math.ceil(rx * 2) + 1;
-    const h = Math.ceil(ry * 2) + 1;
+    const lit = mix(base, 24);
+    const mid = rgb(base);
+    const dim = mix(base, -28);
     for (let y = Math.floor(cy - ry); y <= Math.ceil(cy + ry); y++) {
       for (let x = Math.floor(cx - rx); x <= Math.ceil(cx + rx); x++) {
         const dx = x - cx;
         const dy = y - cy;
         if ((dx * dx) / rx2 + (dy * dy) / ry2 > 1.02) continue;
         if (pred && !pred(x, y)) continue;
-        this.set(x, y, tone(base, x, y, x0, y0, w, h));
+        const t = dx / (rx * 2) + dy / (ry * 2);
+        this.set(x, y, t < -0.16 ? lit : t > 0.2 ? dim : mid);
       }
     }
   }
