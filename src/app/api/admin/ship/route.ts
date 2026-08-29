@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/adminAuth";
 import { githubReady, shipFiles } from "@/lib/githubShip";
+import { ensureSegments } from "@/lib/grokHelp";
 import { loadDB, log, saveDB } from "@/lib/store";
 
 export const dynamic = "force-dynamic";
@@ -13,7 +14,10 @@ export async function POST(req: Request) {
   const db = loadDB();
   const job = (db.agentJobs || []).find((j) => j.id === body.jobId);
   if (!job) return NextResponse.json({ error: "Job not found" }, { status: 404 });
-  if (!job.patches.length) return NextResponse.json({ error: "That job has no files to ship" }, { status: 400 });
+  ensureSegments(job);
+  const seg = body.segmentId ? job.segments?.find((s) => s.id === body.segmentId) : null;
+  const patches = seg?.patches?.length ? seg.patches : job.patches;
+  if (!patches.length) return NextResponse.json({ error: "That help item has no files to push" }, { status: 400 });
   const gh = githubReady();
   if (!gh.ready) {
     return NextResponse.json(
@@ -24,12 +28,16 @@ export async function POST(req: Request) {
   try {
     const message = String(body.message || "").trim() || `desk: ${job.prompt.slice(0, 72)}`;
     const result = await shipFiles(
-      job.patches.map((p) => ({ path: p.path, content: p.content })),
-      `${message}\n\nPrompt: ${job.prompt.slice(0, 240)}`
+      patches.map((p) => ({ path: p.path, content: p.content })),
+      `${message}\n\nPrompt: ${(seg?.prompt || job.prompt).slice(0, 240)}`
     );
     job.status = "shipped";
     job.shippedAt = new Date().toISOString();
     job.shipSha = result.sha;
+    if (seg) {
+      seg.status = "shipped";
+      seg.shipSha = result.sha;
+    }
     job.log.push(`shipped ${result.sha.slice(0, 8)} to ${result.branch}`);
     job.updatedAt = new Date().toISOString();
     log(db, "agent", `${a.user.username} shipped ${job.id} → ${result.sha.slice(0, 8)}`);

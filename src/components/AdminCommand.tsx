@@ -1,9 +1,10 @@
 "use client";
 
+import { GrokHelpPane, HelpBubble } from "@/components/GrokSegments";
 import { Logo } from "@/components/Logo";
 import { api, clearClientToken } from "@/lib/clientAuth";
 import { HOTEL_BRIEF } from "@/lib/grokBrief";
-import type { AgentJob } from "@/lib/types";
+import type { AgentJob, AgentSegment } from "@/lib/types";
 import {
   Activity,
   Bot,
@@ -13,11 +14,10 @@ import {
   LogOut,
   Megaphone,
   Plus,
-  Rocket,
   Send,
   Settings,
-  Shield,
   Sparkles,
+  Trash2,
   Users,
   Waypoints,
 } from "lucide-react";
@@ -75,6 +75,7 @@ export function AdminCommand() {
   const [showFiles, setShowFiles] = useState(true);
   const [showChats, setShowChats] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [selected, setSelected] = useState("");
   const threadRef = useRef<HTMLDivElement>(null);
   const boxRef = useRef<HTMLTextAreaElement>(null);
 
@@ -90,7 +91,10 @@ export function AdminCommand() {
     if (!res.ok) setErr(j.error || "Denied");
     else {
       setData(j);
-      if (!job && j.agentJobs?.[0]) setJob(j.agentJobs[0]);
+      if (job && job.id !== "pending") {
+        const fresh = (j.agentJobs || []).find((x: AgentJob) => x.id === job.id);
+        if (fresh) setJob(fresh);
+      } else if (!job && j.agentJobs?.[0]) setJob(j.agentJobs[0]);
     }
   }
   useEffect(() => {
@@ -145,29 +149,78 @@ export function AdminCommand() {
       return;
     }
     setJob(j.job);
-    if (j.job?.patches?.[0]?.path) setFile(j.job.patches[0].path);
+    const segs = j.job?.segments as AgentSegment[] | undefined;
+    const latest = segs?.[segs.length - 1];
+    if (latest) {
+      setSelected(latest.id);
+      setFile(latest.patches[0]?.path || "");
+      setShowFiles(true);
+    } else if (j.job?.patches?.[0]?.path) setFile(j.job.patches[0].path);
     load();
     boxRef.current?.focus();
   }
 
-  async function ship() {
-    if (!job) return;
+  function openPreview(next: AgentJob, seg: AgentSegment) {
+    setJob(next);
+    setSelected(seg.id);
+    setFile(seg.patches[0]?.path || "");
+    setShowFiles(true);
+    setShowChats(false);
+  }
+
+  async function ship(next?: AgentJob, seg?: AgentSegment) {
+    const target = next || job;
+    if (!target || target.id === "pending") return;
     setBusy("ship");
     setAgentErr("");
-    const { res, j } = await api("/api/admin/ship", { method: "POST", body: JSON.stringify({ jobId: job.id, message: job.prompt.slice(0, 72) }) });
+    const { res, j } = await api("/api/admin/ship", {
+      method: "POST",
+      body: JSON.stringify({ jobId: target.id, segmentId: seg?.id, message: (seg?.prompt || target.prompt).slice(0, 72) }),
+    });
     setBusy("");
-    if (!res.ok) return setAgentErr(j.error || "Ship failed");
+    if (!res.ok) return setAgentErr(j.error || "Push failed");
     setJob(j.job);
+    if (seg) setSelected(seg.id);
     load();
   }
 
-  async function applyLocal() {
-    if (!job) return;
-    setBusy("local");
-    const { res, j } = await api("/api/admin/agent", { method: "POST", body: JSON.stringify({ op: "apply-local", jobId: job.id }) });
+  async function deleteHelp(next: AgentJob, seg: AgentSegment) {
+    setBusy("delete");
+    const { res, j } = await api("/api/admin/agent", { method: "POST", body: JSON.stringify({ op: "delete-segment", jobId: next.id, segmentId: seg.id }) });
     setBusy("");
-    if (!res.ok) return setAgentErr(j.error || "Apply failed");
+    if (!res.ok) return setAgentErr(j.error || "Delete failed");
+    if (selected === seg.id) {
+      setSelected("");
+      setFile("");
+      setCurrent("");
+    }
+    if (job?.id === next.id) setJob(j.job);
+    load();
+  }
+
+  async function deleteChat(next: AgentJob) {
+    setBusy("delete");
+    const { res, j } = await api("/api/admin/agent", { method: "POST", body: JSON.stringify({ op: "delete-job", jobId: next.id }) });
+    setBusy("");
+    if (!res.ok) return setAgentErr(j.error || "Delete failed");
+    if (job?.id === next.id) {
+      setJob(null);
+      setSelected("");
+      setFile("");
+      setCurrent("");
+    }
+    if (j.jobs) setData((d) => (d ? { ...d, agentJobs: j.jobs } : d));
+    load();
+  }
+
+  async function deletePrompt(index: number) {
+    if (!job || job.id === "pending") return;
+    setBusy("delete");
+    const { res, j } = await api("/api/admin/agent", { method: "POST", body: JSON.stringify({ op: "delete-message", jobId: job.id, index }) });
+    setBusy("");
+    if (!res.ok) return setAgentErr(j.error || "Delete failed");
     setJob(j.job);
+    load();
   }
 
   useEffect(() => {
@@ -181,14 +234,13 @@ export function AdminCommand() {
     };
   }, [file, job?.id]);
 
-  const patch = useMemo(() => job?.patches.find((p) => p.path === file) || job?.patches[0], [job, file]);
   const messages = useMemo(() => {
     if (job?.messages?.length) return job.messages;
     if (!job) return [];
-    return [
-      job.prompt ? { role: "user" as const, content: job.prompt, at: job.createdAt } : null,
-      job.reply ? { role: "assistant" as const, content: job.reply, at: job.updatedAt } : null,
-    ].filter((m): m is { role: "user" | "assistant"; content: string; at: string } => !!m);
+    const out: { role: "user" | "assistant"; content: string; at: string; segmentId?: string }[] = [];
+    if (job.prompt) out.push({ role: "user", content: job.prompt, at: job.createdAt });
+    if (job.reply) out.push({ role: "assistant", content: job.reply, at: job.updatedAt, segmentId: job.segments?.[0]?.id });
+    return out;
   }, [job]);
 
   async function logout() {
@@ -258,8 +310,8 @@ export function AdminCommand() {
         </header>
 
         {tab === "grok" && (
-          <div className="grid gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(280px,0.85fr)]">
-            <section className="panel flex h-[calc(100vh-8.5rem)] min-h-[480px] flex-col overflow-hidden">
+          <div className="grid gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(300px,0.9fr)]">
+            <section className="panel flex h-[70vh] min-h-[420px] flex-col overflow-hidden xl:h-[calc(100vh-8.5rem)]">
               <div className="relative flex items-center justify-between gap-2 border-b border-white/10 px-4 py-3">
                 <div className="flex items-center gap-2 text-sm font-semibold">
                   <Bot size={16} className="text-mint" /> Grok
@@ -277,6 +329,7 @@ export function AdminCommand() {
                       setJob(null);
                       setFile("");
                       setCurrent("");
+                      setSelected("");
                       setAgentErr("");
                       setShowChats(false);
                       boxRef.current?.focus();
@@ -333,17 +386,46 @@ export function AdminCommand() {
                     </div>
                   </div>
                 )}
-                {messages.map((m, i) => (
-                  <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
-                    <div
-                      className={`max-w-[85%] whitespace-pre-wrap rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed ${
-                        m.role === "user" ? "bg-mint text-ink" : "bg-white/10 text-white/90"
-                      }`}
-                    >
-                      {m.content}
+                {messages.map((m, i) => {
+                  const seg = m.segmentId ? (job?.segments || []).find((s) => s.id === m.segmentId) : null;
+                  const text = m.content.startsWith("HODL HOTEL — staff briefing") ? "Hotel briefing (full notes sent)." : m.content;
+                  return (
+                    <div key={`${m.at}-${i}`} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
+                      <div className="max-w-[85%] space-y-1.5">
+                        <div
+                          className={`whitespace-pre-wrap rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed ${
+                            m.role === "user" ? "bg-mint text-ink" : "bg-white/10 text-white/90"
+                          }`}
+                        >
+                          {text}
+                        </div>
+                        {m.role === "user" && job && job.id !== "pending" && (
+                          <div className="flex justify-end">
+                            <button
+                              type="button"
+                              className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] text-white/35 hover:bg-coral/20 hover:text-coral"
+                              disabled={!!busy}
+                              onClick={() => deletePrompt(i)}
+                            >
+                              <Trash2 size={11} /> Delete prompt
+                            </button>
+                          </div>
+                        )}
+                        {seg && job && (
+                          <HelpBubble
+                            seg={seg}
+                            compact
+                            active={selected === seg.id}
+                            busy={busy}
+                            onPreview={() => openPreview(job, seg)}
+                            onPush={() => ship(job, seg)}
+                            onDelete={() => deleteHelp(job, seg)}
+                          />
+                        )}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
                 {busy === "chat" && (
                   <div className="flex justify-start">
                     <div className="rounded-2xl bg-white/10 px-3.5 py-2.5 text-sm text-white/50">Grok is thinking…</div>
@@ -351,34 +433,6 @@ export function AdminCommand() {
                 )}
                 {agentErr && <p className="text-sm text-coral">{agentErr}</p>}
               </div>
-              {!!job?.patches.length && (
-                <div className="flex flex-wrap items-center gap-2 border-t border-white/10 px-4 py-2 text-xs">
-                  <span className="text-mint">{job.patches.length} file{job.patches.length === 1 ? "" : "s"} ready</span>
-                  <button className="rounded-full bg-white/10 px-2.5 py-1" onClick={() => setShowFiles((v) => !v)}>
-                    {showFiles ? "Hide preview" : "Show preview"}
-                  </button>
-                  <button className="rounded-full bg-white/10 px-2.5 py-1 disabled:opacity-40" disabled={!!busy} onClick={applyLocal}>
-                    Apply here
-                  </button>
-                  <button className="inline-flex items-center gap-1 rounded-full bg-mint/20 px-2.5 py-1 font-semibold text-mint disabled:opacity-40" disabled={!!busy} onClick={ship}>
-                    <Rocket size={12} /> {busy === "ship" ? "Shipping…" : "Ship"}
-                  </button>
-                  {job.shipSha && <span className="font-mono text-white/40">{job.shipSha.slice(0, 8)}</span>}
-                </div>
-              )}
-              {!!job?.patches.length && showFiles && (
-                <div className="max-h-48 overflow-auto border-t border-white/10 p-3 xl:hidden">
-                  <p className="mb-2 text-[11px] uppercase tracking-wide text-white/40">Proposed files</p>
-                  <div className="mb-2 flex flex-wrap gap-1">
-                    {job.patches.map((p) => (
-                      <button key={p.path} className={`rounded-full px-2.5 py-1 text-[11px] ${file === p.path || patch?.path === p.path ? "bg-mint text-ink" : "bg-white/10"}`} onClick={() => setFile(p.path)}>
-                        {p.path.split("/").slice(-2).join("/")}
-                      </button>
-                    ))}
-                  </div>
-                  <pre className="max-h-28 overflow-auto rounded-xl bg-black/40 p-2 font-mono text-[11px] text-mint/90">{patch?.content || ""}</pre>
-                </div>
-              )}
               <form
                 className="border-t border-white/10 p-3"
                 onSubmit={(e) => {
@@ -409,46 +463,26 @@ export function AdminCommand() {
               </form>
             </section>
 
-            <aside className="hidden min-h-[480px] flex-col xl:flex">
-              {showFiles && job?.patches.length ? (
-                <section className="panel flex min-h-0 flex-1 flex-col p-4">
-                  <div className="mb-3 flex items-center gap-2 text-sm font-semibold">
-                    <Shield size={16} className="text-mint" /> File preview
-                  </div>
-                  <div className="mb-2 flex flex-wrap gap-1">
-                    {job.patches.map((p) => (
-                      <button key={p.path} className={`rounded-full px-2.5 py-1 text-[11px] ${file === p.path || patch?.path === p.path ? "bg-mint text-ink" : "bg-white/10"}`} onClick={() => setFile(p.path)}>
-                        {p.path.split("/").slice(-2).join("/")}
-                      </button>
-                    ))}
-                  </div>
-                  <div className="grid min-h-0 flex-1 gap-2">
-                    <pre className="max-h-[38%] overflow-auto rounded-xl bg-black/40 p-3 font-mono text-[11px] text-white/45">{current || "Current file"}</pre>
-                    <pre className="min-h-0 flex-1 overflow-auto rounded-xl bg-black/40 p-3 font-mono text-[11px] text-mint/90">{patch?.content || "Proposed file"}</pre>
-                  </div>
-                </section>
-              ) : (
-                <section className="panel flex-1 p-4 text-sm text-white/45">
-                  <p className="mb-3 font-semibold text-white/70">Recent chats</p>
-                  <ul className="space-y-1">
-                    {(data.agentJobs || []).map((j) => (
-                      <li key={j.id}>
-                        <button
-                          className={`w-full truncate rounded-lg px-2 py-1.5 text-left text-xs ${job?.id === j.id ? "bg-white/15" : "hover:bg-white/5"}`}
-                          onClick={() => {
-                            setJob(j);
-                            setFile(j.patches[0]?.path || "");
-                          }}
-                        >
-                          <span className="text-mint">{j.status}</span> · {j.prompt}
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                  {!data.agentJobs?.length && <p>Chats will show up here.</p>}
-                </section>
-              )}
-            </aside>
+            <GrokHelpPane
+              jobs={data.agentJobs || []}
+              currentJobId={job?.id}
+              selectedId={selected}
+              busy={busy}
+              file={file}
+              current={current}
+              showPreview={showFiles}
+              onOpenChat={(j) => {
+                setJob(j);
+                const last = j.segments?.[j.segments.length - 1];
+                setSelected(last?.id || "");
+                setFile(last?.patches[0]?.path || j.patches[0]?.path || "");
+              }}
+              onPreview={openPreview}
+              onPush={ship}
+              onDeleteHelp={deleteHelp}
+              onDeleteChat={deleteChat}
+              onFile={setFile}
+            />
           </div>
         )}
 

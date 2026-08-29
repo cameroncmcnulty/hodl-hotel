@@ -195,6 +195,17 @@ export type AgentMessage = {
   role: "user" | "assistant";
   content: string;
   at: string;
+  segmentId?: string;
+};
+
+export type AgentSegment = {
+  id: string;
+  prompt: string;
+  reply: string;
+  patches: AgentPatch[];
+  status: "preview" | "ready" | "shipped";
+  at: string;
+  shipSha?: string;
 };
 
 export type AgentJob = {
@@ -205,6 +216,7 @@ export type AgentJob = {
   plan: string;
   reply: string;
   patches: AgentPatch[];
+  segments?: AgentSegment[];
   messages?: AgentMessage[];
   log: string[];
   createdAt: string;
