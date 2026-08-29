@@ -1,13 +1,27 @@
 import type { Figure } from "../types";
 import { mix } from "./pix";
-import { LOOK_H, LOOK_SCALE, LOOK_W, lookKey, paintLook, type LookOpts } from "./lookDraw";
+import {
+  allChibiIds,
+  chibiIds,
+  hasChibi,
+  LOOK_H,
+  LOOK_SCALE,
+  LOOK_W,
+  lookKey,
+  paintLook,
+  pixFromRgba,
+  setChibi,
+  type LookOpts,
+} from "./lookDraw";
 
 export {
   ACC,
+  allChibiIds,
   BOT_BOY,
   BOT_CUTS,
   BOT_GIRL,
   BOTTOMS,
+  chibiIds,
   COLOR_N,
   DEFAULT_FIGURE,
   GENDERS,
@@ -16,6 +30,7 @@ export {
   HAIR_COLOR_N,
   HAIR_GIRL,
   HAIR_STYLES,
+  hasChibi,
   SHOE_BOY,
   SHOE_GIRL,
   SHOES,
@@ -37,6 +52,7 @@ export {
   LOOK_W,
   lookKey,
   paintLook,
+  setChibi,
   shoeColors,
   shoesFor,
   topColors,
@@ -50,6 +66,9 @@ export const SPRITE_H = LOOK_H;
 export const SPRITE_V = 40;
 
 const canvasCache = new Map<string, HTMLCanvasElement>();
+const inflight = new Map<string, Promise<void>>();
+let allLoading: Promise<void> | null = null;
+let allLoaded = false;
 
 function lookCanvas(fig: Figure, opts: LookOpts = {}) {
   const key = lookKey(fig, opts);
@@ -64,28 +83,56 @@ function lookCanvas(fig: Figure, opts: LookOpts = {}) {
   return c;
 }
 
-export function loadSpriteId(_id: string) {
-  return Promise.resolve(null);
+export function clearLookCache() {
+  canvasCache.clear();
 }
 
-export function lookSpriteIds(_fig: Figure, _dir: 0 | 1 | 2 | 3 = 1) {
-  return [] as string[];
+export function loadSpriteId(id: string) {
+  if (hasChibi(id)) return Promise.resolve();
+  const hit = inflight.get(id);
+  if (hit) return hit;
+  const p = (async () => {
+    const img = new Image();
+    img.src = `/art/chibi/${id}.png`;
+    await img.decode();
+    const c = document.createElement("canvas");
+    c.width = img.width;
+    c.height = img.height;
+    const ctx = c.getContext("2d");
+    if (!ctx) return;
+    ctx.drawImage(img, 0, 0);
+    const data = ctx.getImageData(0, 0, img.width, img.height);
+    setChibi(id, pixFromRgba(img.width, img.height, data.data));
+    canvasCache.clear();
+  })();
+  inflight.set(id, p);
+  return p;
 }
 
-export async function loadLookSprites(_fig: Figure, _dir: 0 | 1 | 2 | 3 = 1) {
-  return;
+export function lookSpriteIds(fig: Figure, _dir: 0 | 1 | 2 | 3 = 1) {
+  return chibiIds(fig);
+}
+
+export async function loadLookSprites(fig: Figure, _dir: 0 | 1 | 2 | 3 = 1) {
+  await Promise.all(chibiIds(fig).map(loadSpriteId));
 }
 
 export function loadAvatars() {
-  return Promise.resolve();
+  if (allLoaded) return Promise.resolve();
+  if (allLoading) return allLoading;
+  allLoading = Promise.all(allChibiIds().map(loadSpriteId)).then(() => {
+    allLoaded = true;
+    canvasCache.clear();
+  });
+  return allLoading;
 }
 
-export function lookReady(_fig: Figure, _dir: 0 | 1 | 2 | 3 = 1) {
-  return true;
+export function lookReady(fig: Figure, _dir: 0 | 1 | 2 | 3 = 1) {
+  return chibiIds(fig).every(hasChibi);
 }
 
 export function avatarsReady() {
-  return true;
+  return allLoaded;
 }
 
 function blit(

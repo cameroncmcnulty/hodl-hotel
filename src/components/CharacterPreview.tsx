@@ -3,12 +3,14 @@
 import { useEffect, useRef, useState } from "react";
 import type { Figure } from "@/lib/types";
 import {
+  avatarsReady,
   botColors,
   botsFor,
   clampFigure,
   drawAvatarFront,
   hairColors,
   hairsFor,
+  loadAvatars,
   LOOK_H,
   LOOK_W,
   lookKey,
@@ -34,12 +36,14 @@ function LookThumb({
   onClick,
   scale = 1,
   label,
+  ready,
 }: {
   figure: Figure;
   on: boolean;
   onClick: () => void;
   scale?: number;
   label?: string;
+  ready?: boolean;
 }) {
   const f = clampFigure(figure);
   const s = Math.max(1, Math.round(scale));
@@ -56,7 +60,7 @@ function LookThumb({
     ctx.fillStyle = "#2a3340";
     ctx.fillRect(0, 0, w, h);
     drawAvatarFront(ctx, f, w / 2, h, s, 1);
-  }, [key, s, w, h]);
+  }, [key, s, w, h, ready]);
   return (
     <button
       type="button"
@@ -98,6 +102,10 @@ export function CharacterPreview({
   const h = LOOK_H * s;
   const ref = useRef<HTMLCanvasElement>(null);
   const key = lookKey(f, { back: dir === 2 || dir === 3 });
+  const [ready, setReady] = useState(avatarsReady());
+  useEffect(() => {
+    loadAvatars().then(() => setReady(true));
+  }, []);
   useEffect(() => {
     const c = ref.current;
     if (!c) return;
@@ -107,7 +115,7 @@ export function CharacterPreview({
     ctx.fillStyle = "#5c6b78";
     ctx.fillRect(0, 0, w, h);
     drawAvatarFront(ctx, f, w / 2, h, s, dir);
-  }, [key, s, w, h, dir]);
+  }, [key, s, w, h, dir, ready]);
   return (
     <canvas
       ref={ref}
@@ -122,6 +130,10 @@ export function CharacterPreview({
 export function FigureEditor({ figure, onChange }: { figure: Figure; onChange: (f: Figure) => void }) {
   const f = clampFigure({ ...figure, face: 0 });
   const [tab, setTab] = useState<TabId>("skin");
+  const [ready, setReady] = useState(avatarsReady());
+  useEffect(() => {
+    loadAvatars().then(() => setReady(true));
+  }, []);
   const g = f.gender ?? 0;
   const hairs = hairsFor(g);
   const tops = topsFor(g);
@@ -141,6 +153,7 @@ export function FigureEditor({ figure, onChange }: { figure: Figure; onChange: (
             key={`gender-${i}`}
             scale={1}
             label={label}
+            ready={ready}
             figure={{ ...f, gender: i, hair: 0, topCut: 0, botCut: 0, shoeCut: 0 }}
             on={g === i}
             onClick={() => push({ gender: i, hair: 0, topCut: 0, botCut: 0, shoeCut: 0 })}
@@ -173,7 +186,7 @@ export function FigureEditor({ figure, onChange }: { figure: Figure; onChange: (
           {tab === "skin" && (
             <div className="flex flex-wrap justify-center gap-2">
               {Array.from({ length: 8 }, (_, i) => (
-                <LookThumb key={`skin-${i}`} figure={{ ...f, skin: i }} on={f.skin === i} onClick={() => push({ skin: i })} />
+                <LookThumb key={`skin-${i}`} ready={ready} figure={{ ...f, skin: i }} on={f.skin === i} onClick={() => push({ skin: i })} />
               ))}
             </div>
           )}
@@ -182,7 +195,7 @@ export function FigureEditor({ figure, onChange }: { figure: Figure; onChange: (
             <div className="grid gap-4">
               <div className="flex flex-wrap justify-center gap-2">
                 {hairs.map((name, i) => (
-                  <LookThumb key={`hs-${name}`} figure={{ ...f, hair: i }} on={f.hair === i} onClick={() => push({ hair: i })} />
+                  <LookThumb key={`hs-${name}`} ready={ready} figure={{ ...f, hair: i }} on={f.hair === i} onClick={() => push({ hair: i })} />
                 ))}
               </div>
               <div className="flex flex-wrap justify-center gap-2">
@@ -197,7 +210,7 @@ export function FigureEditor({ figure, onChange }: { figure: Figure; onChange: (
             <div className="grid gap-4">
               <div className="flex flex-wrap justify-center gap-2">
                 {tops.map((name, i) => (
-                  <LookThumb key={`ts-${name}`} figure={{ ...f, topCut: i }} on={(f.topCut ?? 0) === i} onClick={() => push({ topCut: i })} />
+                  <LookThumb key={`ts-${name}`} ready={ready} figure={{ ...f, topCut: i }} on={(f.topCut ?? 0) === i} onClick={() => push({ topCut: i })} />
                 ))}
               </div>
               <div className="flex flex-wrap justify-center gap-2">
@@ -212,7 +225,7 @@ export function FigureEditor({ figure, onChange }: { figure: Figure; onChange: (
             <div className="grid gap-4">
               <div className="flex flex-wrap justify-center gap-2">
                 {bots.map((name, i) => (
-                  <LookThumb key={`bs-${name}`} figure={{ ...f, botCut: i }} on={(f.botCut ?? 0) === i} onClick={() => push({ botCut: i })} />
+                  <LookThumb key={`bs-${name}`} ready={ready} figure={{ ...f, botCut: i }} on={(f.botCut ?? 0) === i} onClick={() => push({ botCut: i })} />
                 ))}
               </div>
               <div className="flex flex-wrap justify-center gap-2">
@@ -227,7 +240,7 @@ export function FigureEditor({ figure, onChange }: { figure: Figure; onChange: (
             <div className="grid gap-4">
               <div className="flex flex-wrap justify-center gap-2">
                 {shoes.map((name, i) => (
-                  <LookThumb key={`ss-${name}`} figure={{ ...f, shoeCut: i }} on={(f.shoeCut ?? 0) === i} onClick={() => push({ shoeCut: i })} />
+                  <LookThumb key={`ss-${name}`} ready={ready} figure={{ ...f, shoeCut: i }} on={(f.shoeCut ?? 0) === i} onClick={() => push({ shoeCut: i })} />
                 ))}
               </div>
               <div className="flex flex-wrap justify-center gap-2">

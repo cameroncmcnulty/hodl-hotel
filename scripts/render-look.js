@@ -39,7 +39,14 @@ function loadTs(rel, cache = new Map()) {
 
 const look = loadTs(path.join("src", "lib", "game", "lookDraw.ts"));
 const pix = loadTs(path.join("src", "lib", "game", "pix.ts"));
-const { paintLook, clampFigure, LOOK_W, LOOK_H, Pix } = { ...look, ...pix };
+const { paintLook, clampFigure, LOOK_W, LOOK_H, Pix, setChibi, pixFromRgba, allChibiIds } = { ...look, ...pix };
+
+const CHIBI_DIR = path.join(ROOT, "public", "art", "chibi");
+for (const id of allChibiIds()) {
+  const file = path.join(CHIBI_DIR, id + ".png");
+  const png = PNG.sync.read(fs.readFileSync(file));
+  setChibi(id, pixFromRgba(png.width, png.height, png.data));
+}
 
 function savePix(name, p, scale = 4) {
   const w = p.w * scale;
@@ -136,7 +143,7 @@ for (const gender of [0, 1]) {
         for (let shoeCut = 0; shoeCut < shoes; shoeCut++) {
           for (const skin of [0, 4, 7]) {
             const p = paintLook(fig({ gender, hair, topCut, botCut, shoeCut, skin, top: 1, bottom: 2, shoes: 3, hairColor: 2 }));
-            if (p.w !== 80 || p.h !== 128) throw new Error("size");
+            if (p.w !== LOOK_W || p.h !== LOOK_H) throw new Error("size " + p.w + "x" + p.h);
             let opaque = 0;
             for (let i = 3; i < p.d.length; i += 4) if (p.d[i] > 8) opaque++;
             if (opaque < 800) throw new Error("empty sprite " + [gender, hair, topCut, botCut, shoeCut, skin].join(","));
