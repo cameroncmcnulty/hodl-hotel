@@ -152,7 +152,6 @@ function palOf(f: Figure) {
 }
 
 const BOT_Y = 128;
-const HAIR_BODY_Y = 82;
 const SHOE_TOP: Record<string, number> = {
   sneakers: 156,
   hightops: 150,
@@ -248,12 +247,12 @@ function canHair(r: number, g: number, b: number, x: number, y: number, w: numbe
   if (r > 228 && g > 228 && b > 220) return false;
   if (isGreyClothes(r, g, b)) return false;
   if (r > 210 && g > 180 && b < 120) return false;
-  if (y > HAIR_BODY_Y) {
-    if (x > 30 && x < w - 30) return false;
+  if (y > 56 && x > 28 && x < w - 28) return false;
+  if (y > 70) {
     const brown = r > g - 5 && g >= b - 15 && r - b > 15 && g < 160 && r < 200;
     const dark = r + g + b < 90;
     if (!brown && !dark) return false;
-  } else if (y > 70) {
+  } else if (y > 62) {
     if (r > 180 && g < 180 && b > 110) return false;
   }
   return true;
@@ -324,6 +323,53 @@ function stampHair(dst: Pix, src: Pix, mask: Uint8Array) {
   }
 }
 
+function stampHeadHair(dst: Pix, src: Pix) {
+  for (let y = 0; y < 68; y++) {
+    for (let x = 0; x < dst.w; x++) {
+      if (src.a(x, y) < 16) continue;
+      const i = (y * src.w + x) * 4;
+      const r = src.d[i],
+        g = src.d[i + 1],
+        b = src.d[i + 2];
+      if (isGreyClothes(r, g, b) && y > 58) continue;
+      if (r > 180 && g < 180 && b > 110 && y > 58) continue;
+      if (isSkinPx(r, g, b) || isEyePx(r, g, b, x, y) || (r > 228 && g > 228 && b > 220)) {
+        if (dst.a(x, y) < 16) dst.set(x, y, [r, g, b], src.d[i + 3]);
+        continue;
+      }
+      dst.set(x, y, [r, g, b], src.d[i + 3]);
+    }
+  }
+}
+
+function isBrownHair(r: number, g: number, b: number) {
+  return r > g - 5 && g >= b - 15 && r - b > 15 && g < 170 && r > 40 && r < 210;
+}
+
+function eraseOldHair(p: Pix) {
+  for (let y = 0; y < 64; y++) {
+    for (let x = 0; x < p.w; x++) {
+      if (p.a(x, y) < 16) continue;
+      const i = (y * p.w + x) * 4;
+      const r = p.d[i],
+        g = p.d[i + 1],
+        b = p.d[i + 2];
+      if (isSkinPx(r, g, b) || isEyePx(r, g, b, x, y)) continue;
+      if (r > 228 && g > 228 && b > 220) continue;
+      p.set(x, y, [0, 0, 0], 0);
+    }
+  }
+  for (let y = 64; y < 118; y++) {
+    for (let x = 0; x < p.w; x++) {
+      if (x > 24 && x < p.w - 24) continue;
+      if (p.a(x, y) < 16) continue;
+      const i = (y * p.w + x) * 4;
+      if (!isBrownHair(p.d[i], p.d[i + 1], p.d[i + 2])) continue;
+      p.set(x, y, [0, 0, 0], 0);
+    }
+  }
+}
+
 function isSilhouette(p: Pix, x: number, y: number) {
   return p.a(x - 1, y) < 16 || p.a(x + 1, y) < 16 || p.a(x, y - 1) < 16 || p.a(x, y + 1) < 16;
 }
@@ -385,10 +431,12 @@ function paintChibi(f: Figure): Pix {
   const shoeTop = SHOE_TOP[shoeName] ?? 156;
   const p = new Pix(LOOK_W, LOOK_H);
   p.blit(top);
+  eraseOldHair(p);
   clearBand(p, BOT_Y, LOOK_H);
   stampBand(p, bot, BOT_Y, LOOK_H);
   stampBand(p, shoe, shoeTop, LOOK_H);
   const mask = hairMask(hair);
+  stampHeadHair(p, hair);
   stampHair(p, hair, mask);
   const skins = skinMask(p);
   const pal = palOf(f);
@@ -397,8 +445,7 @@ function paintChibi(f: Figure): Pix {
   tintPixels(
     p,
     pal.top,
-    (x, y) =>
-      y >= 68 && y < BOT_Y && !inEyes(x, y) && !skins[y * p.w + x] && !mask[y * hair.w + x],
+    (x, y) => y >= 68 && y < BOT_Y && !inEyes(x, y) && !skins[y * p.w + x] && !mask[y * hair.w + x],
     0.32
   );
   tintPixels(p, pal.bot, (x, y) => {
