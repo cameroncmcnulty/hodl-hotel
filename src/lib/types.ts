@@ -9,6 +9,7 @@ export type Figure = {
   acc: number;
   topCut?: number;
   botCut?: number;
+  shoeCut?: number;
   eyes?: number;
   face?: number;
 };

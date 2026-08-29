@@ -12,6 +12,8 @@ import {
   hairsFor,
   loadLookSprites,
   SKIN,
+  shoesFor,
+  SHOES,
   topsFor,
   TOPS,
 } from "@/lib/game/avatar";
@@ -37,7 +39,7 @@ function ArrowBtn({ dir, label, onClick }: { dir: "prev" | "next"; label: string
   );
 }
 
-function LookIcon({ kind, color }: { kind: "hair" | "skin" | "shirt" | "pants"; color: string }) {
+function LookIcon({ kind, color }: { kind: "hair" | "skin" | "shirt" | "pants" | "shoes"; color: string }) {
   return (
     <span className="grid h-11 w-11 place-items-center rounded-2xl bg-white/10 ring-1 ring-white/10" aria-hidden>
       <svg viewBox="0 0 32 32" width="26" height="26" fill="none">
@@ -84,6 +86,24 @@ function LookIcon({ kind, color }: { kind: "hair" | "skin" | "shirt" | "pants"; 
               strokeLinejoin="round"
             />
             <path d="M11.2 14.2h9.6" stroke="#0b0b12" strokeOpacity="0.28" strokeWidth="1.2" />
+          </>
+        )}
+        {kind === "shoes" && (
+          <>
+            <path
+              d="M7.5 20h7.2l2.2 5.2H6.6L7.5 20Z"
+              fill={color}
+              stroke="#0b0b12"
+              strokeWidth="1.4"
+              strokeLinejoin="round"
+            />
+            <path
+              d="M17.2 20h7.2l.8 5.2h-8.2L17.2 20Z"
+              fill={color}
+              stroke="#0b0b12"
+              strokeWidth="1.4"
+              strokeLinejoin="round"
+            />
           </>
         )}
       </svg>
@@ -179,13 +199,14 @@ export function FigureEditor({ figure, onChange }: { figure: Figure; onChange: (
   const hairs = hairsFor(f.gender ?? 0);
   const tops = topsFor(f.gender ?? 0);
   const bots = botsFor(f.gender ?? 0);
+  const shoes = shoesFor(f.gender ?? 0);
   const push = (patch: Partial<Figure>) => onChange({ ...f, face: 0, ...patch });
   const cycle = (key: keyof Figure, max: number, delta: number) => {
     push({ [key]: wrap(Number(f[key] ?? 0) + delta, max) });
   };
 
   const rows: {
-    id: "hair" | "skin" | "shirt" | "pants";
+    id: "hair" | "skin" | "shirt" | "pants" | "shoes";
     title: string;
     color: string;
     colors: string[];
@@ -237,6 +258,21 @@ export function FigureEditor({ figure, onChange }: { figure: Figure; onChange: (
         onNext: () => cycle("botCut", bots.length - 1, 1),
       },
     },
+    {
+      id: "shoes",
+      title: "SHOES",
+      color: SHOES[f.shoes],
+      colors: SHOES,
+      value: f.shoes,
+      onColor: (i) => push({ shoes: i }),
+      step:
+        shoes.length > 1
+          ? {
+              onPrev: () => cycle("shoeCut", shoes.length - 1, -1),
+              onNext: () => cycle("shoeCut", shoes.length - 1, 1),
+            }
+          : undefined,
+    },
   ];
 
   return (
@@ -249,7 +285,7 @@ export function FigureEditor({ figure, onChange }: { figure: Figure; onChange: (
             className={`rounded-2xl px-3 py-2.5 text-sm capitalize transition ${
               (f.gender ?? 0) === i ? "bg-[#14F195] font-bold text-[#12121c]" : "bg-white/10 text-white/80 hover:bg-white/15"
             }`}
-            onClick={() => push({ gender: i, hair: 0, topCut: 0, botCut: 0, face: 0 })}
+            onClick={() => push({ gender: i, hair: 0, topCut: 0, botCut: 0, shoeCut: 0, face: 0 })}
           >
             {label}
           </button>
@@ -273,7 +309,7 @@ export function FigureEditor({ figure, onChange }: { figure: Figure; onChange: (
         <div className="min-w-0 flex-1">
           <div
             className="grid items-center gap-x-2 gap-y-3 sm:gap-x-3"
-            style={{ gridTemplateColumns: "2.75rem 4.25rem 5.7rem minmax(0,1fr)" }}
+            style={{ gridTemplateColumns: "2.5rem 3.8rem 5.4rem minmax(0,1fr)" }}
           >
             {rows.map((row) => (
               <div key={row.id} className="contents">
