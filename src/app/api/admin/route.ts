@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { CATALOG } from "@/lib/catalog";
+import { githubReady } from "@/lib/githubShip";
+import { xaiReady } from "@/lib/grokAgent";
 import { sessionUserId } from "@/lib/session";
 import { findUser, loadDB, log, occupantCount, saveDB } from "@/lib/store";
 
@@ -52,6 +54,10 @@ export async function GET() {
     logs: db.logs.slice(0, 80),
     settings: db.settings,
     catalogCount: CATALOG.length,
+    agentJobs: (db.agentJobs || []).slice(0, 16),
+    grok: xaiReady(),
+    github: githubReady(),
+    me: { id: a.u.id, username: a.u.username, email: a.u.email },
   });
 }
 

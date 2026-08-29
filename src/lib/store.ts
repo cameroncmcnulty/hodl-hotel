@@ -43,6 +43,7 @@ function empty(): DB {
       starterCoins: STARTER_COINS,
     },
     logs: [],
+    agentJobs: [],
   };
 }
 
@@ -114,6 +115,7 @@ function bootstrap(db: DB) {
     db.settings.treasuryWallet = TREASURY_WALLET;
   }
   seedPublicRooms(db);
+  if (!db.agentJobs) db.agentJobs = [];
   for (const u of db.users) {
     if (!u.ownedLayoutIds?.length) u.ownedLayoutIds = [...FREE_LAYOUT_IDS];
   }
@@ -143,6 +145,9 @@ function bootstrap(db: DB) {
     db.users.push(admin);
   } else {
     admin.role = "admin";
+    if (pass && !bcrypt.compareSync(pass, admin.passwordHash)) {
+      admin.passwordHash = bcrypt.hashSync(pass, 10);
+    }
   }
 }
 

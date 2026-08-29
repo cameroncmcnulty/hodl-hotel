@@ -185,6 +185,28 @@ export type Log = {
   text: string;
 };
 
+export type AgentPatch = {
+  path: string;
+  content: string;
+  note?: string;
+};
+
+export type AgentJob = {
+  id: string;
+  prompt: string;
+  mode: "preview" | "build" | "ship";
+  status: "queued" | "running" | "preview" | "ready" | "shipped" | "error";
+  plan: string;
+  reply: string;
+  patches: AgentPatch[];
+  log: string[];
+  createdAt: string;
+  updatedAt: string;
+  shippedAt?: string;
+  shipSha?: string;
+  error?: string;
+};
+
 export type DB = {
   users: User[];
   rooms: Room[];
@@ -196,4 +218,5 @@ export type DB = {
   events: HotelEvent[];
   settings: Settings;
   logs: Log[];
+  agentJobs?: AgentJob[];
 };
