@@ -16,5 +16,6 @@ npm-debug.log*
 !/data/.gitkeep
 *.tsbuildinfo
 next-env.d.ts
+/scripts/look-tests/
 
 .vercel

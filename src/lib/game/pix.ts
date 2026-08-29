@@ -1,4 +1,4 @@
-/** Tiny pixel buffer for hotel-sim avatars. 1 cell = 1 sprite pixel. */
+/** Tiny pixel buffer. 1 cell = 1 sprite pixel. Works in browser and Node. */
 
 export function rgb(hex: string): [number, number, number] {
   const n = parseInt(hex.replace("#", ""), 16);
@@ -12,6 +12,23 @@ export function mix(hex: string, amt: number): [number, number, number] {
     Math.max(0, Math.min(255, g + amt)),
     Math.max(0, Math.min(255, b + amt)),
   ];
+}
+
+export function hexMix(hex: string, amt: number): string {
+  const [r, g, b] = mix(hex, amt);
+  return `#${r.toString(16).padStart(2, "0")}${g.toString(16).padStart(2, "0")}${b.toString(16).padStart(2, "0")}`;
+}
+
+function tone(hex: string, x: number, y: number, x0: number, y0: number, w: number, h: number): [number, number, number] {
+  const lit = mix(hex, 30);
+  const mid = rgb(hex);
+  const dim = mix(hex, -36);
+  const nx = w <= 1 ? 0.5 : (x - x0) / (w - 1);
+  const ny = h <= 1 ? 0.5 : (y - y0) / (h - 1);
+  const t = nx * 0.55 + ny * 0.45;
+  if (t < 0.28) return lit;
+  if (t > 0.72) return dim;
+  return mid;
 }
 
 export class Pix {
@@ -43,53 +60,81 @@ export class Pix {
     for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) this.set(x + i, y + j, c);
   }
 
-  /** 3-tone clothing/skin block: light left+top, mid, dark right+bottom. */
+  /** 3-tone clothing/skin block: light upper-left, dark lower-right. */
   block(x: number, y: number, w: number, h: number, hex: string) {
-    const lit = mix(hex, 32);
-    const mid = rgb(hex);
-    const dim = mix(hex, -38);
     for (let j = 0; j < h; j++) {
-      for (let i = 0; i < w; i++) {
-        let c = mid;
-        if (i <= 1 || j === 0) c = lit;
-        if (i >= w - 2 || j === h - 1) c = dim;
-        if (i === 0 && j === 0) c = lit;
-        this.set(x + i, y + j, c);
-      }
+      for (let i = 0; i < w; i++) this.set(x + i, y + j, tone(hex, x + i, y + j, x, y, w, h));
     }
   }
 
   disc(cx: number, cy: number, rx: number, ry: number, c: [number, number, number]) {
-    const rx2 = rx * rx;
-    const ry2 = ry * ry;
+    const rx2 = rx * rx || 1;
+    const ry2 = ry * ry || 1;
     for (let y = Math.floor(cy - ry); y <= Math.ceil(cy + ry); y++) {
       for (let x = Math.floor(cx - rx); x <= Math.ceil(cx + rx); x++) {
         const dx = x - cx;
         const dy = y - cy;
-        if ((dx * dx) / rx2 + (dy * dy) / ry2 <= 1.05) this.set(x, y, c);
+        if ((dx * dx) / rx2 + (dy * dy) / ry2 <= 1.02) this.set(x, y, c);
       }
     }
   }
 
-  /** Lighter on the upper-left, darker lower-right — hotel-sim shading. */
-  discShade(cx: number, cy: number, rx: number, ry: number, base: string) {
-    const lit = mix(base, 28);
-    const mid = rgb(base);
-    const dim = mix(base, -32);
-    const rx2 = rx * rx;
-    const ry2 = ry * ry;
+  discShade(cx: number, cy: number, rx: number, ry: number, base: string, pred?: (x: number, y: number) => boolean) {
+    const rx2 = rx * rx || 1;
+    const ry2 = ry * ry || 1;
+    const x0 = Math.floor(cx - rx);
+    const y0 = Math.floor(cy - ry);
+    const w = Math.ceil(rx * 2) + 1;
+    const h = Math.ceil(ry * 2) + 1;
     for (let y = Math.floor(cy - ry); y <= Math.ceil(cy + ry); y++) {
       for (let x = Math.floor(cx - rx); x <= Math.ceil(cx + rx); x++) {
         const dx = x - cx;
         const dy = y - cy;
-        if ((dx * dx) / rx2 + (dy * dy) / ry2 > 1.05) continue;
-        const t = dx / (rx * 2) + dy / (ry * 2);
-        this.set(x, y, t < -0.15 ? lit : t > 0.22 ? dim : mid);
+        if ((dx * dx) / rx2 + (dy * dy) / ry2 > 1.02) continue;
+        if (pred && !pred(x, y)) continue;
+        this.set(x, y, tone(base, x, y, x0, y0, w, h));
       }
     }
   }
 
-  outline(col: [number, number, number] = [12, 8, 16]) {
+  /** Trapezoid, top edge y0 from xt0..xt1, bottom y1 from xb0..xb1. */
+  trap(xt0: number, xt1: number, y0: number, xb0: number, xb1: number, y1: number, hex: string) {
+    const h = y1 - y0;
+    for (let y = y0; y <= y1; y++) {
+      const t = h === 0 ? 0 : (y - y0) / h;
+      const xa = Math.round(xt0 + (xb0 - xt0) * t);
+      const xb = Math.round(xt1 + (xb1 - xt1) * t);
+      const w = Math.max(1, xb - xa + 1);
+      for (let x = xa; x <= xb; x++) this.set(x, y, tone(hex, x, y, xa, y0, w, h + 1));
+    }
+  }
+
+  /** Triangle pointing up: tip at (cx, y0), base at y1 with half-width hw. */
+  spike(cx: number, y0: number, y1: number, hw: number, hex: string) {
+    const h = y1 - y0;
+    const mid = rgb(hex);
+    const lit = mix(hex, 28);
+    const dim = mix(hex, -32);
+    for (let y = y0; y <= y1; y++) {
+      const t = h <= 0 ? 1 : (y - y0) / h;
+      const w = Math.max(0, Math.round(hw * t));
+      for (let x = cx - w; x <= cx + w; x++) {
+        this.set(x, y, x < cx ? lit : x > cx ? dim : mid);
+      }
+    }
+  }
+
+  blit(src: Pix, dx = 0, dy = 0) {
+    for (let y = 0; y < src.h; y++) {
+      for (let x = 0; x < src.w; x++) {
+        const i = (y * src.w + x) * 4;
+        if (src.d[i + 3] < 8) continue;
+        this.set(dx + x, dy + y, [src.d[i], src.d[i + 1], src.d[i + 2]], src.d[i + 3]);
+      }
+    }
+  }
+
+  outline(col: [number, number, number] = [22, 16, 26]) {
     const marks: number[] = [];
     for (let y = 0; y < this.h; y++) {
       for (let x = 0; x < this.w; x++) {
