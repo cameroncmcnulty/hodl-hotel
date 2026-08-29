@@ -207,11 +207,22 @@ function blank() {
   return out;
 }
 
-function place(src, cx, cy, maxW, maxH) {
+function placeBox(src, box) {
   const out = blank();
-  stamp(out, fit(stripText(src), maxW, maxH), cx, cy);
+  stamp(out, fit(stripText(src), box.w, box.h), box.x + box.w / 2, box.y + box.h / 2);
   return out;
 }
+
+const BOX = {
+  body: { x: 28, y: 6, w: 72, h: 166 },
+  hair: { x: 30, y: 6, w: 68, h: 48 },
+  hoodie: { x: 32, y: 66, w: 64, h: 60 },
+  tee: { x: 36, y: 72, w: 56, h: 48 },
+  pants: { x: 36, y: 108, w: 56, h: 54 },
+  shorts: { x: 38, y: 110, w: 52, h: 36 },
+  skirt: { x: 36, y: 106, w: 56, h: 34 },
+  shoes: { x: 36, y: 152, w: 56, h: 22 },
+};
 
 const base = readPng("image-f3be7263-9d53-4bf3-94d0-4ac5cdcf5a0b.png");
 const hair = readPng("image-a720e9a5-d7ba-4c3f-ad17-e594d43ef408.png");
@@ -221,9 +232,9 @@ const boyX = [24, 168, 308, 454, 592, 736, 880, 1024];
 const girlX = [24, 166, 309, 452, 592, 736, 880, 1024];
 for (let i = 0; i < 8; i++) {
   const b = crop(base, boyX[i], 58, 118, 252);
-  save(`m-skin-${i}.png`, place(b, 64, 90, 88, 168));
+  save(`m-skin-${i}.png`, placeBox(b, BOX.body));
   const g = crop(base, girlX[i], 432, 120, 252);
-  save(`f-skin-${i}.png`, place(g, 64, 90, 88, 168));
+  save(`f-skin-${i}.png`, placeBox(g, BOX.body));
 }
 
 const boyHairY = [
@@ -238,7 +249,7 @@ const boyHairNames = ["messy", "side", "afro", "undercut", "spikes"];
 boyHairY.forEach(([y0, y1], si) => {
   boyHairX.forEach((x, ci) => {
     const c = crop(hair, x, y0, 100, y1 - y0);
-    save(`m-hair-${boyHairNames[si]}-${ci}.png`, place(c, 64, 40, 72, 50));
+    save(`m-hair-${boyHairNames[si]}-${ci}.png`, placeBox(c, BOX.hair));
   });
 });
 
@@ -252,7 +263,7 @@ const girlHairNames = ["pony", "waves", "bob"];
 girlHairY.forEach(([y0, y1], si) => {
   girlHairX.forEach((x, ci) => {
     const c = crop(hair, x, y0, 88, y1 - y0);
-    save(`f-hair-${girlHairNames[si]}-${ci}.png`, place(c, 64, 30, 74, 48));
+    save(`f-hair-${girlHairNames[si]}-${ci}.png`, placeBox(c, BOX.hair));
   });
 });
 
@@ -267,41 +278,41 @@ topY.forEach(([y0, y1], ri) => {
     const g = i < 5 ? "m" : "f";
     const ci = i < 5 ? i : i - 5;
     const c = crop(hair, x, y0, 92, y1 - y0);
-    save(`${g}-top-${kind}-${ci}.png`, place(c, 64, kind === "hoodie" ? 86 : 88, 68, kind === "hoodie" ? 60 : 46));
+    save(`${g}-top-${kind}-${ci}.png`, placeBox(c, kind === "hoodie" ? BOX.hoodie : BOX.tee));
   });
 });
 
 const boyPantsX = [32, 134, 238, 341, 440];
 boyPantsX.forEach((x, i) => {
-  save(`m-bot-pants-${i}.png`, place(crop(rest, x, 90, 86, 130), 64, 124, 56, 64));
+  save(`m-bot-pants-${i}.png`, placeBox(crop(rest, x, 90, 86, 130), BOX.pants));
 });
 const boyShortX = [28, 128, 235, 336, 439];
 boyShortX.forEach((x, i) => {
-  save(`m-bot-shorts-${i}.png`, place(crop(rest, x, 308, 88, 80), 64, 114, 58, 44));
+  save(`m-bot-shorts-${i}.png`, placeBox(crop(rest, x, 308, 88, 80), BOX.shorts));
 });
 const girlSkirtX = [601, 704, 816, 921, 1025];
 girlSkirtX.forEach((x, i) => {
-  save(`f-bot-skirt-${i}.png`, place(crop(rest, x, 82, 92, 70), 64, 108, 64, 36));
+  save(`f-bot-skirt-${i}.png`, placeBox(crop(rest, x, 82, 92, 70), BOX.skirt));
 });
 const girlPantsX = [604, 712, 816, 928, 1032];
 girlPantsX.forEach((x, i) => {
-  save(`f-bot-pants-${i}.png`, place(crop(rest, x, 188, 86, 130), 64, 122, 58, 68));
+  save(`f-bot-pants-${i}.png`, placeBox(crop(rest, x, 188, 86, 130), BOX.pants));
 });
 const girlShortX = [599, 704, 816, 920, 1029];
 girlShortX.forEach((x, i) => {
-  save(`f-bot-shorts-${i}.png`, place(crop(rest, x, 370, 90, 62), 64, 112, 58, 36));
+  save(`f-bot-shorts-${i}.png`, placeBox(crop(rest, x, 370, 90, 62), BOX.shorts));
 });
 const boyShoeX = [16, 125, 228, 336, 440];
 boyShoeX.forEach((x, i) => {
-  save(`m-shoe-sneakers-${i}.png`, place(crop(rest, x, 588, 100, 80), 64, 156, 62, 24));
+  save(`m-shoe-sneakers-${i}.png`, placeBox(crop(rest, x, 588, 100, 80), BOX.shoes));
 });
 const girlSneakX = [593, 704, 813, 918, 1026];
 girlSneakX.forEach((x, i) => {
-  save(`f-shoe-sneakers-${i}.png`, place(crop(rest, x, 544, 92, 72), 64, 160, 64, 26));
+  save(`f-shoe-sneakers-${i}.png`, placeBox(crop(rest, x, 544, 92, 72), BOX.shoes));
 });
 const girlFlatX = [592, 704, 811, 921, 1025];
 girlFlatX.forEach((x, i) => {
-  save(`f-shoe-flats-${i}.png`, place(crop(rest, x, 668, 92, 70), 64, 160, 60, 24));
+  save(`f-shoe-flats-${i}.png`, placeBox(crop(rest, x, 668, 92, 70), BOX.shoes));
 });
 
 function stack(parts) {
@@ -326,14 +337,10 @@ function stack(parts) {
   return out;
 }
 
-save(
-  "_preview-boy.png",
-  stack(["m-skin-2.png", "m-shoe-sneakers-0.png", "m-bot-pants-0.png", "m-top-hoodie-0.png", "m-hair-messy-0.png"])
-);
-save(
-  "_preview-girl.png",
-  stack(["f-skin-2.png", "f-shoe-sneakers-0.png", "f-bot-skirt-0.png", "f-top-hoodie-0.png", "f-hair-pony-0.png"])
-);
+save("_t-boy-hoodie.png", stack(["m-skin-2.png", "m-shoe-sneakers-0.png", "m-bot-pants-0.png", "m-top-hoodie-0.png", "m-hair-messy-0.png"]));
+save("_t-boy-tee.png", stack(["m-skin-5.png", "m-shoe-sneakers-2.png", "m-bot-shorts-1.png", "m-top-tee-0.png", "m-hair-afro-2.png"]));
+save("_t-girl-hoodie.png", stack(["f-skin-2.png", "f-shoe-sneakers-0.png", "f-bot-skirt-0.png", "f-top-hoodie-0.png", "f-hair-pony-0.png"]));
+save("_t-girl-tee.png", stack(["f-skin-6.png", "f-shoe-flats-0.png", "f-bot-pants-2.png", "f-top-tee-0.png", "f-hair-bob-5.png"]));
 
 const names = fs.readdirSync(OUT).filter((f) => f.endsWith(".png"));
 console.log("wrote", names.length, "files");

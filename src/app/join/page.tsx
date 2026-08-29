@@ -211,7 +211,7 @@ export default function JoinPage() {
       )}
 
       {step === 2 && (
-        <div className="mt-4 grid gap-3 text-white">
+        <div className="mt-4 grid gap-3 rounded-3xl bg-[#120e1c] p-2 text-white sm:p-3">
           <FigureEditor figure={figure} onChange={setFigure} />
           <div className="flex gap-2">
             <button className="btn-ink" onClick={() => setStep(1)}>

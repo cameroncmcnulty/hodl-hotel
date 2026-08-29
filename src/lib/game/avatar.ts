@@ -65,7 +65,7 @@ export const SPRITE_H = 176;
 
 const sprites = new Map<string, HTMLCanvasElement>();
 let loadPromise: Promise<void> | null = null;
-export const SPRITE_V = 30;
+export const SPRITE_V = 31;
 const inflight = new Map<string, Promise<HTMLCanvasElement | null>>();
 
 export function clampFigure(f: Partial<Figure> | undefined): Figure {
