@@ -2,6 +2,7 @@
 
 import { Logo } from "@/components/Logo";
 import { api, clearClientToken } from "@/lib/clientAuth";
+import { HOTEL_BRIEF } from "@/lib/grokBrief";
 import type { AgentJob } from "@/lib/types";
 import {
   Activity,
@@ -73,6 +74,7 @@ export function AdminCommand() {
   const [agentErr, setAgentErr] = useState("");
   const [showFiles, setShowFiles] = useState(true);
   const [showChats, setShowChats] = useState(false);
+  const [copied, setCopied] = useState(false);
   const threadRef = useRef<HTMLDivElement>(null);
   const boxRef = useRef<HTMLTextAreaElement>(null);
 
@@ -305,8 +307,24 @@ export function AdminCommand() {
               <div ref={threadRef} className="min-h-0 flex-1 space-y-3 overflow-auto px-4 py-4">
                 {!messages.length && (
                   <div className="mx-auto max-w-md pt-8 text-center">
-                    <p className="text-sm text-white/70">Type a message and hit Enter. Grok replies in this thread, and can inspect the hotel and propose files when you ask it to build or fix something.</p>
+                    <p className="text-sm text-white/70">Type a message and hit Enter. Grok already has the hotel briefing and can read the live repo. To hand it the same notes in this thread, send the hotel file below.</p>
                     <div className="mt-4 flex flex-wrap justify-center gap-1.5">
+                      <button
+                        className="rounded-full bg-mint px-3 py-1.5 text-[12px] font-semibold text-ink hover:opacity-90"
+                        onClick={() => send(HOTEL_BRIEF)}
+                      >
+                        Send hotel file
+                      </button>
+                      <button
+                        className="rounded-full bg-white/10 px-3 py-1.5 text-[12px] hover:bg-white/15"
+                        onClick={async () => {
+                          await navigator.clipboard.writeText(HOTEL_BRIEF);
+                          setCopied(true);
+                          setTimeout(() => setCopied(false), 2000);
+                        }}
+                      >
+                        {copied ? "Copied" : "Copy hotel file"}
+                      </button>
                       {STARTERS.map((s) => (
                         <button key={s.title} className="rounded-full bg-white/10 px-3 py-1.5 text-[12px] hover:bg-white/15" onClick={() => send(s.prompt)}>
                           {s.title}

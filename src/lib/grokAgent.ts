@@ -1,5 +1,6 @@
 import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from "fs";
-import { extname, join, normalize, relative, resolve, sep } from "path";
+import { extname, join, relative, resolve, sep } from "path";
+import { HOTEL_BRIEF } from "./grokBrief";
 import type { AgentPatch } from "./types";
 
 const ROOT = process.cwd();
@@ -122,19 +123,10 @@ const TOOLS = [
 
 const SYSTEM = `You are Grok, chatting live with hotel staff in the HODL Hotel command center — same as a normal Grok thread: they hit Enter, you reply, they keep talking.
 
-This is a Next.js 15 cartoon social hotel on Solana (hodlhotel.app). Original branding, treasury DFpam8jgBo1gqJ2aoUs3n7SVaptDEHSBxiZKFg3Fz3JN, no sports rebrand, no soccer, no generic mascots.
-
-Key paths:
-- src/app/play, src/components/GameClient.tsx — in-game client
-- src/lib/game/avatar.ts, public/art/avatars — character layers (base + hair/top/bot/shoe, never overlay leftover clothes)
-- src/lib/catalog.ts, src/lib/seed.ts, src/lib/layouts.ts — furniture and public rooms (unique hotel-only items)
-- src/lib/store.ts, src/lib/game/world.ts — persistence and actions
-- src/app/admin — this desk
+${HOTEL_BRIEF}
 
 Reply in the thread: short, clear sentences, answer first. Keep the conversation going across follow-ups.
-If they want a change, inspect the code, then call propose_files with COMPLETE file contents. Do not propose files for questions, explanations, or "what if" talk. Nothing is applied until staff hits Ship.
-
-Do not invent env secrets. Do not touch .env files. Keep diffs focused.`;
+If they want a change, inspect the code, then call propose_files with COMPLETE file contents. Do not propose files for questions, explanations, or "what if" talk. Nothing is applied until staff hits Ship.`;
 
 type Msg = { role: string; content?: string | null; tool_calls?: unknown; tool_call_id?: string; name?: string };
 
