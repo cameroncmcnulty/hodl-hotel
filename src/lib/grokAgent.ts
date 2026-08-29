@@ -1,6 +1,6 @@
 import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from "fs";
 import { extname, join, relative, resolve, sep } from "path";
-import { githubReady, repoList, repoMapPaths, repoRead, repoReadBinary, repoReadBlob, repoTree } from "./githubShip";
+import { githubReady, repoList, repoMapPaths, repoRead, repoReadBinary, repoReadBlob, repoTree, shipFiles } from "./githubShip";
 import { HOTEL_BRIEF } from "./grokBrief";
 import type { AgentAttachment, AgentPatch } from "./types";
 
@@ -342,8 +342,16 @@ const TOOLS = [
   {
     type: "function",
     function: {
+      name: "check_live",
+      description: "Hit the live hotel (hodlhotel.app health, home, play, join) and return status codes.",
+      parameters: { type: "object", properties: {} },
+    },
+  },
+  {
+    type: "function",
+    function: {
       name: "propose_files",
-      description: "Propose full-file replacements (create or overwrite). Always send COMPLETE file contents. Staff previews then hits Push to production.",
+      description: "Write complete file replacements for a bugfix. These are pushed to production automatically after you finish.",
       parameters: {
         type: "object",
         properties: {
@@ -362,14 +370,11 @@ const TOOLS = [
   },
 ];
 
-const SYSTEM = `You are Grok, chatting live with hotel staff in the HODL Hotel command center — same as a normal Grok thread: they hit Enter, you reply, they keep talking.
+const SYSTEM = `You keep HODL Hotel online. Staff types what's wrong (or hits check). You inspect the live repo, patch the bug, and the desk pushes it to GitHub main so Vercel deploys.
 
 ${HOTEL_BRIEF}
 
-Reply in the thread: short, clear sentences, answer first. Keep the conversation going across follow-ups.
-You work like the builder Grok in the hotel repo chat: inspect the live game files, then change them.
-If they want a change, read the real files, then call propose_files with COMPLETE file contents. Do not propose files for questions. Staff hits Push to ship to production.
-Never say the repo or src/ is missing. Call repo_map or list_files / read_file. Use read_image for sprites under public/art. Staff can also attach pictures, videos, and files in chat.`;
+Reply in short sentences. Answer first. Use tools. If you change files, propose_files with complete contents — production push happens automatically. Do not ask staff to copy files or hit Push. Screenshots in the chat are bug reports: look at them.`;
 
 type Msg = { role: string; content?: string | null | unknown; tool_calls?: unknown; tool_call_id?: string; name?: string };
 
@@ -379,8 +384,24 @@ async function runTool(name: string, args: Record<string, unknown>) {
   if (name === "read_file" || name === "read_image") return readProjectFile(String(args.path || ""));
   if (name === "search_code") return searchProject(String(args.query || ""), String(args.folder || "src"));
   if (name === "open_url") return openUrl(String(args.url || ""));
+  if (name === "check_live") return checkLive();
   if (name === "propose_files") return { ok: true, count: Array.isArray(args.files) ? args.files.length : 0 };
   return { error: "Unknown tool" };
+}
+
+async function checkLive() {
+  const urls = ["https://hodlhotel.app/api/health", "https://hodlhotel.app/", "https://hodlhotel.app/play", "https://hodlhotel.app/join"];
+  const live: { url: string; status?: number; ms?: number; ok?: boolean; error?: string }[] = [];
+  for (const url of urls) {
+    const t = Date.now();
+    try {
+      const r = await fetch(url, { redirect: "follow" });
+      live.push({ url, status: r.status, ms: Date.now() - t, ok: r.ok });
+    } catch (e) {
+      live.push({ url, ms: Date.now() - t, error: e instanceof Error ? e.message : "fetch failed" });
+    }
+  }
+  return { live };
 }
 
 export function cleanAttachments(raw: unknown): AgentAttachment[] {
@@ -437,36 +458,16 @@ export async function runGrok(opts: {
       log: ["missing XAI_API_KEY"],
     };
   }
-  const mode = opts.mode || "chat";
-  const modeNote =
-    mode === "preview"
-      ? "Inspect and explain. Propose files only if they asked for a change."
-      : mode === "build"
-        ? "Inspect, then propose_files with complete files for the requested change."
-        : "Live chat. Answer in the thread. Propose files only when they ask you to change, fix, or ship something.";
   const files = filesReady();
-  const fileNote = files.local
-    ? "File tools read the local checkout, then GitHub if needed."
-    : files.github
-      ? `File tools have FULL access to GitHub ${files.repo}@${files.branch} (src, public art, scripts, config).`
-      : "WARNING: no local src/ and no GITHUB_TOKEN — file tools will fail until GitHub is configured.";
-  let mapNote = "";
-  try {
-    const map = await repoMap();
-    if ("files" in map && Array.isArray(map.files)) {
-      const src = map.files.filter((f) => f.startsWith("src/"));
-      const rest = map.files.filter((f) => !f.startsWith("src/")).slice(0, 240);
-      mapNote = `\nLive repo files (${map.count}):\n${[...src, ...rest].join("\n")}`;
-    }
-  } catch {
-    mapNote = "";
-  }
+  const fileNote = files.github
+    ? `GitHub ${files.repo}@${files.branch} is the live game. After propose_files, the desk pushes to main.`
+    : "GITHUB_TOKEN is missing — you can inspect only if src exists locally; you cannot push.";
   const attachments = cleanAttachments(opts.attachments);
   const patches: AgentPatch[] = [];
   const log: string[] = [];
   if (attachments.length) log.push(`attachments ${attachments.map((a) => a.name).join(", ")}`);
   const messages: Msg[] = [
-    { role: "system", content: SYSTEM + `\n${modeNote}\n${fileNote}${mapNote}` },
+    { role: "system", content: SYSTEM + `\n${fileNote}` },
     ...(opts.history || []).slice(-16),
     { role: "user", content: userPayload(opts.prompt, attachments) },
   ];
@@ -527,7 +528,26 @@ export async function runGrok(opts: {
     break;
   }
   const plan = reply.split("\n").slice(0, 24).join("\n");
-  return { reply, plan, patches, log };
+  const unique = new Map<string, AgentPatch>();
+  for (const p of patches) unique.set(p.path, p);
+  const finalPatches = [...unique.values()];
+  let shipped: { sha: string; url: string } | undefined;
+  if (finalPatches.length && githubReady().ready) {
+    try {
+      const result = await shipFiles(
+        finalPatches.map((p) => ({ path: p.path, content: p.content })),
+        `desk grok fix: ${opts.prompt.replace(/\s+/g, " ").slice(0, 72)}`
+      );
+      shipped = { sha: result.sha, url: result.url };
+      log.push(`shipped ${result.sha.slice(0, 8)}`);
+      reply = `${reply || "Fix is in."}\n\nPushed to production ${result.sha.slice(0, 8)}. Vercel will deploy hodlhotel.app.`;
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "push failed";
+      log.push(`ship failed ${msg}`);
+      reply = `${reply || "I have a patch."}\n\nCould not push: ${msg}`;
+    }
+  }
+  return { reply, plan, patches: finalPatches, log, shipped };
 }
 
 export function applyLocal(patches: AgentPatch[]) {

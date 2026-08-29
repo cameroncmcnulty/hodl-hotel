@@ -1,29 +1,29 @@
 "use client";
 
-import { GrokComposer } from "@/components/GrokComposer";
-import { GrokPreview } from "@/components/GrokPreview";
-import { GrokHelpPane, HelpBubble } from "@/components/GrokSegments";
+import { GrokOps } from "@/components/GrokOps";
 import { Logo } from "@/components/Logo";
 import { api, clearClientToken } from "@/lib/clientAuth";
-import { HOTEL_BRIEF } from "@/lib/grokBrief";
-import type { AgentAttachment, AgentJob, AgentSegment } from "@/lib/types";
+import type { AgentJob } from "@/lib/types";
+
+function grokLine(data: { grok?: { ready: boolean; model: string }; github?: { ready: boolean; repo: string } }) {
+  const g = data.grok?.ready ? `Grok ${data.grok.model}` : "Set XAI_API_KEY";
+  const h = data.github?.ready ? `auto-push ${data.github.repo}` : "Set GITHUB_TOKEN to push fixes";
+  return `${g} · ${h}`;
+}
 import {
   Activity,
   Bot,
   ClipboardList,
   Coins,
-  Copy,
   Flag,
   LogOut,
   Megaphone,
-  Plus,
   Settings,
   Sparkles,
-  Trash2,
   Users,
   Waypoints,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 const TABS = [
@@ -38,14 +38,6 @@ const TABS = [
   { id: "settings", label: "Settings", Icon: Settings },
   { id: "logs", label: "Logs", Icon: ClipboardList },
 ] as const;
-
-const STARTERS = [
-  { title: "Fix a bug", prompt: "Find and fix this bug in HODL Hotel:\n" },
-  { title: "New furniture", prompt: "Add a unique hotel-only furniture piece (not in the shop) for a public room. Include catalog entry, sprite path, and seed placement if it belongs in a hotel room." },
-  { title: "Public room polish", prompt: "Inspect the public hotel rooms and propose a polish pass that keeps unique not-for-sale furniture and does not use shop catalog clones." },
-  { title: "Avatar layers", prompt: "Inspect the avatar compositor and layers. Make sure hair/shirt/pants/shoes never overlay leftover options." },
-  { title: "Patch notes", prompt: "Write a short in-game staff note for players about the latest hotel changes. Do not invent features that are not in the code." },
-];
 
 type Desk = {
   stats: Record<string, number>;
@@ -69,202 +61,20 @@ export function AdminCommand() {
   const [data, setData] = useState<Desk | null>(null);
   const [tab, setTab] = useState<(typeof TABS)[number]["id"]>("grok");
   const [err, setErr] = useState("");
-  const [draft, setDraft] = useState("");
-  const [job, setJob] = useState<AgentJob | null>(null);
-  const [busy, setBusy] = useState("");
-  const [file, setFile] = useState("");
-  const [current, setCurrent] = useState("");
-  const [agentErr, setAgentErr] = useState("");
-  const [showFiles, setShowFiles] = useState(true);
-  const [showChats, setShowChats] = useState(false);
-  const [copied, setCopied] = useState(false);
-  const [selected, setSelected] = useState("");
-  const threadRef = useRef<HTMLDivElement>(null);
-  const boxRef = useRef<HTMLTextAreaElement>(null);
-
-  function growBox() {
-    const el = boxRef.current;
-    if (!el) return;
-    el.style.height = "0px";
-    el.style.height = `${Math.min(160, Math.max(44, el.scrollHeight))}px`;
-  }
 
   async function load() {
     const { res, j } = await api("/api/admin");
     if (!res.ok) setErr(j.error || "Denied");
-    else {
-      setData(j);
-      if (job && job.id !== "pending") {
-        const fresh = (j.agentJobs || []).find((x: AgentJob) => x.id === job.id);
-        if (fresh) setJob(fresh);
-      } else if (!job && j.agentJobs?.[0]) setJob(j.agentJobs[0]);
-    }
+    else setData(j);
   }
   useEffect(() => {
     load();
-    boxRef.current?.focus();
   }, []);
-
-  useEffect(() => {
-    threadRef.current?.scrollTo({ top: threadRef.current.scrollHeight, behavior: "smooth" });
-  }, [job?.messages, busy]);
-
-  useEffect(() => {
-    growBox();
-  }, [draft]);
 
   async function op(body: object) {
     await api("/api/admin", { method: "POST", body: JSON.stringify(body) });
     load();
   }
-
-  async function send(text?: string, attachments: AgentAttachment[] = []) {
-    const prompt = (text ?? draft).trim() || (attachments.length ? "Please look at the attached files." : "");
-    if ((!prompt && !attachments.length) || busy) return;
-    setDraft("");
-    if (boxRef.current) boxRef.current.style.height = "44px";
-    setBusy("chat");
-    setAgentErr("");
-    const segId = crypto.randomUUID();
-    const nowIso = new Date().toISOString();
-    const userMsg = { role: "user" as const, content: prompt, at: nowIso, attachments, segmentId: segId };
-    const pendingSeg: AgentSegment = { id: segId, prompt, reply: "", patches: [], status: "running", at: nowIso, attachments };
-    const optimistic: AgentJob = job
-      ? { ...job, messages: [...(job.messages || []), userMsg], segments: [...(job.segments || []), pendingSeg], status: "running" }
-      : {
-          id: "pending",
-          prompt,
-          mode: "chat",
-          status: "running",
-          plan: "",
-          reply: "",
-          patches: [],
-          segments: [pendingSeg],
-          messages: [userMsg],
-          log: [],
-          createdAt: nowIso,
-          updatedAt: nowIso,
-        };
-    setSelected(segId);
-    setShowFiles(true);
-    setJob(optimistic);
-    const { res, j } = await api("/api/admin/agent", {
-      method: "POST",
-      body: JSON.stringify({ op: "chat", prompt, attachments, jobId: job && job.id !== "pending" ? job.id : undefined }),
-    });
-    setBusy("");
-    if (!res.ok) {
-      setAgentErr(j.error || "Grok failed");
-      if (j.job) setJob(j.job);
-      return;
-    }
-    setJob(j.job);
-    const segs = j.job?.segments as AgentSegment[] | undefined;
-    const latest = segs?.[segs.length - 1];
-    if (latest) {
-      setSelected(latest.id);
-      setFile(latest.patches[0]?.path || "");
-      setShowFiles(true);
-    } else if (j.job?.patches?.[0]?.path) setFile(j.job.patches[0].path);
-    load();
-    boxRef.current?.focus();
-  }
-
-  function openPreview(next: AgentJob, seg: AgentSegment) {
-    setJob(next);
-    setSelected(seg.id);
-    setFile(seg.patches[0]?.path || "");
-    setShowFiles(true);
-    setShowChats(false);
-  }
-
-  async function ship(next?: AgentJob, seg?: AgentSegment) {
-    const target = next || job;
-    if (!target || target.id === "pending") return;
-    setBusy("ship");
-    setAgentErr("");
-    const { res, j } = await api("/api/admin/ship", {
-      method: "POST",
-      body: JSON.stringify({ jobId: target.id, segmentId: seg?.id, message: (seg?.prompt || target.prompt).slice(0, 72) }),
-    });
-    setBusy("");
-    if (!res.ok) return setAgentErr(j.error || "Push failed");
-    setJob(j.job);
-    if (seg) setSelected(seg.id);
-    load();
-  }
-
-  async function deleteHelp(next: AgentJob, seg: AgentSegment) {
-    setBusy("delete");
-    const { res, j } = await api("/api/admin/agent", { method: "POST", body: JSON.stringify({ op: "delete-segment", jobId: next.id, segmentId: seg.id }) });
-    setBusy("");
-    if (!res.ok) return setAgentErr(j.error || "Delete failed");
-    if (selected === seg.id) {
-      setSelected("");
-      setFile("");
-      setCurrent("");
-    }
-    if (job?.id === next.id) setJob(j.job);
-    load();
-  }
-
-  async function deleteChat(next: AgentJob) {
-    setBusy("delete");
-    const { res, j } = await api("/api/admin/agent", { method: "POST", body: JSON.stringify({ op: "delete-job", jobId: next.id }) });
-    setBusy("");
-    if (!res.ok) return setAgentErr(j.error || "Delete failed");
-    if (job?.id === next.id) {
-      setJob(null);
-      setSelected("");
-      setFile("");
-      setCurrent("");
-    }
-    if (j.jobs) setData((d) => (d ? { ...d, agentJobs: j.jobs } : d));
-    load();
-  }
-
-  async function deletePrompt(index: number) {
-    if (!job || job.id === "pending") return;
-    setBusy("delete");
-    const { res, j } = await api("/api/admin/agent", { method: "POST", body: JSON.stringify({ op: "delete-message", jobId: job.id, index }) });
-    setBusy("");
-    if (!res.ok) return setAgentErr(j.error || "Delete failed");
-    setJob(j.job);
-    load();
-  }
-
-  useEffect(() => {
-    if (!file || !job) return;
-    let live = true;
-    api("/api/admin/agent", { method: "POST", body: JSON.stringify({ op: "file", path: file }) }).then(({ j }) => {
-      if (live) setCurrent(j.content || "");
-    });
-    return () => {
-      live = false;
-    };
-  }, [file, job?.id]);
-
-  const deskJobs = useMemo(() => {
-    const list = data?.agentJobs || [];
-    if (!job) return list;
-    if (!list.some((j) => j.id === job.id)) return [job, ...list];
-    return list.map((j) => (j.id === job.id ? job : j));
-  }, [data?.agentJobs, job]);
-  const selectedPair = useMemo(() => {
-    for (const j of deskJobs) {
-      const seg = (j.segments || []).find((s) => s.id === selected);
-      if (seg) return { job: j, seg };
-    }
-    return null;
-  }, [deskJobs, selected]);
-  const messages = useMemo(() => {
-    if (job?.messages?.length) return job.messages;
-    if (!job) return [];
-    const out: { role: "user" | "assistant"; content: string; at: string; segmentId?: string; attachments?: AgentAttachment[] }[] = [];
-    if (job.prompt) out.push({ role: "user", content: job.prompt, at: job.createdAt });
-    if (job.reply) out.push({ role: "assistant", content: job.reply, at: job.updatedAt, segmentId: job.segments?.[0]?.id });
-    return out;
-  }, [job]);
 
   async function logout() {
     await api("/api/auth/logout", { method: "POST" });
@@ -318,11 +128,9 @@ export function AdminCommand() {
           <div>
             <h1 className="font-display text-2xl md:text-3xl">{TABS.find((t) => t.id === tab)?.label}</h1>
             <p className="text-xs text-white/45">
-              {data.grok?.ready ? `Grok ready · ${data.grok.model}` : "Set XAI_API_KEY to unlock Grok"}
-              {" · "}
-              {data.github?.ready ? `Ship → ${data.github.repo}` : "Set GITHUB_TOKEN to push production"}
-              {" · "}
-              {data.files?.local ? "full repo on disk" : data.files?.github ? `full repo via GitHub ${data.files.branch}` : "no file access"}
+              {tab === "grok"
+                ? grokLine(data)
+                : `${data.stats.online} online · ${data.settings.maintenance ? "maintenance" : "live"}`}
             </p>
           </div>
           <div className="flex gap-2 text-xs">
@@ -334,189 +142,7 @@ export function AdminCommand() {
           </div>
         </header>
 
-        {tab === "grok" && (
-          <div className={`grid gap-4 ${showFiles && selected ? "xl:grid-cols-[minmax(0,1fr)_minmax(340px,0.95fr)_minmax(280px,0.72fr)]" : "xl:grid-cols-[minmax(0,1.15fr)_minmax(300px,0.9fr)]"}`}>
-            <section className="panel flex h-[70vh] min-h-[420px] flex-col overflow-hidden xl:h-[calc(100vh-8.5rem)]">
-              <div className="relative flex items-center justify-between gap-2 border-b border-white/10 px-4 py-3">
-                <div className="flex items-center gap-2 text-sm font-semibold">
-                  <Bot size={16} className="text-mint" /> Grok
-                </div>
-                <div className="flex items-center gap-1">
-                  <button
-                    className="rounded-full bg-white/10 px-2.5 py-1 text-[11px] hover:bg-white/15 xl:hidden"
-                    onClick={() => setShowChats((v) => !v)}
-                  >
-                    Chats
-                  </button>
-                  <button
-                    className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2.5 py-1 text-[11px] hover:bg-white/15"
-                    onClick={() => {
-                      setJob(null);
-                      setFile("");
-                      setCurrent("");
-                      setSelected("");
-                      setAgentErr("");
-                      setShowChats(false);
-                      boxRef.current?.focus();
-                    }}
-                  >
-                    <Plus size={12} /> New chat
-                  </button>
-                </div>
-                {showChats && (
-                  <div className="absolute right-3 top-12 z-10 w-64 rounded-2xl border border-white/10 bg-ink p-2 shadow-xl xl:hidden">
-                    {(data.agentJobs || []).slice(0, 12).map((j) => (
-                      <button
-                        key={j.id}
-                        className="block w-full truncate rounded-lg px-2 py-1.5 text-left text-xs hover:bg-white/10"
-                        onClick={() => {
-                          setJob(j);
-                          setFile(j.patches[0]?.path || "");
-                          setShowChats(false);
-                        }}
-                      >
-                        <span className="text-mint">{j.status}</span> · {j.prompt}
-                      </button>
-                    ))}
-                    {!data.agentJobs?.length && <p className="px-2 py-1 text-xs text-white/45">No chats yet.</p>}
-                  </div>
-                )}
-              </div>
-              <div ref={threadRef} className="min-h-0 flex-1 space-y-3 overflow-auto px-4 py-4">
-                {!messages.length && (
-                  <div className="mx-auto max-w-md pt-8 text-center">
-                    <p className="text-sm text-white/70">Type a message and hit Enter. Grok already has the hotel briefing and can read the live repo. To hand it the same notes in this thread, send the hotel file below.</p>
-                    <div className="mt-4 flex flex-wrap justify-center gap-1.5">
-                      <button
-                        className="rounded-full bg-mint px-3 py-1.5 text-[12px] font-semibold text-ink hover:opacity-90"
-                        onClick={() => send(HOTEL_BRIEF)}
-                      >
-                        Send hotel file
-                      </button>
-                      <button
-                        className="rounded-full bg-white/10 px-3 py-1.5 text-[12px] hover:bg-white/15"
-                        onClick={async () => {
-                          await navigator.clipboard.writeText(HOTEL_BRIEF);
-                          setCopied(true);
-                          setTimeout(() => setCopied(false), 2000);
-                        }}
-                      >
-                        {copied ? "Copied" : "Copy hotel file"}
-                      </button>
-                      {STARTERS.map((s) => (
-                        <button key={s.title} className="rounded-full bg-white/10 px-3 py-1.5 text-[12px] hover:bg-white/15" onClick={() => send(s.prompt)}>
-                          {s.title}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {messages.map((m, i) => {
-                  const seg = m.segmentId ? (job?.segments || []).find((s) => s.id === m.segmentId) : null;
-                  const text = m.content.startsWith("HODL HOTEL — staff briefing") ? "Hotel briefing (full notes sent)." : m.content;
-                  return (
-                    <div key={`${m.at}-${i}`} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
-                      <div className="max-w-[85%] space-y-1.5">
-                        <div
-                          className={`whitespace-pre-wrap rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed ${
-                            m.role === "user" ? "bg-mint text-ink" : "bg-white/10 text-white/90"
-                          }`}
-                        >
-                          {!!m.attachments?.length && (
-                            <div className="mb-2 flex flex-wrap gap-1.5">
-                              {m.attachments.map((a, ai) =>
-                                a.dataUrl ? (
-                                  <img key={`${a.name}-${ai}`} src={a.dataUrl} alt={a.name} className="max-h-36 max-w-full rounded-xl" />
-                                ) : (
-                                  <span key={`${a.name}-${ai}`} className="rounded-lg bg-black/20 px-2 py-1 text-[11px]">
-                                    {a.name}
-                                  </span>
-                                )
-                              )}
-                            </div>
-                          )}
-                          {text}
-                        </div>
-                        <div className={`flex gap-1 ${m.role === "user" ? "justify-end" : "justify-start"}`}>
-                          <button
-                            type="button"
-                            className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] text-white/35 hover:bg-white/10 hover:text-white"
-                            onClick={async () => {
-                              await navigator.clipboard.writeText(m.content);
-                              setCopied(true);
-                              setTimeout(() => setCopied(false), 1600);
-                            }}
-                          >
-                            <Copy size={11} /> Copy
-                          </button>
-                          {m.role === "user" && job && job.id !== "pending" && (
-                            <button
-                              type="button"
-                              className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] text-white/35 hover:bg-coral/20 hover:text-coral"
-                              disabled={!!busy}
-                              onClick={() => deletePrompt(i)}
-                            >
-                              <Trash2 size={11} /> Delete prompt
-                            </button>
-                          )}
-                        </div>
-                        {seg && job && (
-                          <HelpBubble
-                            seg={seg}
-                            compact
-                            active={selected === seg.id}
-                            busy={busy}
-                            onPreview={() => openPreview(job, seg)}
-                            onPush={() => ship(job, seg)}
-                            onDelete={() => deleteHelp(job, seg)}
-                          />
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-                {busy === "chat" && (
-                  <div className="flex justify-start">
-                    <div className="rounded-2xl bg-white/10 px-3.5 py-2.5 text-sm text-white/50">Grok is thinking…</div>
-                  </div>
-                )}
-                {agentErr && <p className="text-sm text-coral">{agentErr}</p>}
-              </div>
-              <GrokComposer draft={draft} setDraft={setDraft} busy={!!busy} onSend={send} boxRef={boxRef} />
-            </section>
-
-            {showFiles && selectedPair && (
-              <GrokPreview
-                key={selectedPair.seg.id}
-                seg={selectedPair.seg}
-                file={file}
-                current={current}
-                busy={busy}
-                onFile={setFile}
-                onPush={() => ship(selectedPair.job, selectedPair.seg)}
-                onClose={() => setShowFiles(false)}
-              />
-            )}
-
-            <GrokHelpPane
-              jobs={deskJobs}
-              currentJobId={job?.id}
-              selectedId={selected}
-              busy={busy}
-              onOpenChat={(j) => {
-                setJob(j);
-                const last = j.segments?.[j.segments.length - 1];
-                setSelected(last?.id || "");
-                setFile(last?.patches[0]?.path || j.patches[0]?.path || "");
-                setShowFiles(true);
-              }}
-              onPreview={openPreview}
-              onPush={ship}
-              onDeleteHelp={deleteHelp}
-              onDeleteChat={deleteChat}
-            />
-          </div>
-        )}
+        {tab === "grok" && <GrokOps grok={data.grok} github={data.github} />}
 
         {tab === "overview" && (
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">

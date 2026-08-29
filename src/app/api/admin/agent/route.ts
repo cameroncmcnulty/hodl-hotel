@@ -201,11 +201,21 @@ export async function POST(req: Request) {
     job.log = [...(job.log || []), ...out.log];
     job.messages.push({
       role: "assistant",
-      content: out.reply || (out.patches.length ? "I have file changes ready. Preview, then Push when you want them live." : "Done."),
+      content: out.reply || (out.shipped ? `Pushed ${out.shipped.sha.slice(0, 8)} to production.` : "Done."),
       at: new Date().toISOString(),
       segmentId,
     });
-    job.status = out.patches.length ? "preview" : "ready";
+    if (out.shipped) {
+      job.status = "shipped";
+      job.shipSha = out.shipped.sha;
+      job.shippedAt = new Date().toISOString();
+      if (live) {
+        live.status = "shipped";
+        live.shipSha = out.shipped.sha;
+      }
+    } else {
+      job.status = out.patches.length ? "preview" : "ready";
+    }
     job.updatedAt = new Date().toISOString();
     log(db, "agent", `${a.user.username} chat: ${prompt.slice(0, 80)}`);
     saveDB(db);

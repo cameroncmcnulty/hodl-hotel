@@ -170,7 +170,7 @@ export function GrokComposer({
         </button>
       </div>
       <p className="mt-1.5 px-1 text-[11px] text-white/35">
-        Enter to send · Shift+Enter new line · Ctrl+V paste · paperclip to attach
+        Enter to send · attach a screenshot of the bug if you have one
         {hint ? <span className="text-coral"> · {hint}</span> : null}
       </p>
     </form>
