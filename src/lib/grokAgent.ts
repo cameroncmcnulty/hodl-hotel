@@ -1,12 +1,32 @@
 import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from "fs";
 import { extname, join, relative, resolve, sep } from "path";
-import { githubReady, repoList, repoRead, repoReadBlob, repoTree } from "./githubShip";
+import { githubReady, repoList, repoMapPaths, repoRead, repoReadBinary, repoReadBlob, repoTree } from "./githubShip";
 import { HOTEL_BRIEF } from "./grokBrief";
 import type { AgentAttachment, AgentPatch } from "./types";
 
 const ROOT = process.cwd();
-const ALLOW_EXT = new Set([".ts", ".tsx", ".js", ".mjs", ".css", ".json", ".md", ".txt", ".svg"]);
+const ALLOW_EXT = new Set([
+  ".ts",
+  ".tsx",
+  ".js",
+  ".jsx",
+  ".mjs",
+  ".cjs",
+  ".css",
+  ".json",
+  ".md",
+  ".txt",
+  ".svg",
+  ".html",
+  ".yml",
+  ".yaml",
+  ".toml",
+  ".csv",
+  ".map",
+]);
+const IMAGE_EXT = new Set([".png", ".jpg", ".jpeg", ".webp", ".gif"]);
 const DENY = ["node_modules", ".git", ".env", "data", "dist", ".next"];
+const ROOT_FILES = new Set(["package.json", "package-lock.json", "next.config.ts", "next.config.js", "tsconfig.json", "vercel.json", "railway.json", "server.js", "README.md", "nixpacks.toml"]);
 
 export function xaiReady() {
   return { ready: !!process.env.XAI_API_KEY, model: process.env.XAI_MODEL || "grok-4.5" };
@@ -32,10 +52,25 @@ function safePath(rel: string) {
   return { abs, rel: clean };
 }
 
+function allowedRel(rel: string) {
+  const parts = rel.split("/");
+  if (parts.some((p) => DENY.includes(p) || p.startsWith(".env"))) return false;
+  if (rel.startsWith("src/") || rel.startsWith("public/") || rel.startsWith("scripts/")) return true;
+  if (ROOT_FILES.has(rel)) return true;
+  if (ALLOW_EXT.has(extname(rel)) || IMAGE_EXT.has(extname(rel))) return true;
+  return false;
+}
+
 function lockedType(rel: string) {
-  const ext = extname(rel);
-  if (ALLOW_EXT.has(ext)) return false;
-  return !(rel.startsWith("src/") || rel.startsWith("public/"));
+  return !allowedRel(rel);
+}
+
+function imageMime(rel: string) {
+  const ext = extname(rel).toLowerCase();
+  if (ext === ".jpg" || ext === ".jpeg") return "image/jpeg";
+  if (ext === ".webp") return "image/webp";
+  if (ext === ".gif") return "image/gif";
+  return "image/png";
 }
 
 function readLocalFile(rel: string) {
@@ -50,7 +85,7 @@ function readLocalFile(rel: string) {
 function listLocal(rel = "src") {
   const p = safePath(rel || "src");
   if (!p || !existsSync(p.abs)) return { error: "Folder not found" };
-  const names = readdirSync(p.abs).slice(0, 80).map((name) => {
+  const names = readdirSync(p.abs).slice(0, 250).map((name) => {
     const abs = join(p.abs, name);
     const st = statSync(abs);
     return { name, dir: st.isDirectory(), path: `${p.rel}/${name}`.replace(/\\/g, "/") };
@@ -99,12 +134,29 @@ function noSrcHelp() {
 }
 
 export async function readProjectFile(rel: string) {
+  const p = safePath(rel);
+  if (!p) return { error: "Bad path" };
+  if (lockedType(p.rel)) return { error: "That path is locked" };
+  const ext = extname(p.rel).toLowerCase();
+  if (IMAGE_EXT.has(ext)) {
+    if (existsSync(p.abs) && statSync(p.abs).isFile()) {
+      const buf = readFileSync(p.abs);
+      if (buf.length > 1_500_000) return { error: "Image too large" };
+      return { path: p.rel, kind: "image" as const, dataUrl: `data:${imageMime(p.rel)};base64,${buf.toString("base64")}`, source: "local" as const };
+    }
+    if (!githubReady().ready) return { error: `Image not on this server. ${noSrcHelp()}` };
+    try {
+      const bin = await repoReadBinary(p.rel);
+      if ("error" in bin) return bin;
+      if (bin.size > 1_500_000) return { error: "Image too large" };
+      return { path: bin.path, kind: "image" as const, dataUrl: `data:${imageMime(p.rel)};base64,${bin.base64}`, source: "github" as const };
+    } catch (e) {
+      return { error: e instanceof Error ? e.message : "GitHub image read failed" };
+    }
+  }
   const local = readLocalFile(rel);
   if ("content" in local) return local;
   if (!githubReady().ready) return { error: `${local.error}. ${noSrcHelp()}` };
-  const p = safePath(rel);
-  if (!p) return { error: "Bad path" };
-  if (lockedType(p.rel)) return { error: "That file type is locked" };
   try {
     return await repoRead(p.rel);
   } catch (e) {
@@ -112,18 +164,76 @@ export async function readProjectFile(rel: string) {
   }
 }
 
-export async function listProject(rel = "src") {
-  const folder = !rel || rel === "." ? "src" : rel;
+export async function listProject(rel = "") {
+  const folder = !rel || rel === "." || rel === "/" ? "" : rel;
+  if (!folder) {
+    if (existsSync(join(ROOT, "src"))) {
+      const names = readdirSync(ROOT)
+        .filter((name) => !DENY.includes(name) && !name.startsWith(".env"))
+        .slice(0, 80);
+      return {
+        path: ".",
+        entries: names.map((name) => {
+          const abs = join(ROOT, name);
+          return { name, dir: existsSync(abs) && statSync(abs).isDirectory(), path: name };
+        }),
+        source: "local" as const,
+      };
+    }
+    if (!githubReady().ready) return { error: noSrcHelp() };
+    try {
+      return await repoList("");
+    } catch (e) {
+      return { error: e instanceof Error ? e.message : "GitHub list failed" };
+    }
+  }
   const local = listLocal(folder);
-  if (!("error" in local)) return local;
+  if (!("error" in local)) return { ...local, entries: local.entries.slice(0, 250) };
   if (!githubReady().ready) return { error: `${local.error}. ${noSrcHelp()}` };
   const p = safePath(folder);
   if (!p) return { error: "Bad path" };
   try {
-    return await repoList(p.rel);
+    const listed = await repoList(p.rel);
+    return { ...listed, entries: listed.entries.slice(0, 250) };
   } catch (e) {
     return { error: e instanceof Error ? e.message : "GitHub list failed" };
   }
+}
+
+async function repoMap() {
+  if (githubReady().ready) {
+    try {
+      const paths = (await repoMapPaths()).filter((p) => allowedRel(p));
+      return { source: "github" as const, count: paths.length, files: paths };
+    } catch (e) {
+      return { error: e instanceof Error ? e.message : "repo map failed" };
+    }
+  }
+  return { error: noSrcHelp() };
+}
+
+async function openUrl(raw: string) {
+  let u: URL;
+  try {
+    u = new URL(raw);
+  } catch {
+    return { error: "Bad URL" };
+  }
+  if (u.protocol !== "https:" && u.protocol !== "http:") return { error: "http(s) only" };
+  const host = u.hostname.toLowerCase();
+  if (host === "localhost" || host.endsWith(".local") || host.endsWith(".internal") || host === "0.0.0.0" || host.startsWith("127.") || host.startsWith("169.254.") || host.startsWith("10.") || host.startsWith("192.168.")) {
+    return { error: "That host is blocked" };
+  }
+  const res = await fetch(u.toString(), { redirect: "follow", headers: { "user-agent": "HODL-Hotel-Desk/1" } });
+  const html = await res.text();
+  const text = html
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 14_000);
+  return { url: u.toString(), status: res.status, text };
 }
 
 async function searchProject(query: string, folder = "src") {
@@ -153,7 +263,7 @@ async function searchProject(query: string, folder = "src") {
       return ah - bh || a.path.localeCompare(b.path);
     });
     const hits: { path: string; line: number; text: string }[] = [];
-    const take = blobs.slice(0, 28);
+    const take = blobs.slice(0, 90);
     for (let i = 0; i < take.length && hits.length < 40; i += 7) {
       const chunk = take.slice(i, i + 7);
       const texts = await Promise.all(
@@ -184,8 +294,16 @@ const TOOLS = [
   {
     type: "function",
     function: {
+      name: "repo_map",
+      description: "List every allowed file path in the live GitHub hotel repo (src, public art, scripts, config).",
+      parameters: { type: "object", properties: {} },
+    },
+  },
+  {
+    type: "function",
+    function: {
       name: "list_files",
-      description: "List a folder in cameroncmcnulty/hodl-hotel on GitHub main (same files as production). Example path: src or src/components.",
+      description: "List a folder in the live GitHub repo. Empty path lists the repo root. Examples: src, src/lib/game, public/art/avatars, scripts.",
       parameters: { type: "object", properties: { path: { type: "string" } } },
     },
   },
@@ -193,7 +311,15 @@ const TOOLS = [
     type: "function",
     function: {
       name: "read_file",
-      description: "Read a source file from the GitHub repo. Example: src/components/AdminCommand.tsx",
+      description: "Read a source or text file from the live repo. Example: src/components/GameClient.tsx",
+      parameters: { type: "object", properties: { path: { type: "string" } }, required: ["path"] },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "read_image",
+      description: "Open a PNG/JPG from the repo (avatars, furniture sprites) so you can actually see it.",
       parameters: { type: "object", properties: { path: { type: "string" } }, required: ["path"] },
     },
   },
@@ -201,15 +327,23 @@ const TOOLS = [
     type: "function",
     function: {
       name: "search_code",
-      description: "Search the GitHub repo for a string. Default folder src.",
+      description: "Search the live repo for a string. Default folder src. Use folder public or scripts when needed.",
       parameters: { type: "object", properties: { query: { type: "string" }, folder: { type: "string" } }, required: ["query"] },
     },
   },
   {
     type: "function",
     function: {
+      name: "open_url",
+      description: "Fetch a public https page and return its text.",
+      parameters: { type: "object", properties: { url: { type: "string" } }, required: ["url"] },
+    },
+  },
+  {
+    type: "function",
+    function: {
       name: "propose_files",
-      description: "Propose full-file replacements to preview or ship. Always send complete file contents.",
+      description: "Propose full-file replacements (create or overwrite). Always send COMPLETE file contents. Staff previews then hits Push to production.",
       parameters: {
         type: "object",
         properties: {
@@ -233,16 +367,18 @@ const SYSTEM = `You are Grok, chatting live with hotel staff in the HODL Hotel c
 ${HOTEL_BRIEF}
 
 Reply in the thread: short, clear sentences, answer first. Keep the conversation going across follow-ups.
-If they want a change, inspect the code, then call propose_files with COMPLETE file contents. Do not propose files for questions, explanations, or "what if" talk. Nothing is applied until staff hits Push.
-The live desk has no local git checkout. File tools read GitHub. Never tell staff the repo is missing — call list_files on "src" and read_file on real paths like src/components/AdminCommand.tsx.
-Staff can attach pictures, video stills, and files. Look at attached images. Use attached source/text as the thing to inspect or apply.`;
+You work like the builder Grok in the hotel repo chat: inspect the live game files, then change them.
+If they want a change, read the real files, then call propose_files with COMPLETE file contents. Do not propose files for questions. Staff hits Push to ship to production.
+Never say the repo or src/ is missing. Call repo_map or list_files / read_file. Use read_image for sprites under public/art. Staff can also attach pictures, videos, and files in chat.`;
 
 type Msg = { role: string; content?: string | null | unknown; tool_calls?: unknown; tool_call_id?: string; name?: string };
 
 async function runTool(name: string, args: Record<string, unknown>) {
-  if (name === "list_files") return listProject(String(args.path || "src"));
-  if (name === "read_file") return readProjectFile(String(args.path || ""));
+  if (name === "repo_map") return repoMap();
+  if (name === "list_files") return listProject(String(args.path || ""));
+  if (name === "read_file" || name === "read_image") return readProjectFile(String(args.path || ""));
   if (name === "search_code") return searchProject(String(args.query || ""), String(args.folder || "src"));
+  if (name === "open_url") return openUrl(String(args.url || ""));
   if (name === "propose_files") return { ok: true, count: Array.isArray(args.files) ? args.files.length : 0 };
   return { error: "Unknown tool" };
 }
@@ -312,19 +448,30 @@ export async function runGrok(opts: {
   const fileNote = files.local
     ? "File tools read the local checkout, then GitHub if needed."
     : files.github
-      ? `File tools read GitHub ${files.repo}@${files.branch}. There is no local src/ on this server. list_files("src") works.`
+      ? `File tools have FULL access to GitHub ${files.repo}@${files.branch} (src, public art, scripts, config).`
       : "WARNING: no local src/ and no GITHUB_TOKEN — file tools will fail until GitHub is configured.";
+  let mapNote = "";
+  try {
+    const map = await repoMap();
+    if ("files" in map && Array.isArray(map.files)) {
+      const src = map.files.filter((f) => f.startsWith("src/"));
+      const rest = map.files.filter((f) => !f.startsWith("src/")).slice(0, 240);
+      mapNote = `\nLive repo files (${map.count}):\n${[...src, ...rest].join("\n")}`;
+    }
+  } catch {
+    mapNote = "";
+  }
   const attachments = cleanAttachments(opts.attachments);
   const patches: AgentPatch[] = [];
   const log: string[] = [];
   if (attachments.length) log.push(`attachments ${attachments.map((a) => a.name).join(", ")}`);
   const messages: Msg[] = [
-    { role: "system", content: SYSTEM + `\n${modeNote}\n${fileNote}` },
-    ...(opts.history || []).slice(-8),
+    { role: "system", content: SYSTEM + `\n${modeNote}\n${fileNote}${mapNote}` },
+    ...(opts.history || []).slice(-16),
     { role: "user", content: userPayload(opts.prompt, attachments) },
   ];
   let reply = "";
-  for (let i = 0; i < 8; i++) {
+  for (let i = 0; i < 16; i++) {
     const res = await fetch("https://api.x.ai/v1/chat/completions", {
       method: "POST",
       headers: { authorization: `Bearer ${key}`, "content-type": "application/json" },
@@ -356,7 +503,23 @@ export async function runGrok(opts: {
           }
         }
         const result = await runTool(call.function.name, args);
-        messages.push({ role: "tool", tool_call_id: call.id, name: call.function.name, content: JSON.stringify(result).slice(0, 24_000) });
+        const vision: { path: string; url: string }[] = [];
+        let payload: unknown = result;
+        if (result && typeof result === "object" && "kind" in result && (result as { kind?: string }).kind === "image" && "dataUrl" in result) {
+          const img = result as { path?: string; dataUrl?: string };
+          if (img.dataUrl) vision.push({ path: img.path || String(args.path || ""), url: img.dataUrl });
+          payload = { path: img.path, kind: "image", loaded: true };
+        }
+        messages.push({ role: "tool", tool_call_id: call.id, name: call.function.name, content: JSON.stringify(payload).slice(0, 24_000) });
+        if (vision.length) {
+          messages.push({
+            role: "user",
+            content: [
+              { type: "text", text: `Repo image you opened:\n${vision.map((v) => v.path).join("\n")}` },
+              ...vision.slice(0, 3).map((v) => ({ type: "image_url", image_url: { url: v.url, detail: "high" as const } })),
+            ],
+          });
+        }
       }
       continue;
     }

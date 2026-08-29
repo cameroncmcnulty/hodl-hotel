@@ -6,7 +6,7 @@ import { ensureSegments } from "@/lib/grokHelp";
 import { loadDB, log, saveDB } from "@/lib/store";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 export async function GET() {
   const a = await requireAdmin();
@@ -153,7 +153,7 @@ export async function POST(req: Request) {
     const history = job.messages
       .slice(0, -1)
       .filter((m) => m.content)
-      .slice(-12)
+      .slice(-20)
       .map((m) => ({ role: m.role, content: m.content }));
     const out = await runGrok({ prompt, mode, history, attachments });
     job.reply = out.reply;

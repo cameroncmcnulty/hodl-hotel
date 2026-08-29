@@ -5,7 +5,7 @@ import { ensureSegments } from "@/lib/grokHelp";
 import { loadDB, log, saveDB } from "@/lib/store";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+export const maxDuration = 120;
 
 export async function POST(req: Request) {
   const a = await requireAdmin();

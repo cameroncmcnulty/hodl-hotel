@@ -302,7 +302,7 @@ export function AdminCommand() {
               {" · "}
               {data.github?.ready ? `Ship → ${data.github.repo}` : "Set GITHUB_TOKEN to push production"}
               {" · "}
-              {data.files?.local ? "files on disk" : data.files?.github ? `files via GitHub ${data.files.branch}` : "no file access"}
+              {data.files?.local ? "full repo on disk" : data.files?.github ? `full repo via GitHub ${data.files.branch}` : "no file access"}
             </p>
           </div>
           <div className="flex gap-2 text-xs">

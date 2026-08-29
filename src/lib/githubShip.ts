@@ -64,7 +64,7 @@ export async function repoList(rel: string) {
     if (!name || seen.has(name)) continue;
     seen.add(name);
     entries.push({ name, dir: rest.includes("/") || it.type === "tree", path: prefix ? `${prefix}/${name}` : name });
-    if (entries.length >= 80) break;
+    if (entries.length >= 250) break;
   }
   return { path: prefix || ".", entries, source: "github" as const, repo: repo(), branch: branch() };
 }
@@ -92,6 +92,29 @@ export async function repoReadBlob(sha: string) {
   const json = (await gh(`/repos/${owner}/${name}/git/blobs/${sha}`)) as { content?: string };
   if (!json.content) return "";
   return Buffer.from(json.content.replace(/\n/g, ""), "base64").toString("utf8");
+}
+
+export async function repoReadBinary(rel: string) {
+  const [owner, name] = repo().split("/");
+  const encoded = rel
+    .split("/")
+    .filter(Boolean)
+    .map((p) => encodeURIComponent(p))
+    .join("/");
+  const json = (await gh(`/repos/${owner}/${name}/contents/${encoded}?ref=${encodeURIComponent(branch())}`)) as {
+    type?: string;
+    content?: string;
+    path?: string;
+    size?: number;
+  };
+  if (json.type === "dir") return { error: "That path is a folder" };
+  if (!json.content) return { error: "File not found on GitHub" };
+  return { path: json.path || rel, base64: json.content.replace(/\n/g, ""), size: json.size || 0 };
+}
+
+export async function repoMapPaths() {
+  const items = await repoTree();
+  return items.filter((it) => it.type === "blob").map((it) => it.path);
 }
 
 async function gh(path: string, init: RequestInit = {}) {
