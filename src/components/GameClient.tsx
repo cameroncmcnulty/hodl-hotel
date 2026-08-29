@@ -16,6 +16,7 @@ import { api, authInit, clearClientToken } from "@/lib/clientAuth";
 import type { Ad, ChatLine, Occupant, Placed, Room } from "@/lib/types";
 import {
   Backpack,
+  Copy,
   Handshake,
   LogOut,
   Map,
@@ -70,6 +71,17 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
   const [lockPass, setLockPass] = useState("");
   const [joinTarget, setJoinTarget] = useState<string | null>(null);
   const [trade, setTrade] = useState<any>(null);
+  const [pay, setPay] = useState<{
+    id: string;
+    packId: string;
+    coins: number;
+    sol: number;
+    address: string;
+    status: string;
+    expiresAt: string;
+    error?: string;
+  } | null>(null);
+  const [payTick, setPayTick] = useState(0);
   const tRef = useRef(0);
   const cam = useRef({ x: 400, y: 200 });
   const zoomRef = useRef(1);
@@ -607,50 +619,49 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
   }
 
   async function buyCoins(packId: string) {
-    const info = await fetch("/api/solana").then((r) => r.json());
     const pack = COIN_PACKS.find((p) => p.id === packId);
     if (!pack) return;
-    if (!info.treasury) {
-      if (location.hostname === "localhost") {
-        const j = await fetch("/api/solana", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ op: "faucet" }) }).then((r) => r.json());
-        if (j.user) setMe({ ...meState, coins: j.user.coins });
-        setStatus("Local faucet: +500 coins (treasury wallet not set yet)");
-        return;
-      }
-      setStatus("Treasury wallet not configured. Ask the front desk.");
+    const { j } = await api("/api/solana", { method: "POST", body: JSON.stringify({ op: "invoice", packId }) });
+    if (j.error) {
+      setStatus(j.error);
       return;
     }
-    const provider = (window as unknown as { solana?: { isPhantom?: boolean; connect: () => Promise<{ publicKey: { toString: () => string } }>; signAndSendTransaction: (t: unknown) => Promise<{ signature: string }> } }).solana;
-    if (!provider?.isPhantom) {
-      setStatus("Install Phantom (or another Solana wallet) to buy coins.");
-      return;
-    }
+    setPay(j.invoice);
+    setStatus("Send SOL to the desk wallet below.");
+  }
+
+  async function pollPay(invoiceId: string) {
+    const { j } = await api("/api/solana", { method: "POST", body: JSON.stringify({ op: "check", invoiceId }) });
+    if (j.invoice) setPay(j.invoice);
+    if (j.user?.coins != null) setMe((prev) => ({ ...prev, coins: j.user.coins }));
+    if (j.invoice?.status === "credited") setStatus(`+${j.invoice.coins} coins credited`);
+    if (j.error) setStatus(j.error);
+  }
+
+  useEffect(() => {
+    if (!pay || pay.status === "credited" || pay.status === "expired" || pay.status === "failed") return;
+    const t = setInterval(() => pollPay(pay.id), 3500);
+    const clock = setInterval(() => setPayTick((n) => n + 1), 1000);
+    return () => {
+      clearInterval(t);
+      clearInterval(clock);
+    };
+  }, [pay?.id, pay?.status]);
+
+  function payRemain() {
+    if (!pay) return "";
+    const ms = Math.max(0, new Date(pay.expiresAt).getTime() - Date.now());
+    const m = Math.floor(ms / 60000);
+    const s = Math.floor((ms % 60000) / 1000);
+    return `${m}:${s.toString().padStart(2, "0")}`;
+  }
+
+  async function copyText(text: string, label: string) {
     try {
-      const { Connection, PublicKey, SystemProgram, Transaction, LAMPORTS_PER_SOL } = await import("@solana/web3.js");
-      const conn = new Connection(info.network === "devnet" ? "https://api.devnet.solana.com" : "https://api.mainnet-beta.solana.com");
-      const pk = await provider.connect();
-      const tx = new Transaction().add(
-        SystemProgram.transfer({
-          fromPubkey: new PublicKey(pk.publicKey.toString()),
-          toPubkey: new PublicKey(info.treasury),
-          lamports: Math.round(pack.sol * LAMPORTS_PER_SOL),
-        })
-      );
-      tx.feePayer = new PublicKey(pk.publicKey.toString());
-      tx.recentBlockhash = (await conn.getLatestBlockhash()).blockhash;
-      const { signature } = await provider.signAndSendTransaction(tx);
-      const j = await fetch("/api/solana", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ packId, sig: signature, wallet: pk.publicKey.toString() }),
-      }).then((r) => r.json());
-      if (j.error) setStatus(j.error);
-      else {
-        setMe({ ...meState, coins: j.user.coins });
-        setStatus(`+${pack.coins} coins`);
-      }
-    } catch (e) {
-      setStatus(e instanceof Error ? e.message : "Wallet cancelled");
+      await navigator.clipboard.writeText(text);
+      setStatus(`${label} copied`);
+    } catch {
+      setStatus("Copy failed — select it yourself");
     }
   }
 
@@ -964,22 +975,90 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
           )}
 
           {phone === "coins" && (
-            <PhoneApp title="Wallet" onBack={goHome}>
+            <PhoneApp
+              title="Wallet"
+              onBack={() => {
+                if (pay && pay.status === "waiting") {
+                  api("/api/solana", { method: "POST", body: JSON.stringify({ op: "cancel", invoiceId: pay.id }) });
+                  setPay(null);
+                  return;
+                }
+                if (pay) {
+                  setPay(null);
+                  return;
+                }
+                goHome();
+              }}
+            >
               <p className="mb-1 text-3xl font-display font-semibold text-mint">{meState.coins.toLocaleString()}c</p>
-              <p className="mb-4 text-xs text-white/50">Virtual coins have no cash value. 18+ only. Payments go to the hotel treasury.</p>
-              <div className="grid gap-2">
-                {COIN_PACKS.map((p) => (
-                  <button key={p.id} className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-3 py-3 text-left hover:border-mint" onClick={() => buyCoins(p.id)}>
-                    <span>
-                      <b>{p.name}</b>
-                      <div className="text-xs text-white/50">{p.tag}</div>
-                    </span>
-                    <span className="text-sm text-mint">
-                      {p.coins}c · {p.sol} SOL
-                    </span>
-                  </button>
-                ))}
-              </div>
+              <p className="mb-4 text-xs text-white/50">Virtual coins have no cash value. 18+ only. SOL is forwarded to the hotel treasury after we see it.</p>
+              {pay ? (
+                <div className="grid gap-3">
+                  <p className="text-sm">
+                    Send <b className="text-mint">{pay.sol} SOL</b> for <b>{pay.coins.toLocaleString()}c</b>
+                  </p>
+                  <p className="text-xs text-white/50">
+                    {pay.status === "waiting" && `Waiting on chain · ${payRemain()} left`}
+                    {pay.status === "received" && "Payment seen — forwarding to treasury…"}
+                    {pay.status === "credited" && "Credited. Coins are in your wallet."}
+                    {pay.status === "expired" && "This ticket expired. Pick a pack again."}
+                    {pay.status === "failed" && (pay.error || "Forward failed — the desk will retry.")}
+                  </p>
+                  <div className="rounded-2xl border border-white/10 bg-black/30 p-3">
+                    <p className="mb-1 text-[10px] uppercase tracking-wider text-white/40">Desk wallet</p>
+                    <p className="break-all font-mono text-xs leading-5">{pay.address}</p>
+                    <button type="button" className="mt-2 inline-flex items-center gap-1 rounded-full bg-white/10 px-3 py-1 text-[11px]" onClick={() => copyText(pay.address, "Address")}>
+                      <Copy size={12} /> Copy address
+                    </button>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <button type="button" className="rounded-full bg-white/10 px-3 py-1.5 text-xs" onClick={() => copyText(String(pay.sol), "Amount")}>
+                      Copy {pay.sol} SOL
+                    </button>
+                    <a className="rounded-full bg-mint px-3 py-1.5 text-xs font-semibold text-black" href={`solana:${pay.address}?amount=${pay.sol}&label=HODL%20Hotel`} >
+                      Open wallet
+                    </a>
+                    {pay.status === "waiting" || pay.status === "received" ? (
+                      <button type="button" className="rounded-full bg-white/10 px-3 py-1.5 text-xs" onClick={() => pollPay(pay.id)}>
+                        I sent it
+                      </button>
+                    ) : null}
+                    {pay.status === "credited" || pay.status === "expired" || pay.status === "failed" ? (
+                      <button type="button" className="rounded-full bg-white/10 px-3 py-1.5 text-xs" onClick={() => setPay(null)}>
+                        Back to packs
+                      </button>
+                    ) : null}
+                  </div>
+                  {pay.error && pay.status !== "expired" ? <p className="text-xs text-coral">{pay.error}</p> : null}
+                </div>
+              ) : (
+                <div className="grid gap-2">
+                  {typeof window !== "undefined" && window.location.hostname === "localhost" ? (
+                    <button
+                      type="button"
+                      className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-left text-xs text-white/70"
+                      onClick={async () => {
+                        const { j } = await api("/api/solana", { method: "POST", body: JSON.stringify({ op: "faucet" }) });
+                        if (j.user) setMe((prev) => ({ ...prev, coins: j.user.coins }));
+                        setStatus(j.error || "Local faucet: +500 coins");
+                      }}
+                    >
+                      Local test: +500 coins
+                    </button>
+                  ) : null}
+                  {COIN_PACKS.map((p) => (
+                    <button key={p.id} className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-3 py-3 text-left hover:border-mint" onClick={() => buyCoins(p.id)}>
+                      <span>
+                        <b>{p.name}</b>
+                        <div className="text-xs text-white/50">{p.tag}</div>
+                      </span>
+                      <span className="text-sm text-mint">
+                        {p.coins}c · {p.sol} SOL
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
             </PhoneApp>
           )}
 

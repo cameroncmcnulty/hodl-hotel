@@ -34,6 +34,7 @@ function empty(): DB {
     reports: [],
     ads: [],
     receipts: [],
+    invoices: [],
     events: [],
     settings: {
       treasuryWallet: TREASURY_WALLET,
@@ -116,6 +117,7 @@ function bootstrap(db: DB) {
   }
   seedPublicRooms(db);
   if (!db.agentJobs) db.agentJobs = [];
+  if (!db.invoices) db.invoices = [];
   for (const u of db.users) {
     if (!u.ownedLayoutIds?.length) u.ownedLayoutIds = [...FREE_LAYOUT_IDS];
   }

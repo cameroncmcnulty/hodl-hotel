@@ -46,6 +46,7 @@ type Desk = {
   ads: { id: string; slotId: string; status: string; end: string }[];
   reports: { id: string; status: string; reason: string; at: string }[];
   receipts: { id: string; at: string; packId: string; coins: number; sig: string }[];
+  invoices?: { id: string; userId: string; packId: string; coins: number; sol: number; address: string; status: string; createdAt: string; error?: string }[];
   events: { id: string; title: string; roomId: string }[];
   logs: { id: string; at: string; kind: string; text: string }[];
   settings: { treasuryWallet: string; chatEnabled: boolean; signupEnabled: boolean; maintenance: boolean; starterCoins: number };
@@ -238,6 +239,14 @@ export function AdminCommand() {
               {data.receipts.map((rec) => (
                 <li key={rec.id} className="font-mono text-xs">
                   {rec.at.slice(0, 19)} · {rec.packId} · {rec.coins}c · {rec.sig.slice(0, 16)}…
+                </li>
+              ))}
+            </ul>
+            <p className="mt-4">Desk tickets: {(data.invoices || []).length}</p>
+            <ul className="mt-2 max-h-64 overflow-auto">
+              {(data.invoices || []).map((inv) => (
+                <li key={inv.id} className="font-mono text-xs">
+                  {inv.status} · {inv.packId} · {inv.sol} SOL · {inv.address.slice(0, 8)}… {inv.error || ""}
                 </li>
               ))}
             </ul>

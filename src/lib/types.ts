@@ -160,6 +160,23 @@ export type Receipt = {
   at: string;
 };
 
+export type Invoice = {
+  id: string;
+  userId: string;
+  packId: string;
+  coins: number;
+  sol: number;
+  lamports: number;
+  address: string;
+  secret: string;
+  status: "waiting" | "received" | "credited" | "expired" | "failed";
+  createdAt: string;
+  expiresAt: string;
+  paySig?: string;
+  forwardSig?: string;
+  error?: string;
+};
+
 export type HotelEvent = {
   id: string;
   title: string;
@@ -246,6 +263,7 @@ export type DB = {
   reports: Report[];
   ads: Ad[];
   receipts: Receipt[];
+  invoices?: Invoice[];
   events: HotelEvent[];
   settings: Settings;
   logs: Log[];

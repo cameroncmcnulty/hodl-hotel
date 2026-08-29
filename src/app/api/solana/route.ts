@@ -1,15 +1,31 @@
 import { NextResponse } from "next/server";
 import { COIN_PACKS, PURCHASE_AGE, TREASURY_WALLET } from "@/lib/constants";
 import { ageYears } from "@/lib/moderate";
+import { cancelInvoice, checkInvoice, createInvoice, publicInvoice, solNetwork } from "@/lib/pay";
 import { sessionUserId } from "@/lib/session";
 import { findUser, loadDB, log, publicUser, saveDB } from "@/lib/store";
 
-export async function GET() {
+export const runtime = "nodejs";
+export const maxDuration = 60;
+
+export async function GET(req: Request) {
   const db = loadDB();
+  const url = new URL(req.url);
+  const invoiceId = url.searchParams.get("invoice");
+  if (invoiceId) {
+    const id = await sessionUserId();
+    if (!id) return NextResponse.json({ error: "Sign in" }, { status: 401 });
+    const out = await checkInvoice(invoiceId, id);
+    if ("error" in out && out.status) return NextResponse.json({ error: out.error }, { status: out.status });
+    return NextResponse.json({
+      invoice: out.invoice ? publicInvoice(out.invoice) : null,
+      user: out.user ? publicUser(out.user) : undefined,
+    });
+  }
   return NextResponse.json({
     packs: COIN_PACKS,
     treasury: db.settings.treasuryWallet || TREASURY_WALLET,
-    network: process.env.NEXT_PUBLIC_SOLANA_NETWORK || "mainnet-beta",
+    network: solNetwork(),
   });
 }
 
@@ -35,6 +51,30 @@ export async function POST(req: Request) {
     u.wallet = String(body.wallet || "");
     saveDB(db);
     return NextResponse.json({ user: publicUser(u) });
+  }
+
+  if (body.op === "invoice") {
+    try {
+      const inv = createInvoice(u.id, String(body.packId || ""));
+      return NextResponse.json({ invoice: publicInvoice(inv), network: solNetwork() });
+    } catch (e) {
+      return NextResponse.json({ error: e instanceof Error ? e.message : "Could not open a desk ticket" }, { status: 400 });
+    }
+  }
+
+  if (body.op === "check") {
+    const out = await checkInvoice(String(body.invoiceId || ""), u.id);
+    if ("error" in out && out.status) return NextResponse.json({ error: out.error }, { status: out.status });
+    return NextResponse.json({
+      invoice: out.invoice ? publicInvoice(out.invoice) : null,
+      user: out.user ? publicUser(out.user) : undefined,
+    });
+  }
+
+  if (body.op === "cancel") {
+    const inv = cancelInvoice(String(body.invoiceId || ""), u.id);
+    if (!inv) return NextResponse.json({ error: "Ticket not found" }, { status: 404 });
+    return NextResponse.json({ invoice: publicInvoice(inv) });
   }
 
   const pack = COIN_PACKS.find((p) => p.id === body.packId);
