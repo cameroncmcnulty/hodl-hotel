@@ -4,6 +4,7 @@ import path from "path";
 const nextConfig: NextConfig = {
   reactStrictMode: false,
   images: { unoptimized: true },
+  transpilePackages: ["pixi.js"],
   outputFileTracingRoot: path.join(__dirname),
   async headers() {
     return [

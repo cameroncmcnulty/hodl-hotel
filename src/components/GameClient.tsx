@@ -7,7 +7,8 @@ import { AppIcon, PhoneApp, PhoneClock, PhoneShell } from "@/components/PhoneShe
 import { CATALOG, CATS, furn, RARITY_LABEL, RARITY_TONE, type Rarity } from "@/lib/catalog";
 import { FREE_LAYOUT_IDS, isDoor, layoutById, PREMIUM_LAYOUTS, USER_LAYOUTS, walkable } from "@/lib/layouts";
 import { COIN_PACKS } from "@/lib/constants";
-import { drawRoom, pointerWorld, tileAt, wallLiftAt } from "@/lib/game/draw";
+import { pointerWorld, tileAt, wallLiftAt } from "@/lib/game/draw";
+import { HotelPixi } from "@/lib/game/pixi/HotelPixi";
 import { astar, canPlaceFurn, furnAt, wallAutoRot } from "@/lib/game/path";
 import { iso } from "@/lib/game/iso";
 import { face, motAt, setPath, tickMot, type Mot } from "@/lib/game/motion";
@@ -85,7 +86,8 @@ function SolMark({ className = "h-4 w-4" }: { className?: string }) {
 }
 
 export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const canvasRef = useRef<HTMLDivElement>(null);
+  const pixiRef = useRef<HotelPixi | null>(null);
   const [snap, setSnap] = useState<Snap | null>(null);
   const [meState, setMe] = useState(me);
   const [roomId, setRoomId] = useState(homeRoomId);
@@ -148,6 +150,25 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
 
   useEffect(() => {
     loadAvatars();
+  }, []);
+
+  useEffect(() => {
+    const host = canvasRef.current;
+    if (!host) return;
+    const engine = new HotelPixi();
+    let dead = false;
+    engine.mount(host).then(() => {
+      if (dead) {
+        engine.destroy();
+        return;
+      }
+      pixiRef.current = engine;
+    });
+    return () => {
+      dead = true;
+      pixiRef.current = null;
+      engine.destroy();
+    };
   }, []);
 
   useEffect(() => {
@@ -344,27 +365,12 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
       const dt = Math.min(48, now - lastTs.current);
       lastTs.current = now;
       tRef.current += dt / 1000;
-      const c = canvasRef.current;
+      const host = canvasRef.current;
+      const engine = pixiRef.current;
       const s = snap;
-      if (c && s) {
-        const ctx = c.getContext("2d");
-        if (ctx) {
-          const dpr = window.devicePixelRatio || 1;
-          const w = c.clientWidth;
-          const h = c.clientHeight;
-          if (c.width !== w * dpr) {
-            c.width = w * dpr;
-            c.height = h * dpr;
-          }
-          ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-          ctx.imageSmoothingEnabled = false;
-          ctx.fillStyle = "#050508";
-          ctx.fillRect(0, 0, w, h);
-          const z = zoomRef.current;
-          ctx.save();
-          ctx.translate(w / 2, h / 2);
-          ctx.scale(z, z);
-          ctx.translate(-w / 2, -h / 2);
+      if (host && s) {
+          const w = host.clientWidth;
+          const h = host.clientHeight;
           const meMot = motions.current[meState.id];
           const held = keys.current;
           let hx = 0;
@@ -423,36 +429,28 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
             cam.current.y += (h / 2 - p.sy - cam.current.y) * 0.2;
           }
           const gdef = place ? furn(place.catalogId) : undefined;
-          drawRoom(ctx, {
-            room: s.room,
-            occupants: vis,
-            ads: s.ads,
-            cam: cam.current,
-            t: tRef.current,
-            hover: hover || undefined,
-            ghost:
-              gdef && hover
-                ? {
-                    def: gdef,
-                    x: hover.x,
-                    y: hover.y,
-                    rot: place!.rot,
-                    ok: canPlaceFurn(s.room, place!.catalogId, hover.x, hover.y, place!.rot),
-                    wallLift: place!.wallLift,
-                  }
-                : undefined,
-            sprites: spritesRef.current || spriteCache(),
-          });
-          if (s.room.id === "public-shill-zone") {
-            const g = ctx.createRadialGradient(w * 0.5, h * 0.4, 20, w * 0.5, h * 0.4, 400);
-            const hue = (tRef.current * 40) % 360;
-            g.addColorStop(0, `hsla(${hue},90%,60%,0.18)`);
-            g.addColorStop(1, "transparent");
-            ctx.fillStyle = g;
-            ctx.fillRect(0, 0, w, h);
+          if (engine?.ready) {
+            engine.draw({
+              room: s.room,
+              occupants: vis,
+              cam: cam.current,
+              t: tRef.current,
+              hover: hover || undefined,
+              ghost:
+                gdef && hover
+                  ? {
+                      def: gdef,
+                      x: hover.x,
+                      y: hover.y,
+                      rot: place!.rot,
+                      ok: canPlaceFurn(s.room, place!.catalogId, hover.x, hover.y, place!.rot),
+                      wallLift: place!.wallLift,
+                    }
+                  : undefined,
+              view: { w, h },
+              zoom: zoomRef.current,
+            });
           }
-          ctx.restore();
-        }
       }
       raf = requestAnimationFrame(loop);
     };
@@ -764,7 +762,7 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
           </HotelBackdrop>
         </div>
       )}
-      <canvas
+      <div
         ref={canvasRef}
         className="absolute inset-0 h-full w-full cursor-pointer touch-none select-none"
         style={{ imageRendering: "pixelated", touchAction: "none" }}
