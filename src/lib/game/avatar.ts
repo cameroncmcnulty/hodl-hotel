@@ -1,6 +1,6 @@
 import type { Figure } from "../types";
 import { mix } from "./pix";
-import { LOOK_H, LOOK_SCALE, LOOK_W, lookKey, paintLook, type LookOpts } from "./lookDraw";
+import { LOOK_H, LOOK_SCALE, LOOK_W, lookKey, paintLook, paintThumb, type LookOpts, type ThumbZone } from "./lookDraw";
 
 export {
   ACC,
@@ -12,6 +12,7 @@ export {
   chibiIds,
   COLOR_N,
   DEFAULT_FIGURE,
+  DYE,
   GENDERS,
   HAIR_BOY,
   HAIR_C,
@@ -38,16 +39,23 @@ export {
   figureString,
   hairColors,
   hairsFor,
+  hatColors,
+  hatsFor,
+  HATS,
+  ITEM_LABEL,
   LOOK_H,
   LOOK_SCALE,
   LOOK_W,
   lookKey,
   paintLook,
+  paintThumb,
   setChibi,
   shoeColors,
   shoesFor,
+  THUMB_BOX,
   topColors,
   topsFor,
+  type ThumbZone,
 } from "./lookDraw";
 
 export const AVATAR_DRAW_H = LOOK_H * LOOK_SCALE;
@@ -119,6 +127,20 @@ function blit(
   } else {
     ctx.drawImage(src, dx, dy, dw, dh);
   }
+}
+
+export function drawLookThumb(
+  ctx: CanvasRenderingContext2D,
+  fig: Figure,
+  zone: ThumbZone,
+  dx: number,
+  dy: number,
+  scale = 1
+) {
+  const s = Math.max(1, Math.round(scale));
+  const src = paintThumb(fig, zone).canvas();
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(src, dx, dy, src.width * s, src.height * s);
 }
 
 export function drawAvatarFront(

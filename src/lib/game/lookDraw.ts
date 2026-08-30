@@ -21,63 +21,29 @@ export const HAIR_BOY_C = ["#8b5a2b", "#5c3317", "#1b1b1b", "#e8d07a", "#c45c26"
 export const HAIR_GIRL_C = ["#8b5a2b", "#1a1a1a", "#111111", "#e8d07a", "#c45c26", "#ff8fab"];
 export const HAIR_C = HAIR_BOY_C;
 
-export const HAIR_BOY = ["messy", "side", "afro", "undercut", "spikes", "mohawk"];
-export const HAIR_GIRL = ["pony", "waves", "bob", "long", "pigtails", "bun"];
-export const TOP_BOY = ["hoodie", "tee", "jacket", "tank", "sweater"];
-export const TOP_GIRL = ["hoodie", "tee", "jacket", "tank", "sweater"];
-export const BOT_BOY = ["pants", "shorts", "jeans", "cargo", "joggers"];
-export const BOT_GIRL = ["skirt", "pants", "shorts", "jeans", "pleat"];
-export const SHOE_BOY = ["sneakers", "hightops", "boots", "skate", "slides"];
-export const SHOE_GIRL = ["sneakers", "hightops", "boots", "skate", "flats"];
+export const HAIR_BOY = ["messy", "side", "afro", "spikes", "mohawk"];
+export const HAIR_GIRL = ["pony", "bob", "long", "pigtails", "bun"];
+export const TOP_BOY = ["hoodie", "tee", "jacket", "tank"];
+export const TOP_GIRL = ["hoodie", "tee", "jacket", "tank"];
+export const BOT_BOY = ["pants", "shorts", "jeans"];
+export const BOT_GIRL = ["skirt", "pants", "shorts"];
+export const SHOE_BOY = ["sneakers", "boots", "slides"];
+export const SHOE_GIRL = ["sneakers", "boots", "slides"];
+export const HATS = ["none", "beanie", "cap", "bucket", "visor", "bow"];
 export const HAIR_STYLES = HAIR_BOY;
 export const TOP_CUTS = TOP_BOY;
 export const BOT_CUTS = BOT_GIRL;
-export const ACC = ["none"];
+export const ACC = HATS;
 export const GENDERS = ["boy", "girl"];
 export const SKIN_N = 8;
-export const COLOR_N = 5;
+export const COLOR_N = 8;
 export const HAIR_COLOR_N = 6;
 
-const TOP_PAL: Record<string, string[]> = {
-  "0-hoodie": ["#8a8f98", "#1e3a8a", "#2a2a32", "#c41e3a", "#166534"],
-  "0-tee": ["#e8b931", "#c41e3a", "#f4f4f6", "#3b82f6", "#2a2a32"],
-  "0-jacket": ["#3a3a44", "#6d4c2f", "#c41e3a", "#1e3a5f", "#6b7280"],
-  "0-tank": ["#2a2a32", "#f4f4f6", "#c41e3a", "#6b7280", "#1e3a8a"],
-  "0-sweater": ["#c4a574", "#1e3a5f", "#7f1d1d", "#6b7280", "#166534"],
-  "1-hoodie": ["#ff8fab", "#7c3aed", "#f4f4f6", "#8a8f98", "#3b82f6"],
-  "1-tee": ["#f4f4f6", "#ff8fab", "#e8b931", "#c41e3a", "#2a2a32"],
-  "1-jacket": ["#3a3a44", "#ff8fab", "#7c3aed", "#f4f4f6", "#c41e3a"],
-  "1-tank": ["#2a2a32", "#ff8fab", "#f4f4f6", "#7c3aed", "#c41e3a"],
-  "1-sweater": ["#f3e0c8", "#ff8fab", "#c4b5fd", "#8a8f98", "#c41e3a"],
-};
-const BOT_PAL: Record<string, string[]> = {
-  "0-pants": ["#2a2a32", "#1e3a5f", "#6d4c2f", "#8a8f98", "#c4a574"],
-  "0-shorts": ["#8a8f98", "#1e3a5f", "#2a2a32", "#c41e3a", "#166534"],
-  "0-jeans": ["#2563eb", "#1e3a5f", "#2a2a32", "#6b7280", "#93c5fd"],
-  "0-cargo": ["#c4a574", "#3f4f2f", "#2a2a32", "#6d4c2f", "#8a8f98"],
-  "0-joggers": ["#2a2a32", "#6b7280", "#1e3a5f", "#c41e3a", "#3f4f2f"],
-  "1-skirt": ["#1e3a8a", "#ff8fab", "#2a2a32", "#8a8f98", "#c41e3a"],
-  "1-pants": ["#2a2a32", "#1e3a5f", "#3b82f6", "#8a8f98", "#6d4c2f"],
-  "1-shorts": ["#ff8fab", "#2a2a32", "#f4f4f6", "#1e3a8a", "#8a8f98"],
-  "1-jeans": ["#3b82f6", "#2a2a32", "#6b7280", "#93c5fd", "#1e3a5f"],
-  "1-pleat": ["#2a2a32", "#ff8fab", "#f4f4f6", "#1e3a8a", "#c41e3a"],
-};
-const SHOE_PAL: Record<string, string[]> = {
-  "0-sneakers": ["#c41e3a", "#f4f4f6", "#2a2a32", "#3b82f6", "#8a8f98"],
-  "0-hightops": ["#2a2a32", "#c41e3a", "#f4f4f6", "#7c3aed", "#6b7280"],
-  "0-boots": ["#2a2a32", "#6d4c2f", "#c41e3a", "#6b7280", "#f4f4f6"],
-  "0-skate": ["#2a2a32", "#f4f4f6", "#c41e3a", "#3b82f6", "#6b7280"],
-  "0-slides": ["#2a2a32", "#f4f4f6", "#c41e3a", "#3b82f6", "#6b7280"],
-  "1-sneakers": ["#c41e3a", "#f4f4f6", "#2a2a32", "#ff8fab", "#3b82f6"],
-  "1-hightops": ["#2a2a32", "#ff8fab", "#f4f4f6", "#7c3aed", "#c41e3a"],
-  "1-boots": ["#2a2a32", "#6d4c2f", "#c41e3a", "#ff8fab", "#f4f4f6"],
-  "1-skate": ["#2a2a32", "#f4f4f6", "#ff8fab", "#3b82f6", "#c41e3a"],
-  "1-flats": ["#ff8fab", "#c41e3a", "#f4f4f6", "#2a2a32", "#7c3aed"],
-};
-
-export const TOPS = TOP_PAL["0-hoodie"];
-export const BOTTOMS = BOT_PAL["0-pants"];
-export const SHOES = SHOE_PAL["0-sneakers"];
+/** One dye row for every garment. Color 0 is always white, 2 is always red. */
+export const DYE = ["#f4f4f6", "#8a8f98", "#2a2a32", "#c41e3a", "#2563eb", "#166534", "#7c3aed", "#fb7185"];
+export const TOPS = DYE;
+export const BOTTOMS = DYE;
+export const SHOES = DYE;
 
 export function hairsFor(gender: number) {
   return gender === 1 ? HAIR_GIRL : HAIR_BOY;
@@ -91,6 +57,9 @@ export function botsFor(gender: number) {
 export function shoesFor(gender: number) {
   return gender === 1 ? SHOE_GIRL : SHOE_BOY;
 }
+export function hatsFor(_gender?: number) {
+  return HATS;
+}
 export function facesFor(_gender: number) {
   return ["oval"];
 }
@@ -100,18 +69,48 @@ export function defaultHairName(gender: number) {
 export function hairColors(gender: number) {
   return gender === 1 ? HAIR_GIRL_C : HAIR_BOY_C;
 }
-export function topColors(gender: number, cut: number) {
-  const name = topsFor(gender)[cut] || "hoodie";
-  return TOP_PAL[`${gender}-${name}`] || TOP_PAL["0-hoodie"];
+export function topColors(_gender?: number, _cut?: number) {
+  return DYE;
 }
-export function botColors(gender: number, cut: number) {
-  const name = botsFor(gender)[cut] || (gender === 1 ? "skirt" : "pants");
-  return BOT_PAL[`${gender}-${name}`] || BOT_PAL["0-pants"];
+export function botColors(_gender?: number, _cut?: number) {
+  return DYE;
 }
-export function shoeColors(gender: number, cut: number) {
-  const name = shoesFor(gender)[cut] || "sneakers";
-  return SHOE_PAL[`${gender}-${name}`] || SHOE_PAL["0-sneakers"];
+export function shoeColors(_gender?: number, _cut?: number) {
+  return DYE;
 }
+export function hatColors(_gender?: number) {
+  return DYE;
+}
+
+export const ITEM_LABEL: Record<string, string> = {
+  messy: "Messy",
+  side: "Side part",
+  afro: "Afro",
+  spikes: "Spikes",
+  mohawk: "Mohawk",
+  pony: "Ponytail",
+  bob: "Bob",
+  long: "Long",
+  pigtails: "Pigtails",
+  bun: "Bun",
+  hoodie: "Hoodie",
+  tee: "T-shirt",
+  jacket: "Jacket",
+  tank: "Tank",
+  pants: "Pants",
+  shorts: "Shorts",
+  jeans: "Jeans",
+  skirt: "Skirt",
+  sneakers: "Sneakers",
+  boots: "Boots",
+  slides: "Slides",
+  none: "None",
+  beanie: "Beanie",
+  cap: "Cap",
+  bucket: "Bucket",
+  visor: "Visor",
+  bow: "Bow",
+};
 
 export const DEFAULT_FIGURE: Figure = {
   gender: 0,
@@ -119,15 +118,17 @@ export const DEFAULT_FIGURE: Figure = {
   skin: 1,
   hair: 0,
   hairColor: 0,
-  top: 0,
-  bottom: 0,
-  shoes: 0,
+  top: 1,
+  bottom: 2,
+  shoes: 3,
   acc: 0,
   topCut: 0,
   botCut: 0,
   shoeCut: 0,
   eyes: 0,
   face: 0,
+  hat: 0,
+  hatColor: 2,
 };
 
 export function clampFigure(f: Partial<Figure> | undefined): Figure {
@@ -142,12 +143,14 @@ export function clampFigure(f: Partial<Figure> | undefined): Figure {
     top: n(f?.top, COLOR_N - 1),
     bottom: n(f?.bottom, COLOR_N - 1),
     shoes: n(f?.shoes, COLOR_N - 1),
-    acc: 0,
+    acc: n(f?.hat ?? f?.acc, HATS.length - 1),
     topCut: n(f?.topCut, topsFor(gender).length - 1),
     botCut: n(f?.botCut, botsFor(gender).length - 1),
     shoeCut: n(f?.shoeCut, shoesFor(gender).length - 1),
     eyes: 0,
     face: 0,
+    hat: n(f?.hat ?? f?.acc, HATS.length - 1),
+    hatColor: n(f?.hatColor, COLOR_N - 1),
   };
 }
 
@@ -219,6 +222,7 @@ export function figureString(fig: Figure) {
     `ch-${f.topCut ?? 0}-${f.top}`,
     `lg-${f.botCut ?? 0}-${f.bottom}`,
     `sh-${f.shoeCut ?? 0}-${f.shoes}`,
+    `ha-${f.hat ?? 0}-${f.hatColor ?? 0}`,
   ].join(".");
 }
 
@@ -229,7 +233,8 @@ function palOf(f: Figure) {
     hair: hairColors(g)[f.hairColor] || HAIR_BOY_C[0],
     top: topColors(g, f.topCut ?? 0)[f.top] || TOPS[0],
     bot: botColors(g, f.botCut ?? 0)[f.bottom] || BOTTOMS[0],
-    shoe: shoeColors(g, f.shoeCut ?? 0)[f.shoes] || SHOES[0],
+    shoe: shoeColors()[f.shoes] || SHOES[0],
+    hat: hatColors()[f.hatColor ?? 0] || DYE[2],
   };
 }
 
@@ -320,6 +325,26 @@ function ball(p: Pix, cx: number, cy: number, rx: number, ry: number, hex: strin
 
 function blob(p: Pix, cx: number, cy: number, rx: number, ry: number, hex: string) {
   p.disc(cx, cy, rx, ry, rgb(hex));
+}
+
+/** Tapered hair strand. ang=0 is straight up. */
+function tuft(p: Pix, cx: number, cy: number, ang: number, len: number, w: number, hex: string) {
+  const dx = Math.sin(ang) * len;
+  const dy = -Math.cos(ang) * len;
+  const steps = Math.max(4, Math.round(len));
+  for (let i = 0; i <= steps; i++) {
+    const t = i / steps;
+    const r = Math.max(1.1, w * (1 - t * 0.7));
+    blob(p, cx + dx * t, cy + dy * t, r, r * 1.15, hex);
+  }
+}
+
+function bangs(p: Pix, hex: string) {
+  tuft(p, 36, R.headY - 14, -2.7, 7, 2.6, hex);
+  tuft(p, 42, R.headY - 16, -2.95, 8, 2.8, hex);
+  tuft(p, 48, R.headY - 17, 3.14, 7, 2.6, hex);
+  tuft(p, 54, R.headY - 16, 2.95, 8, 2.8, hex);
+  tuft(p, 60, R.headY - 14, 2.7, 7, 2.6, hex);
 }
 
 /** One rim pass over a merged silhouette — furniture lighting, no inner rings. */
@@ -415,91 +440,120 @@ function partFc(girl: boolean): Pix {
 function partHrb(style: string): Pix {
   const p = blank();
   if (style === "pony") {
-    blob(p, 22, R.headY - 4, 8, 9, BASE);
-    p.rect(18, R.headY, 8, 30, rgb(BASE));
-    blob(p, 21, R.headY + 34, 8, 8, BASE);
+    blob(p, 22, R.headY - 2, 7, 8, BASE);
+    tuft(p, 20, R.headY + 6, -2.4, 28, 4.2, BASE);
+    tuft(p, 24, R.headY + 8, -2.2, 26, 3.4, BASE);
+    blob(p, 20, R.headY + 34, 7, 7, BASE);
   } else if (style === "pigtails") {
-    blob(p, 18, R.headY, 7, 8, BASE);
-    blob(p, 78, R.headY - 2, 7, 8, BASE);
-    p.rect(16, R.headY + 4, 6, 16, rgb(BASE));
-    p.rect(76, R.headY + 2, 6, 16, rgb(BASE));
-    blob(p, 18, R.headY + 24, 6.5, 6.5, BASE);
-    blob(p, 80, R.headY + 22, 6.5, 6.5, BASE);
-  } else if (style === "long" || style === "waves") {
-    p.rect(20, R.headY + 4, 10, 38, rgb(BASE));
-    p.rect(66, R.headY + 4, 10, 38, rgb(BASE));
-    blob(p, 24, R.headY + 42, 8, 8, BASE);
-    blob(p, 72, R.headY + 42, 8, 8, BASE);
-    if (style === "waves") {
-      blob(p, 22, R.headY + 28, 7, 6, BASE);
-      blob(p, 74, R.headY + 28, 7, 6, BASE);
-    }
+    blob(p, 18, R.headY + 2, 6, 6, BASE);
+    blob(p, 78, R.headY, 6, 6, BASE);
+    tuft(p, 18, R.headY + 8, -2.3, 18, 3.4, BASE);
+    tuft(p, 78, R.headY + 6, 2.3, 18, 3.4, BASE);
+    blob(p, 16, R.headY + 26, 6, 6, BASE);
+    blob(p, 80, R.headY + 24, 6, 6, BASE);
+  } else if (style === "long") {
+    tuft(p, 22, R.headY + 6, -2.2, 36, 4.5, BASE);
+    tuft(p, 26, R.headY + 10, -2.0, 34, 3.6, BASE);
+    tuft(p, 70, R.headY + 6, 2.2, 36, 4.5, BASE);
+    tuft(p, 66, R.headY + 10, 2.0, 34, 3.6, BASE);
+    blob(p, 24, R.headY + 42, 7, 7, BASE);
+    blob(p, 72, R.headY + 42, 7, 7, BASE);
   }
   rimShade(p, BASE);
   return finish(p);
 }
 
-/** hr — hair cap on the skull. Face stays open so eyes always read. */
+/** hr — hair that actually reads as hair: strands, bangs, shine. */
 function partHr(style: string, back: boolean): Pix {
   const raw = blank();
   if (back) {
-    blob(raw, CX, R.headY - 2, 24, 26, BASE);
-    blob(raw, 28, R.headY - 8, 10, 12, BASE);
-    blob(raw, 68, R.headY - 8, 10, 12, BASE);
-    blob(raw, CX, R.headY - 20, 12, 10, BASE);
+    blob(raw, CX, R.headY - 4, 24, 24, BASE);
+    tuft(raw, 28, R.headY - 8, -0.9, 14, 4, BASE);
+    tuft(raw, 48, R.headY - 18, 0, 12, 4.5, BASE);
+    tuft(raw, 68, R.headY - 8, 0.9, 14, 4, BASE);
   }
   if (style === "afro") {
-    blob(raw, CX, R.headY - 10, 28, 26, BASE);
-    blob(raw, 24, R.headY - 8, 10, 11, BASE);
-    blob(raw, 72, R.headY - 10, 10, 11, BASE);
+    blob(raw, CX, R.headY - 8, 26, 24, BASE);
+    const spots = [
+      [24, -6, 9],
+      [72, -8, 9],
+      [36, -24, 8],
+      [60, -24, 8],
+      [48, -28, 9],
+      [20, 6, 7],
+      [76, 4, 7],
+      [30, -16, 7],
+      [66, -16, 7],
+    ];
+    for (const [x, dy, r] of spots) blob(raw, x, R.headY + dy, r, r, BASE);
   } else if (style === "mohawk") {
-    raw.rect(44, R.headY - 32, 8, 28, rgb(BASE));
-    raw.spike(CX, R.headY - 36, R.headY - 4, 6, BASE);
+    raw.rect(44, R.headY - 18, 8, 16, rgb(BASE));
+    tuft(raw, CX, R.headY - 18, 0, 22, 4.2, BASE);
+    tuft(raw, CX - 3, R.headY - 16, -0.15, 18, 3.2, BASE);
+    tuft(raw, CX + 3, R.headY - 16, 0.15, 18, 3.2, BASE);
   } else if (style === "spikes") {
-    blob(raw, CX, R.headY - 16, 14, 10, BASE);
-    raw.spike(32, R.headY - 30, R.headY - 2, 5, BASE);
-    raw.spike(48, R.headY - 34, R.headY - 4, 6, BASE);
-    raw.spike(64, R.headY - 30, R.headY - 2, 5, BASE);
+    blob(raw, CX, R.headY - 12, 14, 8, BASE);
+    tuft(raw, 32, R.headY - 8, -0.7, 18, 3.4, BASE);
+    tuft(raw, 42, R.headY - 14, -0.25, 20, 3.8, BASE);
+    tuft(raw, 48, R.headY - 16, 0, 22, 4.2, BASE);
+    tuft(raw, 54, R.headY - 14, 0.25, 20, 3.8, BASE);
+    tuft(raw, 64, R.headY - 8, 0.7, 18, 3.4, BASE);
+  } else if (style === "side") {
+    blob(raw, CX, R.headY - 12, 20, 14, BASE);
+    blob(raw, 30, R.headY - 8, 12, 12, BASE);
+    tuft(raw, 28, R.headY - 10, -0.9, 16, 4.2, BASE);
+    tuft(raw, 34, R.headY - 16, -0.4, 14, 3.6, BASE);
+    tuft(raw, 48, R.headY - 18, 0.1, 10, 3.2, BASE);
+    bangs(raw, BASE);
+  } else if (style === "bob") {
+    blob(raw, CX, R.headY - 12, 22, 15, BASE);
+    blob(raw, 26, R.headY - 2, 9, 10, BASE);
+    blob(raw, 70, R.headY - 4, 9, 10, BASE);
+    bangs(raw, BASE);
+  } else if (style === "bun") {
+    blob(raw, CX, R.headY - 12, 20, 14, BASE);
+    blob(raw, CX, R.headY - 30, 9, 8, BASE);
+    tuft(raw, 44, R.headY - 28, -0.5, 8, 2.4, BASE);
+    tuft(raw, 52, R.headY - 28, 0.5, 8, 2.4, BASE);
+    bangs(raw, BASE);
+  } else if (style === "pony" || style === "pigtails" || style === "long") {
+    blob(raw, CX, R.headY - 14, 21, 14, BASE);
+    blob(raw, 28, R.headY - 10, 9, 9, BASE);
+    blob(raw, 68, R.headY - 12, 9, 9, BASE);
+    bangs(raw, BASE);
   } else {
-    blob(raw, CX, R.headY - 14, 23, 18, BASE);
-    blob(raw, 28, R.headY - 8, 11, 12, BASE);
-    blob(raw, 68, R.headY - 10, 11, 12, BASE);
-    if (style === "side") {
-      blob(raw, 26, R.headY - 10, 14, 13, BASE);
-      blob(raw, 68, R.headY - 4, 7, 7, BASE);
-    }
-    if (style === "undercut") raw.block(26, R.headY - 2, 44, 3, hexMix(BASE, -40));
-    if (style === "bob") {
-      blob(raw, 26, R.headY + 6, 10, 11, BASE);
-      blob(raw, 70, R.headY + 4, 10, 11, BASE);
-    }
-    if (style === "bun") blob(raw, CX, R.headY - 30, 9, 8, BASE);
-    if (style === "messy") {
-      blob(raw, 36, R.headY - 26, 8, 7, BASE);
-      blob(raw, 54, R.headY - 28, 8, 7, BASE);
-      blob(raw, 46, R.headY - 30, 7, 6, BASE);
-    }
+    blob(raw, CX, R.headY - 14, 22, 15, BASE);
+    blob(raw, 28, R.headY - 10, 10, 10, BASE);
+    blob(raw, 68, R.headY - 12, 10, 10, BASE);
+    tuft(raw, 36, R.headY - 18, -0.45, 14, 3.6, BASE);
+    tuft(raw, 48, R.headY - 22, 0.05, 16, 4, BASE);
+    tuft(raw, 58, R.headY - 18, 0.4, 14, 3.6, BASE);
+    tuft(raw, 30, R.headY - 8, -0.85, 12, 3.2, BASE);
+    bangs(raw, BASE);
   }
+  raw.rect(36, R.headY - 16, 1, 8, WHITE);
+  raw.rect(40, R.headY - 18, 1, 6, WHITE);
   rimShade(raw, BASE);
   return finish(back ? raw : maskFace(raw));
 }
 
-/** lg — trousers / skirt. Same leg pivots as bd. */
+/** lg — trousers / skirt with pockets, stitch, waistband. */
 function partLg(name: string, girl: boolean, walk: number, sit: boolean): Pix {
   const p = blank();
   const { drop, a, b } = pose(walk, sit);
-  const skirt = girl && (name === "skirt" || name === "pleat");
+  const skirt = girl && name === "skirt";
   const short = name === "shorts";
   const h = sit ? 14 : short ? 14 : 26;
+  const stitch = mix(BASE, 48);
   if (skirt) {
     const y0 = R.torsoY + drop + 16;
     p.trap(CX - 11, CX + 11, y0, CX - 20, CX + 20, y0 + 22, BASE);
-    chunk(p, CX - 12, y0, 24, 5, hexMix(BASE, -16));
-    if (name === "pleat") {
-      p.rect(40, y0 + 6, 1, 14, mix(BASE, -50));
-      p.rect(48, y0 + 6, 1, 16, mix(BASE, -50));
-      p.rect(56, y0 + 6, 1, 14, mix(BASE, -50));
-    }
+    chunk(p, CX - 13, y0, 26, 5, hexMix(BASE, -18));
+    p.rect(38, y0 + 6, 1, 14, mix(BASE, -46));
+    p.rect(44, y0 + 6, 1, 16, mix(BASE, -46));
+    p.rect(52, y0 + 6, 1, 16, mix(BASE, -46));
+    p.rect(58, y0 + 6, 1, 14, mix(BASE, -46));
+    p.rect(CX - 8, y0 + 1, 16, 1, stitch);
     return finish(p);
   }
   if (sit) {
@@ -512,47 +566,63 @@ function partLg(name: string, girl: boolean, walk: number, sit: boolean): Pix {
   p.capsule(R.legLX - 1, R.legLY + drop + a, R.legW + 2, h, BASE);
   p.capsule(R.legRX - 1, R.legRY + drop + b, R.legW + 2, h, BASE);
   chunk(p, R.legLX - 1, R.legLY + drop - 4, 28, 10, BASE);
+  p.rect(47, R.legLY + drop - 2, 1, 8, INK);
+  chunk(p, R.legLX + 1, R.legLY + drop + 2, 7, 6, hexMix(BASE, -14));
   if (name === "jeans") {
-    p.rect(40, R.legLY + drop + 4, 1, 16, mix(BASE, 50));
-    p.rect(56, R.legLY + drop + 2, 1, 16, mix(BASE, 50));
+    p.rect(40, R.legLY + drop + 2, 1, 18, stitch);
+    p.rect(56, R.legLY + drop, 1, 18, stitch);
+    p.rect(R.legLX + 2, R.legLY + drop + 3, 5, 1, stitch);
   }
-  if (name === "cargo") {
-    chunk(p, R.legLX - 4, R.legLY + drop + 8, 7, 8, hexMix(BASE, -16));
-    chunk(p, R.legRX + 7, R.legRY + drop + 8, 7, 8, hexMix(BASE, -16));
-  }
-  if (name === "joggers") {
-    chunk(p, R.legLX - 1, R.legLY + drop + h - 6, R.legW + 2, 6, hexMix(BASE, -20));
-    chunk(p, R.legRX - 1, R.legRY + drop + h - 6, R.legW + 2, 6, hexMix(BASE, -20));
+  if (short) {
+    p.rect(R.legLX, R.legLY + drop + h - 2, R.legW + 2, 2, mix(BASE, -20));
+    p.rect(R.legRX, R.legRY + drop + h - 2, R.legW + 2, 2, mix(BASE, -20));
   }
   return finish(p);
 }
 
-/** ch — chest + sleeves. Sleeves share the arm pivots so every shirt fits the same holes. */
+/** ch — real garments: hood, pocket, cuffs, zipper, collar. */
 function partCh(name: string, back: boolean, sit: boolean): Pix {
   const p = blank();
   const drop = sit ? 16 : 0;
   const sleeveH = sit ? 14 : name === "tee" ? 12 : 20;
-  p.trap(R.torsoX + 2, R.torsoX + R.torsoW - 2, R.torsoY + drop, R.torsoX - 1, R.torsoX + R.torsoW + 1, R.torsoY + drop + (sit ? 18 : R.torsoH + 2), BASE);
-  ball(p, CX, R.torsoY + drop + 3, 10, 5, BASE);
+  const y = R.torsoY + drop;
+  p.trap(R.torsoX + 2, R.torsoX + R.torsoW - 2, y, R.torsoX - 1, R.torsoX + R.torsoW + 1, y + (sit ? 18 : R.torsoH + 2), BASE);
+  ball(p, CX, y + 3, 10, 5, BASE);
   if (name !== "tank") {
     p.capsule(R.armLX, R.armLY + drop, R.armW, sleeveH, BASE);
     p.capsule(R.armRX, R.armRY + drop, R.armW, sleeveH, BASE);
   }
   if (name === "hoodie") {
-    chunk(p, 34, R.torsoY + drop - 14, 28, 16, hexMix(BASE, -8));
+    chunk(p, 34, y - 14, 28, 14, hexMix(BASE, -10));
+    blob(p, CX, y - 8, 11, 6, hexMix(BASE, -18));
+    chunk(p, 38, y + 8, 20, 10, hexMix(BASE, -16));
+    p.rect(40, y + 12, 16, 1, mix(BASE, -40));
     if (!back) {
-      p.rect(45, R.torsoY + drop - 4, 1, 6, WHITE);
-      p.rect(50, R.torsoY + drop - 4, 1, 6, WHITE);
+      p.rect(44, y - 4, 1, 10, WHITE);
+      p.rect(51, y - 4, 1, 10, WHITE);
+      p.set(44, y + 6, WHITE);
+      p.set(51, y + 6, WHITE);
     }
-    if (back) blob(p, CX, R.torsoY + drop - 8, 12, 8, hexMix(BASE, -12));
-  } else if (name === "sweater") {
-    chunk(p, 38, R.torsoY + drop - 6, 20, 8, hexMix(BASE, -16));
+    p.rect(R.armLX, R.armLY + drop + sleeveH - 3, R.armW, 3, mix(BASE, -22));
+    p.rect(R.armRX, R.armRY + drop + sleeveH - 3, R.armW, 3, mix(BASE, -22));
+    p.rect(R.torsoX, y + R.torsoH, R.torsoW, 2, mix(BASE, -22));
+    if (back) blob(p, CX, y - 10, 13, 9, hexMix(BASE, -12));
+  } else if (name === "tee") {
+    blob(p, CX, y + 2, 8, 4, hexMix(BASE, -16));
+    p.rect(R.armLX, R.armLY + drop + sleeveH - 2, R.armW, 2, mix(BASE, -20));
+    p.rect(R.armRX, R.armRY + drop + sleeveH - 2, R.armW, 2, mix(BASE, -20));
+    p.rect(42, y + 10, 12, 1, mix(BASE, -30));
   } else if (name === "jacket") {
-    chunk(p, 45, R.torsoY + drop, 6, 22, "#d8d0c4");
-    p.rect(47, R.torsoY + drop + 2, 1, 18, INK);
+    chunk(p, 44, y, 8, 22, "#d8d0c4");
+    p.rect(47, y + 2, 1, 18, INK);
+    for (let i = 0; i < 6; i++) p.set(47, y + 4 + i * 3, WHITE);
+    chunk(p, R.torsoX, y + 12, 7, 6, hexMix(BASE, -18));
+    chunk(p, R.torsoX + R.torsoW - 7, y + 12, 7, 6, hexMix(BASE, -18));
+    blob(p, CX, y + 2, 6, 3, hexMix(BASE, -12));
   } else if (name === "tank") {
-    chunk(p, 38, R.torsoY + drop, 5, 7, hexMix(BASE, -16));
-    chunk(p, 53, R.torsoY + drop, 5, 7, hexMix(BASE, -16));
+    chunk(p, 37, y - 2, 6, 10, hexMix(BASE, -14));
+    chunk(p, 53, y - 2, 6, 10, hexMix(BASE, -14));
+    blob(p, CX, y + 2, 7, 3, hexMix(BASE, -10));
   }
   return finish(p);
 }
@@ -567,26 +637,72 @@ function partRh(walk: number, sit: boolean): Pix {
   return finish(p);
 }
 
-/** sh — two chunky isometric sneakers, like mini ottomans. */
+/** sh — sneakers with laces, boots with cuff, slides with strap. */
 function partSh(name: string, walk: number, sit: boolean): Pix {
   const p = blank();
   const { drop, a, b } = pose(walk, sit);
   const yL = R.shoeLY + drop + (sit ? -6 : 0);
   const yR = R.shoeRY + drop + (sit ? -6 : 0);
-  if (name === "slides" || name === "flats") {
+  if (name === "slides") {
     ball(p, 40, yL + a + 4, 8, 4.5, BASE);
     ball(p, 56, yR + b + 4, 8, 4.5, BASE);
+    p.rect(34, yL + a + 2, 12, 3, mix(BASE, -18));
+    p.rect(50, yR + b + 2, 12, 3, mix(BASE, -18));
     return finish(p);
   }
-  const lift = name === "boots" ? 8 : name === "hightops" ? 5 : 0;
+  const lift = name === "boots" ? 10 : 0;
   chunk(p, R.shoeLX, yL + a - lift, R.shoeW, R.shoeH + lift, BASE);
   chunk(p, R.shoeRX, yR + b - lift, R.shoeW, R.shoeH + lift, BASE);
   ball(p, R.shoeLX + 10, yL + a + 4, 6, 3.5, BASE);
   ball(p, R.shoeRX + 10, yR + b + 4, 6, 3.5, BASE);
-  if (name !== "boots") {
-    p.roundBlock(R.shoeLX, yL + a + R.shoeH - 3, R.shoeW, 3, 1, "#f2f2f4");
-    p.roundBlock(R.shoeRX, yR + b + R.shoeH - 3, R.shoeW, 3, 1, "#f2f2f4");
+  p.roundBlock(R.shoeLX, yL + a + R.shoeH - 3, R.shoeW, 3, 1, "#f2f2f4");
+  p.roundBlock(R.shoeRX, yR + b + R.shoeH - 3, R.shoeW, 3, 1, "#f2f2f4");
+  if (name === "sneakers") {
+    p.rect(R.shoeLX + 3, yL + a + 1, 6, 1, WHITE);
+    p.rect(R.shoeLX + 3, yL + a + 3, 6, 1, WHITE);
+    p.rect(R.shoeRX + 3, yR + b + 1, 6, 1, WHITE);
+    p.rect(R.shoeRX + 3, yR + b + 3, 6, 1, WHITE);
   }
+  if (name === "boots") {
+    p.rect(R.shoeLX, yL + a - 2, R.shoeW, 2, mix(BASE, -22));
+    p.rect(R.shoeRX, yR + b - 2, R.shoeW, 2, mix(BASE, -22));
+    p.rect(R.shoeLX + 4, yL + a - 6, 5, 2, WHITE);
+    p.rect(R.shoeRX + 4, yR + b - 6, 5, 2, WHITE);
+  }
+  return finish(p);
+}
+
+const HAT_HIDE = new Set(["beanie", "cap", "bucket"]);
+
+/** ha — hats. Beanie/cap/bucket hide hair. */
+function partHa(name: string, back: boolean): Pix {
+  const p = blank();
+  if (name === "none") return p;
+  const y = R.headY;
+  if (name === "beanie") {
+    blob(p, CX, y - 16, 20, 14, BASE);
+    chunk(p, 28, y - 8, 40, 7, hexMix(BASE, -16));
+    for (let i = 0; i < 6; i++) p.rect(32 + i * 6, y - 22, 1, 10, mix(BASE, -36));
+    p.disc(CX, y - 28, 3.5, 3, WHITE);
+  } else if (name === "cap") {
+    blob(p, CX, y - 16, 18, 11, BASE);
+    if (!back) p.trap(32, 64, y - 8, 24, 72, y - 1, hexMix(BASE, -14));
+    p.disc(CX, y - 24, 3, 2.6, WHITE);
+  } else if (name === "bucket") {
+    blob(p, CX, y - 14, 16, 11, BASE);
+    p.disc(CX, y - 4, 26, 5, rgb(hexMix(BASE, -8)));
+    p.rect(30, y - 10, 36, 1, mix(BASE, -36));
+  } else if (name === "visor") {
+    chunk(p, 30, y - 10, 36, 4, BASE);
+    if (!back) p.trap(30, 66, y - 8, 22, 74, y - 1, hexMix(BASE, -12));
+  } else if (name === "bow") {
+    blob(p, 26, y - 8, 8, 6, BASE);
+    blob(p, 38, y - 8, 8, 6, BASE);
+    blob(p, 32, y - 6, 4, 4, hexMix(BASE, -20));
+    tuft(p, 24, y - 6, -1.2, 8, 2.2, BASE);
+    tuft(p, 40, y - 6, 1.2, 8, 2.2, BASE);
+  }
+  rimShade(p, BASE);
   return finish(p);
 }
 
@@ -615,8 +731,9 @@ export function paintLook(fig: Figure, opts: LookOpts = {}): Pix {
   const topName = topsFor(g)[f.topCut ?? 0] || "hoodie";
   const botName = botsFor(g)[f.botCut ?? 0] || (girl ? "skirt" : "pants");
   const shoeName = shoesFor(g)[f.shoeCut ?? 0] || "sneakers";
+  const hatName = hatsFor()[f.hat ?? 0] || "none";
+  const hideHair = HAT_HIDE.has(hatName);
 
-  // Habbo draw order (front): hrb → bd → sh → lg → ch → rh → hd → hr → fc
   const hrb = cached(`hrb.${hairName}`, () => dye(partHrb(hairName), pal.hair));
   const bd = cached(`bd.${pal.skin}.${girl}.${walk}.${sit}`, () => dye(partBd(girl, walk, sit), pal.skin));
   const sh = cached(`sh.${shoeName}.${pal.shoe}.${walk}.${sit}`, () => dye(partSh(shoeName, walk, sit), pal.shoe));
@@ -625,20 +742,45 @@ export function paintLook(fig: Figure, opts: LookOpts = {}): Pix {
   const rh = cached(`rh.${pal.skin}.${walk}.${sit}`, () => dye(partRh(walk, sit), pal.skin));
   const hd = cached(`hd.${pal.skin}`, () => dye(partHd(), pal.skin));
   const hr = cached(`hr.${hairName}.${pal.hair}.${back}`, () => dye(partHr(hairName, back), pal.hair));
+  const ha = cached(`ha.${hatName}.${pal.hat}.${back}`, () => dye(partHa(hatName, back), pal.hat));
   const fc = cached(`fc.${girl}`, () => partFc(girl));
 
   const out = blank();
-  out.blit(hrb);
+  if (!hideHair) out.blit(hrb);
   out.blit(bd);
   out.blit(sh);
   out.blit(lg);
   out.blit(ch);
   out.blit(rh);
   out.blit(hd);
-  out.blit(hr);
+  if (!hideHair) out.blit(hr);
   if (!back) out.blit(fc);
+  if (hatName !== "none") out.blit(ha);
   out.outline(INK);
   if (view === 0 || view === 3) return flipH(out);
+  return out;
+}
+
+export type ThumbZone = "head" | "chest" | "legs" | "full";
+export const THUMB_BOX: Record<ThumbZone, { x: number; y: number; w: number; h: number }> = {
+  head: { x: 16, y: 50, w: 64, h: 70 },
+  chest: { x: 18, y: 98, w: 60, h: 50 },
+  legs: { x: 18, y: 122, w: 60, h: 50 },
+  full: { x: 14, y: 54, w: 68, h: 116 },
+};
+
+export function paintThumb(fig: Figure, zone: ThumbZone = "full"): Pix {
+  const src = paintLook(fig);
+  const b = THUMB_BOX[zone];
+  const out = new Pix(b.w, b.h);
+  for (let y = 0; y < b.h; y++) {
+    for (let x = 0; x < b.w; x++) {
+      const i = ((b.y + y) * src.w + (b.x + x)) * 4;
+      if (i < 0 || b.y + y >= src.h || b.x + x >= src.w) continue;
+      if (src.d[i + 3] < 8) continue;
+      out.set(x, y, [src.d[i], src.d[i + 1], src.d[i + 2]], src.d[i + 3]);
+    }
+  }
   return out;
 }
 

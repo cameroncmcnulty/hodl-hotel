@@ -13,6 +13,8 @@ export type Figure = {
   shoeCut?: number;
   eyes?: number;
   face?: number;
+  hat?: number;
+  hatColor?: number;
 };
 
 export type Item = {

@@ -39,7 +39,7 @@ function loadTs(rel, cache = new Map()) {
 
 const look = loadTs(path.join("src", "lib", "game", "lookDraw.ts"));
 const pix = loadTs(path.join("src", "lib", "game", "pix.ts"));
-const { paintLook, clampFigure, LOOK_W, LOOK_H, Pix, setChibi, pixFromRgba, allChibiIds, hairsFor, topsFor, botsFor, shoesFor, SKIN_N, COLOR_N, HAIR_COLOR_N } = { ...look, ...pix };
+const { paintLook, clampFigure, LOOK_W, LOOK_H, Pix, setChibi, pixFromRgba, allChibiIds, hairsFor, topsFor, botsFor, shoesFor, hatsFor, SKIN_N, COLOR_N, HAIR_COLOR_N } = { ...look, ...pix };
 
 const PRE_DIR = path.join(ROOT, "public", "art", "premade");
 for (const id of allChibiIds()) {
@@ -95,19 +95,23 @@ const girlSkins = [0, 1, 2, 3, 4, 5, 6, 7].map((skin) => fig({ gender: 1, skin, 
 sheet("boy-skins", boySkins, 8);
 sheet("girl-skins", girlSkins, 8);
 
-const boyClothes = [0, 1, 2, 3, 4].map((topCut) => fig({ gender: 0, hair: 0, topCut, botCut: 0, top: 0, bottom: 0, shoes: 0 }));
-const boyBots = [0, 1, 2, 3, 4].map((botCut) => fig({ gender: 0, hair: 0, topCut: 1, botCut, top: 0, bottom: 0, shoes: 0 }));
-const boyShoes = [0, 1, 2, 3, 4].map((shoeCut) => fig({ gender: 0, hair: 0, topCut: 1, botCut: 1, shoeCut, top: 4, bottom: 2, shoes: 0 }));
-sheet("boy-tops", boyClothes, 5);
-sheet("boy-bots", boyBots, 5);
-sheet("boy-shoes", boyShoes, 5);
+const boyClothes = topsFor(0).map((_, topCut) => fig({ gender: 0, hair: 0, topCut, botCut: 0, top: 1, bottom: 2, shoes: 3 }));
+const boyBots = botsFor(0).map((_, botCut) => fig({ gender: 0, hair: 0, topCut: 1, botCut, top: 1, bottom: 2, shoes: 3 }));
+const boyShoes = shoesFor(0).map((_, shoeCut) => fig({ gender: 0, hair: 0, topCut: 1, botCut: 1, shoeCut, top: 0, bottom: 2, shoes: 3 }));
+const boyHats = hatsFor().map((_, hat) => fig({ gender: 0, hair: 0, hat, hatColor: 3, top: 1, bottom: 2, shoes: 3 }));
+sheet("boy-tops", boyClothes, 4);
+sheet("boy-bots", boyBots, 3);
+sheet("boy-shoes", boyShoes, 3);
+sheet("boy-hats", boyHats, 6);
 
-const girlClothes = [0, 1, 2, 3, 4].map((topCut) => fig({ gender: 1, hair: 0, topCut, botCut: 0, top: 0, bottom: 0, shoes: 0 }));
-const girlBots = [0, 1, 2, 3, 4].map((botCut) => fig({ gender: 1, hair: 0, topCut: 0, botCut, top: 0, bottom: 1, shoes: 0 }));
-const girlShoes = [0, 1, 2, 3, 4].map((shoeCut) => fig({ gender: 1, hair: 0, topCut: 0, botCut: 0, shoeCut, top: 0, bottom: 0, shoes: 0 }));
-sheet("girl-tops", girlClothes, 5);
-sheet("girl-bots", girlBots, 5);
-sheet("girl-shoes", girlShoes, 5);
+const girlClothes = topsFor(1).map((_, topCut) => fig({ gender: 1, hair: 0, topCut, botCut: 0, top: 7, bottom: 4, shoes: 0 }));
+const girlBots = botsFor(1).map((_, botCut) => fig({ gender: 1, hair: 0, topCut: 0, botCut, top: 7, bottom: 4, shoes: 0 }));
+const girlShoes = shoesFor(1).map((_, shoeCut) => fig({ gender: 1, hair: 0, topCut: 0, botCut: 0, shoeCut, top: 7, bottom: 4, shoes: 0 }));
+const girlHats = hatsFor().map((_, hat) => fig({ gender: 1, hair: 0, hat, hatColor: 7, top: 7, bottom: 4, shoes: 0 }));
+sheet("girl-tops", girlClothes, 4);
+sheet("girl-bots", girlBots, 3);
+sheet("girl-shoes", girlShoes, 3);
+sheet("girl-hats", girlHats, 6);
 
 const looks = [
   fig({ gender: 0, skin: 1, hair: 4, hairColor: 3, topCut: 1, top: 0, botCut: 1, bottom: 3, shoes: 0 }),
@@ -166,6 +170,7 @@ for (const gender of [0, 1]) {
   for (let bottom = 0; bottom < COLOR_N; bottom++) add(fig({ gender, bottom }));
   for (let shoeCut = 0; shoeCut < shoesFor(gender).length; shoeCut++) add(fig({ gender, shoeCut }));
   for (let shoes = 0; shoes < COLOR_N; shoes++) add(fig({ gender, shoes }));
+  for (let hat = 0; hat < hatsFor().length; hat++) add(fig({ gender, hat, hatColor: 3 }));
 }
 if (seen.size < combos * 0.7) throw new Error("too many identical looks " + seen.size + "/" + combos);
 console.log("combos", combos, "unique", seen.size);
