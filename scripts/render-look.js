@@ -41,9 +41,10 @@ const look = loadTs(path.join("src", "lib", "game", "lookDraw.ts"));
 const pix = loadTs(path.join("src", "lib", "game", "pix.ts"));
 const { paintLook, clampFigure, LOOK_W, LOOK_H, Pix, setChibi, pixFromRgba, allChibiIds } = { ...look, ...pix };
 
-const CHIBI_DIR = path.join(ROOT, "public", "art", "chibi");
+const LOOK_DIR = path.join(ROOT, "public", "art", "look");
 for (const id of allChibiIds()) {
-  const file = path.join(CHIBI_DIR, id + ".png");
+  const file = path.join(LOOK_DIR, id + ".png");
+  if (!fs.existsSync(file)) continue;
   const png = PNG.sync.read(fs.readFileSync(file));
   setChibi(id, pixFromRgba(png.width, png.height, png.data));
 }

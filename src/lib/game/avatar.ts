@@ -92,18 +92,22 @@ export function loadSpriteId(id: string) {
   const hit = inflight.get(id);
   if (hit) return hit;
   const p = (async () => {
-    const img = new Image();
-    img.src = `/art/chibi/${id}.png?v=11`;
-    await img.decode();
-    const c = document.createElement("canvas");
-    c.width = img.width;
-    c.height = img.height;
-    const ctx = c.getContext("2d");
-    if (!ctx) return;
-    ctx.drawImage(img, 0, 0);
-    const data = ctx.getImageData(0, 0, img.width, img.height);
-    setChibi(id, pixFromRgba(img.width, img.height, data.data));
-    canvasCache.clear();
+    try {
+      const img = new Image();
+      img.src = `/art/look/${id}.png?v=21`;
+      await img.decode();
+      const c = document.createElement("canvas");
+      c.width = img.width;
+      c.height = img.height;
+      const ctx = c.getContext("2d");
+      if (!ctx) return;
+      ctx.drawImage(img, 0, 0);
+      const data = ctx.getImageData(0, 0, img.width, img.height);
+      setChibi(id, pixFromRgba(img.width, img.height, data.data));
+      canvasCache.clear();
+    } catch {
+      /* missing color variant falls back to -0 */
+    }
   })();
   inflight.set(id, p);
   return p;
@@ -118,16 +122,20 @@ export async function loadLookSprites(fig: Figure, _dir: 0 | 1 | 2 | 3 = 1) {
 }
 
 export function loadAvatars() {
-  allLoaded = true;
-  return Promise.resolve();
+  if (allLoaded) return Promise.resolve();
+  if (allLoading) return allLoading;
+  allLoading = Promise.all(allChibiIds().map(loadSpriteId)).then(() => {
+    allLoaded = true;
+  });
+  return allLoading;
 }
 
 export function lookReady(_fig?: Figure, _dir: 0 | 1 | 2 | 3 = 1) {
-  return true;
+  return allLoaded;
 }
 
 export function avatarsReady() {
-  return true;
+  return allLoaded;
 }
 
 function blit(
