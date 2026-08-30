@@ -1,18 +1,6 @@
 import type { Figure } from "../types";
 import { mix } from "./pix";
-import {
-  allChibiIds,
-  chibiIds,
-  hasChibi,
-  LOOK_H,
-  LOOK_SCALE,
-  LOOK_W,
-  lookKey,
-  paintLook,
-  pixFromRgba,
-  setChibi,
-  type LookOpts,
-} from "./lookDraw";
+import { LOOK_H, LOOK_SCALE, LOOK_W, lookKey, paintLook, type LookOpts } from "./lookDraw";
 
 export {
   ACC,
@@ -47,6 +35,7 @@ export {
   clampFigure,
   defaultHairName,
   facesFor,
+  figureString,
   hairColors,
   hairsFor,
   LOOK_H,
@@ -68,9 +57,6 @@ export const SPRITE_H = LOOK_H;
 export const SPRITE_V = 40;
 
 const canvasCache = new Map<string, HTMLCanvasElement>();
-const inflight = new Map<string, Promise<void>>();
-let allLoading: Promise<void> | null = null;
-let allLoaded = false;
 
 function lookCanvas(fig: Figure, opts: LookOpts = {}) {
   const key = lookKey(fig, opts);
@@ -89,55 +75,28 @@ export function clearLookCache() {
   canvasCache.clear();
 }
 
-export function loadSpriteId(id: string) {
-  if (hasChibi(id)) return Promise.resolve();
-  const hit = inflight.get(id);
-  if (hit) return hit;
-  const p = (async () => {
-    try {
-      const img = new Image();
-      img.src = `/art/premade/${id}.png?v=30`;
-      await img.decode();
-      const c = document.createElement("canvas");
-      c.width = img.width;
-      c.height = img.height;
-      const ctx = c.getContext("2d");
-      if (!ctx) return;
-      ctx.drawImage(img, 0, 0);
-      const data = ctx.getImageData(0, 0, img.width, img.height);
-      setChibi(id, pixFromRgba(img.width, img.height, data.data));
-      canvasCache.clear();
-    } catch {
-      /* missing color variant falls back to -0 */
-    }
-  })();
-  inflight.set(id, p);
-  return p;
+export function loadSpriteId(_id: string) {
+  return Promise.resolve();
 }
 
-export function lookSpriteIds(fig: Figure, _dir: 0 | 1 | 2 | 3 = 1) {
-  return chibiIds(fig);
+export function lookSpriteIds(_fig: Figure, _dir: 0 | 1 | 2 | 3 = 1) {
+  return [] as string[];
 }
 
-export async function loadLookSprites(fig: Figure, _dir: 0 | 1 | 2 | 3 = 1) {
-  await Promise.all(chibiIds(fig).map(loadSpriteId));
+export async function loadLookSprites(_fig: Figure, _dir: 0 | 1 | 2 | 3 = 1) {
+  return;
 }
 
 export function loadAvatars() {
-  if (allLoaded) return Promise.resolve();
-  if (allLoading) return allLoading;
-  allLoading = Promise.all(allChibiIds().map(loadSpriteId)).then(() => {
-    allLoaded = true;
-  });
-  return allLoading;
+  return Promise.resolve();
 }
 
 export function lookReady(_fig?: Figure, _dir: 0 | 1 | 2 | 3 = 1) {
-  return allLoaded;
+  return true;
 }
 
 export function avatarsReady() {
-  return allLoaded;
+  return true;
 }
 
 function blit(
