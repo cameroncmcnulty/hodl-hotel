@@ -1,6 +1,6 @@
 import type { Figure } from "../types";
 import { mix } from "./pix";
-import { LOOK_H, LOOK_SCALE, LOOK_W, lookKey, paintLook, paintThumb, type LookOpts, type ThumbZone } from "./lookDraw";
+import { FOOT_Y, LOOK_H, LOOK_SCALE, LOOK_W, lookKey, paintLook, paintThumb, type LookOpts, type ThumbZone } from "./lookDraw";
 
 export {
   ACC,
@@ -58,9 +58,9 @@ export {
   type ThumbZone,
 } from "./lookDraw";
 
-export const AVATAR_TILE_W = 40;
-export const AVATAR_DRAW_H = 64;
-export const AVATAR_NAME_LIFT = 60;
+export const AVATAR_TILE_W = 36;
+export const AVATAR_DRAW_H = 58;
+export const AVATAR_NAME_LIFT = 56;
 export const SPRITE_W = LOOK_W;
 export const SPRITE_H = LOOK_H;
 export const SPRITE_V = 40;
@@ -202,14 +202,12 @@ export function drawAvatarIso(
   const sit = !!opts.sit && !walking;
   const frame = dance ? Math.floor(t * 8) % 4 : walking ? Math.floor((opts.dist || 0) * 2) % 2 : 0;
   const walk: 0 | 1 = walking && frame % 2 === 1 ? 1 : 0;
-  const rec = lookCached(fig, { view: dir, walk, sit });
+  const src = lookCanvas(fig, { view: dir, walk, sit });
   const bob = dance ? (frame % 2 === 0 ? -2 : 0) : walking ? (frame % 2 === 0 ? 0 : -2) : 0;
-  const dw = AVATAR_TILE_W;
-  const dh = Math.max(24, Math.round((dw * rec.h) / Math.max(1, rec.w)));
-  const dx = Math.round(sx - dw / 2);
-  const dy = Math.round(sy - dh + bob + (sit ? Math.round(dh * 0.16) : 0));
+  const dx = Math.round(sx - LOOK_W / 2);
+  const dy = Math.round(sy - FOOT_Y + bob);
   ctx.imageSmoothingEnabled = false;
-  ctx.drawImage(rec.canvas, rec.x, rec.y, rec.w, rec.h, dx, dy, dw, dh);
+  ctx.drawImage(src, dx, dy);
 }
 
 export function shade(hex: string, amt: number) {

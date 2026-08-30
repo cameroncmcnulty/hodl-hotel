@@ -2,9 +2,11 @@ import type { FurnDef } from "../catalog";
 import { furn, footprint } from "../catalog";
 import type { Ad, Occupant, Placed, Room } from "../types";
 import { layoutById, isDance, isDoor, isOutdoor, isStair, isWater, tileH, walkable } from "../layouts";
-import { iso, TW, TH, ZH } from "./iso";
+import { iso, TW, TH } from "./iso";
 import type { Layout } from "../layouts";
 import { AVATAR_NAME_LIFT, drawAvatarIso, shade } from "./avatar";
+import { FURN_PAD, paintFurn, seatZ } from "./furnDraw";
+import { furnAt } from "./path";
 
 function snap(n: number) {
   return Math.round(n);
@@ -195,20 +197,6 @@ function drawSprite(
   const left = iso(x, y + d, z);
   const right = iso(x + w, y, z);
   const front = iso(x + w, y + d, z);
-  // Occupied tiles form one iso box: diamond width × (diamond + height).
-  // Uniform scale so a lamp stays thin and a 2×1 sofa fills two squares.
-  const spanX = Math.max(8, snap(right.sx - left.sx));
-  const spanY = Math.max(8, snap((w + d) * (TH / 2) + Math.max(h, 0.05) * ZH));
-  let destW: number;
-  let destH: number;
-  if (h < 0.2) {
-    destW = spanX;
-    destH = Math.max(8, snap((w + d) * (TH / 2)));
-  } else {
-    const s = Math.min(spanX / Math.max(1, spr.width), spanY / Math.max(1, spr.height));
-    destW = Math.max(8, snap(spr.width * s));
-    destH = Math.max(8, snap(spr.height * s));
-  }
   const cx = snap((left.sx + right.sx) / 2);
   const foot = snap(front.sy);
   if (h >= 0.15) {
@@ -216,13 +204,13 @@ function drawSprite(
     ctx.globalAlpha = 0.14;
     ctx.fillStyle = "#1a1020";
     ctx.beginPath();
-    ctx.ellipse(cx, foot - 2, Math.max(4, spanX * 0.18), TH * 0.12, 0, 0, Math.PI * 2);
+    ctx.ellipse(cx, foot - 2, Math.max(4, (w + d) * (TW / 2) * 0.18), TH * 0.12, 0, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
   }
-  const dx = cx - Math.round(destW / 2);
-  const dy = foot - destH;
-  ctx.drawImage(spr, dx, dy, destW, destH);
+  const dx = snap(left.sx) - FURN_PAD;
+  const dy = foot - spr.height + FURN_PAD;
+  ctx.drawImage(spr, dx, dy);
 }
 
 function drawShillboard(ctx: CanvasRenderingContext2D, spr: HTMLCanvasElement, def: FurnDef, p: Placed, z: number) {
@@ -272,16 +260,17 @@ export function drawFurniture(
   z = 0
 ) {
   const { w, d } = footprint(def, p.rot);
-  const spr = sprites?.[def.id];
-  if (spr && spr.width > 4) {
+  const baked = paintFurn(def, p.rot);
+  if (baked && baked.width > 4) {
     const wall = def.slot === "wall";
     if (def.use === "ticker" && wall) {
-      drawShillboard(ctx, spr, def, p, z);
+      drawShillboard(ctx, baked, def, p, z);
       return;
     }
-    drawSprite(ctx, spr, p.x, p.y, w, d, z, def.h, wall, p.rot, p.wallLift ?? 1);
+    drawSprite(ctx, baked, p.x, p.y, w, d, z, def.h, wall, p.rot, p.wallLift ?? 1);
     return;
   }
+  void sprites;
   const c = def.colors;
   const x = p.x;
   const y = p.y;
@@ -564,14 +553,22 @@ export function drawRoom(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
   }
 
   for (const o of occupants) {
+    const sitting = !!o.sitUid && !o.moving;
+    const seat = sitting ? furnAt(room.furniture, Math.round(o.x), Math.round(o.y)) : undefined;
+    const seatDef = seat ? furn(seat.catalogId) : undefined;
+    const fp = seatDef ? footprint(seatDef, seat!.rot) : { w: 1, d: 1 };
+    const sitH = seatDef ? seatZ(seatDef) : 0;
     spr.push({
-      depth: (o.x + o.y) * 1000 + 8,
+      depth: sitting && seatDef
+        ? (seat!.x + fp.w / 2 + seat!.y + fp.d / 2) * 1000 + seatDef.h + 80
+        : (o.x + o.y) * 1000 + 8,
       draw: () => {
-        const p = iso(o.x + 0.5, o.y + 0.5, tileH(layout, Math.round(o.x), Math.round(o.y)));
+        const z0 = tileH(layout, Math.round(o.x), Math.round(o.y)) + (sitting ? sitH : 0);
+        const p = iso(o.x + 0.5, o.y + 0.5, z0);
         drawAvatarIso(ctx, o.figure, p.sx, p.sy, o.dir, t + o.userId.length, {
           dance: o.dance,
           walking: o.moving,
-          sit: !!o.sitUid && !o.moving,
+          sit: sitting,
           dist: o.dist,
         });
         ctx.font = "bold 11px Tahoma, sans-serif";
