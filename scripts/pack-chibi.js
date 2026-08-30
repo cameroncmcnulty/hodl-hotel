@@ -102,45 +102,67 @@ function isInk(r, g, b) {
   return r + g + b < 48;
 }
 
-function thinOutline(img) {
-  const drop = [];
-  const dirs = [
-    [-1, 0],
-    [1, 0],
-    [0, -1],
-    [0, 1],
-  ];
+function aAt(img, x, y) {
+  if (x < 0 || y < 0 || x >= img.w || y >= img.h) return 0;
+  return img.d[(y * img.w + x) * 4 + 3];
+}
+
+function closeHoles(img) {
+  const fill = [];
+  for (let y = 1; y < img.h - 1; y++) {
+    for (let x = 1; x < img.w - 1; x++) {
+      const i = (y * img.w + x) * 4;
+      if (img.d[i + 3] >= 16) continue;
+      let n = 0,
+        r = 0,
+        g = 0,
+        b = 0;
+      for (const [dx, dy] of [
+        [-1, 0],
+        [1, 0],
+        [0, -1],
+        [0, 1],
+      ]) {
+        const ni = ((y + dy) * img.w + (x + dx)) * 4;
+        if (img.d[ni + 3] < 16) continue;
+        n++;
+        r += img.d[ni];
+        g += img.d[ni + 1];
+        b += img.d[ni + 2];
+      }
+      if (n >= 3) fill.push(i, Math.round(r / n), Math.round(g / n), Math.round(b / n));
+    }
+  }
+  for (let k = 0; k < fill.length; k += 4) {
+    const i = fill[k];
+    img.d[i] = fill[k + 1];
+    img.d[i + 1] = fill[k + 2];
+    img.d[i + 2] = fill[k + 3];
+    img.d[i + 3] = 255;
+  }
+}
+
+function sealOutline(img) {
+  const ring = [];
   for (let y = 0; y < img.h; y++) {
     for (let x = 0; x < img.w; x++) {
       const i = (y * img.w + x) * 4;
       if (img.d[i + 3] < 16) continue;
-      if (isMag(img.d[i], img.d[i + 1], img.d[i + 2])) {
-        drop.push(i);
-        continue;
-      }
-      if (!isInk(img.d[i], img.d[i + 1], img.d[i + 2])) continue;
-      for (const [dx, dy] of dirs) {
-        const ax = x + dx,
-          ay = y + dy;
-        const open = ax < 0 || ay < 0 || ax >= img.w || ay >= img.h || img.d[(ay * img.w + ax) * 4 + 3] < 16;
-        if (!open) continue;
-        let fill = false;
-        for (let s = 1; s <= 4; s++) {
-          const ix = x - dx * s,
-            iy = y - dy * s;
-          if (ix < 0 || iy < 0 || ix >= img.w || iy >= img.h) break;
-          const ii = (iy * img.w + ix) * 4;
-          if (img.d[ii + 3] < 16) break;
-          if (!isInk(img.d[ii], img.d[ii + 1], img.d[ii + 2])) {
-            fill = true;
-            break;
-          }
-        }
-        if (fill) drop.push(i);
+      if (aAt(img, x - 1, y) < 16 || aAt(img, x + 1, y) < 16 || aAt(img, x, y - 1) < 16 || aAt(img, x, y + 1) < 16) {
+        ring.push(i);
       }
     }
   }
-  for (const i of drop) img.d[i + 3] = 0;
+  for (const i of ring) {
+    img.d[i] = 0;
+    img.d[i + 1] = 0;
+    img.d[i + 2] = 0;
+    img.d[i + 3] = 255;
+  }
+}
+
+function inkOutline(img) {
+  sealOutline(img);
 }
 
 function decode(file) {
@@ -202,7 +224,8 @@ function pack(img, ref) {
       out.d[o + 3] = 255;
     }
   }
-  thinOutline(out);
+  closeHoles(out);
+  inkOutline(out);
   return out;
 }
 
@@ -223,6 +246,34 @@ function packedFace(img) {
   return n ? { x: sx / n, y: sy / n } : { x: 48, y: 71 };
 }
 
+function shift(img, dx, dy) {
+  const out = blank();
+  for (let y = 0; y < img.h; y++) {
+    for (let x = 0; x < img.w; x++) {
+      const nx = x + dx;
+      const ny = y + dy;
+      if (nx < 0 || ny < 0 || nx >= img.w || ny >= img.h) continue;
+      const i = (y * img.w + x) * 4;
+      if (img.d[i + 3] < 8) continue;
+      const o = (ny * img.w + nx) * 4;
+      out.d[o] = img.d[i];
+      out.d[o + 1] = img.d[i + 1];
+      out.d[o + 2] = img.d[i + 2];
+      out.d[o + 3] = img.d[i + 3];
+    }
+  }
+  closeHoles(out);
+  return out;
+}
+
+function snapTo(img, ref) {
+  const face = packedFace(img);
+  const dx = Math.round(ref.x - face.x);
+  const dy = Math.round(ref.y - face.y);
+  if (!dx && !dy) return img;
+  return shift(img, dx, dy);
+}
+
 function savePng(file, img, dir = OUT) {
   const png = new PNG({ width: img.w, height: img.h });
   png.data = Buffer.from(img.d);
@@ -239,9 +290,10 @@ console.log("girl face ref", girlRef);
 
 for (const [name, file] of Object.entries(MAP)) {
   const ref = name.startsWith("f-") ? girlRef : boyRef;
-  packed[name] = pack(decode(file), ref);
+  packed[name] = snapTo(pack(decode(file), ref), ref);
   savePng(name + ".png", packed[name]);
-  console.log("packed", name, file);
+  const face = packedFace(packed[name]);
+  console.log("packed", name, file, "face", Math.round(face.x), Math.round(face.y));
 }
 
 console.log("wrote", OUT);
