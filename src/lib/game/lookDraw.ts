@@ -306,16 +306,39 @@ function touchesOutside(outside: Uint8Array, w: number, h: number, x: number, y:
   );
 }
 
-function eraseClothes(p: Pix) {
-  for (let y = FACE_Y; y < p.h; y++) {
+function eraseHair(p: Pix) {
+  for (let y = 0; y < 140; y++) {
     for (let x = 0; x < p.w; x++) {
       if (p.a(x, y) < 16) continue;
       const i = (y * p.w + x) * 4;
       const r = p.d[i],
         g = p.d[i + 1],
         b = p.d[i + 2];
-      if (isHairPx(r, g, b, x, y, p.w)) continue;
+      if (inFace(x, y) && (isSkinPx(r, g, b) || isPupil(r, g, b, x, y) || isSclera(r, g, b))) continue;
+      if (y >= 86 && !isSide(x, p.w)) continue;
+      if (!isHairPx(r, g, b, x, y, p.w)) continue;
       p.set(x, y, [0, 0, 0], 0);
+    }
+  }
+}
+
+function stampHair(dst: Pix, src: Pix) {
+  for (let y = 0; y < src.h; y++) {
+    for (let x = 0; x < src.w; x++) {
+      if (src.a(x, y) < 16) continue;
+      const i = (y * src.w + x) * 4;
+      const r = src.d[i],
+        g = src.d[i + 1],
+        b = src.d[i + 2];
+      if (!isHairPx(r, g, b, x, y, src.w)) continue;
+      if (dst.a(x, y) >= 16) {
+        const di = (y * dst.w + x) * 4;
+        const dr = dst.d[di],
+          dg = dst.d[di + 1],
+          db = dst.d[di + 2];
+        if (isPupil(dr, dg, db, x, y) || isSclera(dr, dg, db)) continue;
+      }
+      dst.set(x, y, [r, g, b], src.d[i + 3]);
     }
   }
 }
@@ -391,40 +414,6 @@ function closeHoles(p: Pix) {
   }
   for (let k = 0; k < fill.length; k += 5) {
     p.set(fill[k], fill[k + 1], [fill[k + 2], fill[k + 3], fill[k + 4]], 255);
-  }
-}
-
-function fillTorsoHoles(p: Pix) {
-  for (let pass = 0; pass < 40; pass++) {
-    const fill: number[] = [];
-    for (let y = 92; y < 124; y++) {
-      for (let x = 30; x < p.w - 30; x++) {
-        if (p.a(x, y) >= 16) continue;
-        let r = 0,
-          g = 0,
-          b = 0,
-          c = 0;
-        for (const [nx, ny] of [
-          [x - 1, y],
-          [x + 1, y],
-          [x, y - 1],
-          [x, y + 1],
-        ] as const) {
-          if (p.a(nx, ny) < 16) continue;
-          const i = (ny * p.w + nx) * 4;
-          r += p.d[i];
-          g += p.d[i + 1];
-          b += p.d[i + 2];
-          c++;
-        }
-        if (c < 1) continue;
-        fill.push(x, y, Math.round(r / c), Math.round(g / c), Math.round(b / c));
-      }
-    }
-    if (!fill.length) break;
-    for (let k = 0; k < fill.length; k += 5) {
-      p.set(fill[k], fill[k + 1], [fill[k + 2], fill[k + 3], fill[k + 4]], 255);
-    }
   }
 }
 
@@ -537,15 +526,19 @@ function paintChibi(f: Figure): Pix {
   const shoeName = shoesFor(g)[f.shoeCut ?? 0] || "sneakers";
   const shoeTop = SHOE_TOP[shoeName] ?? 156;
   const p = new Pix(LOOK_W, LOOK_H);
-  p.blit(hair);
-  eraseClothes(p);
-  stampOver(p, top, FACE_Y, WAIST_Y);
-  clearBand(p, WAIST_Y, LOOK_H);
-  stampOver(p, bot, WAIST_Y, shoeTop, true);
-  stampOver(p, shoe, shoeTop, LOOK_H, true);
-  restoreHands(p, top);
-  closeHoles(p);
-  fillTorsoHoles(p);
+  p.blit(top);
+  if (f.hair !== 0) {
+    eraseHair(p);
+    stampHair(p, hair);
+    closeHoles(p);
+  }
+  if ((f.botCut ?? 0) !== 0 || (f.shoeCut ?? 0) !== 0) {
+    clearBand(p, WAIST_Y, LOOK_H);
+    stampOver(p, bot, WAIST_Y, shoeTop, true);
+    stampOver(p, shoe, shoeTop, LOOK_H, true);
+    restoreHands(p, top);
+    closeHoles(p);
+  }
   dropSpecks(p);
   const outside = outsideMask(p);
   const skinM = new Uint8Array(p.w * p.h);
@@ -567,41 +560,22 @@ function paintChibi(f: Figure): Pix {
       else if (isHairPx(r, g, b, x, y, p.w)) hairM[idx] = 1;
     }
   }
-  growMask(p, skinM, (r, g, b, x, y) => {
-    if (hairM[y * p.w + x]) return false;
-    if (isPupil(r, g, b, x, y) || isSclera(r, g, b)) return false;
-    const arm = isArmColumn(x, p.w) && y >= 86 && y <= 140;
-    if (!(inFace(x, y) || arm || isHandZone(x, y, p.w) || (y >= 130 && y < 158))) return false;
-    return isSkinPx(r, g, b);
-  });
-  growMask(p, hairM, (r, g, b, x, y) => {
-    if (skinM[y * p.w + x]) return false;
-    return isHairPx(r, g, b, x, y, p.w);
-  });
   const pal = palOf(f);
   if (f.skin !== 1) tintPixels(p, pal.skin, (x, y) => !!skinM[y * p.w + x], 0.16, outside);
   if (f.hairColor !== 0) tintPixels(p, pal.hair, (x, y) => !!hairM[y * p.w + x], 0.24, outside);
   if (f.top !== 0) {
-    const topKeep = (x: number, y: number) => {
-      if (y < FACE_Y || y >= WAIST_Y || p.a(x, y) < 16) return false;
-      const idx = y * p.w + x;
-      if (skinM[idx] || hairM[idx]) return false;
-      return true;
-    };
-    tintPixels(p, pal.top, topKeep, 0.2, outside);
-    const tc = rgb(pal.top);
-    const fill: [number, number, number] = [
-      Math.max(0, Math.min(255, Math.round(tc[0] * 0.88))),
-      Math.max(0, Math.min(255, Math.round(tc[1] * 0.88))),
-      Math.max(0, Math.min(255, Math.round(tc[2] * 0.88))),
-    ];
-    for (let y = FACE_Y; y < WAIST_Y; y++) {
-      for (let x = 0; x < p.w; x++) {
-        if (!topKeep(x, y)) continue;
-        const i = (y * p.w + x) * 4;
-        if (p.d[i] + p.d[i + 1] + p.d[i + 2] < 110) p.set(x, y, fill);
-      }
-    }
+    tintPixels(
+      p,
+      pal.top,
+      (x, y) => {
+        if (y < FACE_Y || y >= WAIST_Y || p.a(x, y) < 16) return false;
+        const idx = y * p.w + x;
+        if (skinM[idx] || hairM[idx]) return false;
+        return true;
+      },
+      0.2,
+      outside,
+    );
   }
   if (f.bottom !== 0) {
     tintPixels(
@@ -611,8 +585,6 @@ function paintChibi(f: Figure): Pix {
         if (y < WAIST_Y || y >= shoeTop || p.a(x, y) < 16) return false;
         if (isHandZone(x, y, p.w)) return false;
         if (skinM[y * p.w + x] || hairM[y * p.w + x]) return false;
-        const i = (y * p.w + x) * 4;
-        if (y > 142 && p.d[i] > 200 && p.d[i + 1] > 200 && p.d[i + 2] > 200) return false;
         return true;
       },
       0.2,
@@ -632,8 +604,6 @@ function paintChibi(f: Figure): Pix {
       outside,
     );
   }
-  closeHoles(p);
-  sealOutline(p, outsideMask(p));
   return p;
 }
 
