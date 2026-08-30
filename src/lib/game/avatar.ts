@@ -94,7 +94,7 @@ export function loadSpriteId(id: string) {
   const p = (async () => {
     try {
       const img = new Image();
-      img.src = `/art/look/${id}.png?v=21`;
+      img.src = `/art/look/${id}.png?v=22`;
       await img.decode();
       const c = document.createElement("canvas");
       c.width = img.width;

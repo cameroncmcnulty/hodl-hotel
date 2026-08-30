@@ -241,6 +241,41 @@ function coverFace(src: Pix) {
   return p;
 }
 
+function bbox(src: Pix) {
+  let minx = src.w,
+    miny = src.h,
+    maxx = 0,
+    maxy = 0;
+  for (let y = 0; y < src.h; y++) {
+    for (let x = 0; x < src.w; x++) {
+      const i = (y * src.w + x) * 4;
+      if (src.d[i + 3] < 8) continue;
+      if (isMag(src.d[i], src.d[i + 1], src.d[i + 2], src.d[i + 3])) continue;
+      if (x < minx) minx = x;
+      if (y < miny) miny = y;
+      if (x > maxx) maxx = x;
+      if (y > maxy) maxy = y;
+    }
+  }
+  return { minx, miny, maxx, maxy, w: maxx - minx + 1, h: maxy - miny + 1 };
+}
+
+function blitInto(dst: Pix, src: Pix, slot: { x: number; y: number; w: number; h: number }) {
+  const b = bbox(src);
+  if (b.maxx < b.minx) return;
+  for (let y = 0; y < slot.h; y++) {
+    for (let x = 0; x < slot.w; x++) {
+      const sx = b.minx + Math.floor((x * b.w) / slot.w);
+      const sy = b.miny + Math.floor((y * b.h) / slot.h);
+      if (sx < 0 || sy < 0 || sx >= src.w || sy >= src.h) continue;
+      const i = (sy * src.w + sx) * 4;
+      if (src.d[i + 3] < 8) continue;
+      if (isMag(src.d[i], src.d[i + 1], src.d[i + 2], src.d[i + 3])) continue;
+      dst.set(slot.x + x, slot.y + y, [src.d[i], src.d[i + 1], src.d[i + 2]]);
+    }
+  }
+}
+
 function blitFit(dst: Pix, src: Pix) {
   const sc = LOOK_H / src.h;
   const dw = src.w * sc;
@@ -258,51 +293,22 @@ function blitFit(dst: Pix, src: Pix) {
   }
 }
 
-function blitShoes(dst: Pix, src: Pix) {
-  let minx = src.w,
-    miny = src.h,
-    maxx = 0,
-    maxy = 0;
-  for (let y = 0; y < src.h; y++) {
-    for (let x = 0; x < src.w; x++) {
-      const i = (y * src.w + x) * 4;
-      if (src.d[i + 3] < 8) continue;
-      if (isMag(src.d[i], src.d[i + 1], src.d[i + 2], src.d[i + 3])) continue;
-      if (x < minx) minx = x;
-      if (y < miny) miny = y;
-      if (x > maxx) maxx = x;
-      if (y > maxy) maxy = y;
-    }
-  }
-  if (maxx < minx) return;
-  const bw = maxx - minx + 1;
-  const bh = maxy - miny + 1;
-  const sc = (LOOK_H / src.h) * 1.35;
-  const dw = Math.round(bw * sc);
-  const dh = Math.round(bh * sc);
-  const dx = Math.round((LOOK_W - dw) / 2);
-  const dy = LOOK_H - dh - 1;
-  for (let y = 0; y < dh; y++) {
-    for (let x = 0; x < dw; x++) {
-      const sx = minx + Math.floor(x / sc);
-      const sy = miny + Math.floor(y / sc);
-      const i = (sy * src.w + sx) * 4;
-      if (src.d[i + 3] < 8) continue;
-      if (isMag(src.d[i], src.d[i + 1], src.d[i + 2], src.d[i + 3])) continue;
-      dst.set(dx + x, dy + y, [src.d[i], src.d[i + 1], src.d[i + 2]]);
-    }
-  }
-}
+const SLOT = {
+  hair: { x: 14, y: 2, w: 100, h: 68 },
+  top: { x: 14, y: 102, w: 100, h: 80 },
+  bot: { x: 26, y: 172, w: 76, h: 66 },
+  shoe: { x: 24, y: 228, w: 80, h: 28 },
+};
 
 function faceMarks(p: Pix, girl: boolean) {
-  p.set(36, 32, [255, 255, 255]);
-  p.set(37, 32, [255, 255, 255]);
-  p.set(57, 32, [255, 255, 255]);
-  p.set(58, 32, [255, 255, 255]);
-  p.rect(43, 46, 10, 2, [48, 28, 32]);
+  p.set(46, 48, [255, 255, 255]);
+  p.set(47, 48, [255, 255, 255]);
+  p.set(80, 48, [255, 255, 255]);
+  p.set(81, 48, [255, 255, 255]);
+  p.rect(56, 84, 16, 3, [48, 28, 32]);
   if (girl) {
-    p.set(32, 44, [224, 150, 158]);
-    p.set(63, 44, [224, 150, 158]);
+    p.set(38, 70, [224, 150, 158]);
+    p.set(90, 70, [224, 150, 158]);
   }
 }
 
@@ -353,22 +359,39 @@ export function paintLook(fig: Figure, opts: LookOpts = {}): Pix {
   const view = opts.view ?? (opts.back ? 2 : 1);
   const back = view === 2 || view === 3;
 
-  const out = new Pix(LOOK_W, LOOK_H);
+  const body = new Pix(LOOK_SRC_W, LOOK_SRC_H);
   let skin = pick(`${g}-skin-${f.skin}`, pal.skin, "skin");
   if (skin && back) skin = coverFace(skin);
-  if (skin) blitFit(out, skin);
-  if (!back) faceMarks(out, (f.gender ?? 0) === 1);
+  if (skin) {
+    for (let i = 0; i < skin.d.length; i += 4) {
+      if (skin.d[i + 3] < 8) continue;
+      if (isMag(skin.d[i], skin.d[i + 1], skin.d[i + 2], skin.d[i + 3])) continue;
+      const x = (i / 4) % skin.w;
+      const y = Math.floor(i / 4 / skin.w);
+      body.set(x, y, [skin.d[i], skin.d[i + 1], skin.d[i + 2]]);
+    }
+  }
+  if (!back) faceMarks(body, (f.gender ?? 0) === 1);
   const bot = pick(`${g}-bot-${botName}-${f.bottom}`, pal.bot, "dye") || pick(`${g}-bot-${botName}-0`, pal.bot, "dye");
-  if (bot) blitFit(out, bot);
+  if (bot) blitInto(body, bot, SLOT.bot);
   const shoe = pick(`${g}-shoe-${shoeName}-${f.shoes}`, pal.shoe, "dye") || pick(`${g}-shoe-${shoeName}-0`, pal.shoe, "dye");
-  if (shoe) blitShoes(out, shoe);
+  if (shoe) blitInto(body, shoe, SLOT.shoe);
   const top = pick(`${g}-top-${topName}-${f.top}`, pal.top, "dye") || pick(`${g}-top-${topName}-0`, pal.top, "dye");
-  if (top) blitFit(out, top);
+  if (top) {
+    const slot =
+      topName === "tank"
+        ? { x: 34, y: 108, w: 60, h: 58 }
+        : topName === "tee"
+          ? { x: 16, y: 104, w: 96, h: 72 }
+          : SLOT.top;
+    blitInto(body, top, slot);
+  }
   const hair =
     pick(`${g}-hair-${hairName}-${f.hairColor}`, pal.hair, "dye") || pick(`${g}-hair-${hairName}-0`, pal.hair, "dye");
-  if (hair) blitFit(out, hair);
-  if (back && hair) blitFit(out, hair);
+  if (hair) blitInto(body, hair, SLOT.hair);
 
+  const out = new Pix(LOOK_W, LOOK_H);
+  blitFit(out, body);
   if (view === 0 || view === 3) return flipH(out);
   return out;
 }
