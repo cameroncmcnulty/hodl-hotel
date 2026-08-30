@@ -93,7 +93,7 @@ export function loadSpriteId(id: string) {
   if (hit) return hit;
   const p = (async () => {
     const img = new Image();
-    img.src = `/art/chibi/${id}.png`;
+    img.src = `/art/chibi/${id}.png?v=5`;
     await img.decode();
     const c = document.createElement("canvas");
     c.width = img.width;

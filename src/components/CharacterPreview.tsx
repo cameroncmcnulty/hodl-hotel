@@ -59,13 +59,13 @@ function LookThumb({
     ctx.imageSmoothingEnabled = false;
     ctx.fillStyle = "#2a3340";
     ctx.fillRect(0, 0, w, h);
-    drawAvatarFront(ctx, f, w / 2, h, s, 1);
+    drawAvatarFront(ctx, f, w / 2, h - 4, s, 1);
   }, [key, s, w, h, ready]);
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`overflow-hidden rounded-2xl bg-[#2a3340] ${
+      className={`rounded-2xl bg-[#2a3340] ${
         on ? "ring-2 ring-[#14F195] ring-offset-2 ring-offset-[#1a1428]" : "ring-1 ring-white/10 hover:ring-white/30"
       }`}
     >
@@ -114,15 +114,15 @@ export function CharacterPreview({
     ctx.imageSmoothingEnabled = false;
     ctx.fillStyle = "#5c6b78";
     ctx.fillRect(0, 0, w, h);
-    drawAvatarFront(ctx, f, w / 2, h, s, dir);
+    drawAvatarFront(ctx, f, w / 2, h - 8, s, dir);
   }, [key, s, w, h, dir, ready]);
   return (
     <canvas
       ref={ref}
       width={w}
       height={h}
-      className="mx-auto block rounded-2xl"
-      style={{ imageRendering: "pixelated", maxWidth: "100%", height: "auto" }}
+      className="mx-auto block"
+      style={{ imageRendering: "pixelated", width: "100%", height: "auto" }}
     />
   );
 }
@@ -161,8 +161,8 @@ export function FigureEditor({ figure, onChange }: { figure: Figure; onChange: (
         ))}
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,168px)_minmax(0,1fr)] lg:items-start">
-        <div className="overflow-hidden rounded-2xl bg-[#5c6b78]">
+      <div className="grid gap-4 lg:grid-cols-[minmax(192px,220px)_minmax(0,1fr)] lg:items-start">
+        <div className="rounded-2xl bg-[#5c6b78]">
           <CharacterPreview figure={f} scale={2} dir={1} />
         </div>
         <div>

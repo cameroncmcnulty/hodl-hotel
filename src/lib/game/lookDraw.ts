@@ -255,6 +255,10 @@ function isHandZone(x: number, y: number, w: number) {
   return y >= 118 && y <= 146 && (x < 20 || x > w - 20);
 }
 
+function inFace(x: number, y: number) {
+  return y >= 48 && y <= 86 && x >= 28 && x <= 68;
+}
+
 function outsideMask(p: Pix): Uint8Array {
   const w = p.w;
   const h = p.h;
@@ -297,15 +301,14 @@ function touchesOutside(outside: Uint8Array, w: number, h: number, x: number, y:
 }
 
 function eraseClothes(p: Pix) {
-  for (let y = 76; y < p.h; y++) {
+  for (let y = 78; y < p.h; y++) {
     for (let x = 0; x < p.w; x++) {
       if (p.a(x, y) < 16) continue;
       const i = (y * p.w + x) * 4;
       const r = p.d[i],
         g = p.d[i + 1],
         b = p.d[i + 2];
-      if (isPupil(r, g, b, x, y)) continue;
-      if (isSkinPx(r, g, b) && y < 96) continue;
+      if (inFace(x, y) && (isPupil(r, g, b, x, y) || isSclera(r, g, b) || isSkinPx(r, g, b))) continue;
       if (isHairPx(r, g, b, x, y, p.w)) continue;
       p.set(x, y, [0, 0, 0], 0);
     }
@@ -324,8 +327,7 @@ function stampOver(dst: Pix, src: Pix, y0: number, y1: number, skipHands = false
         const dr = dst.d[di],
           dg = dst.d[di + 1],
           db = dst.d[di + 2];
-        if (isPupil(dr, dg, db, x, y)) continue;
-        if (isSkinPx(dr, dg, db) && y < 96) continue;
+        if (inFace(x, y) && (isPupil(dr, dg, db, x, y) || isSclera(dr, dg, db) || isSkinPx(dr, dg, db))) continue;
         if (isHairPx(dr, dg, db, x, y, dst.w)) continue;
       }
       const i = (y * src.w + x) * 4;
@@ -384,6 +386,41 @@ function closeHoles(p: Pix) {
   }
   for (let k = 0; k < fill.length; k += 5) {
     p.set(fill[k], fill[k + 1], [fill[k + 2], fill[k + 3], fill[k + 4]], 255);
+  }
+}
+
+function fillTorsoHoles(p: Pix) {
+  for (let pass = 0; pass < 12; pass++) {
+    const fill: number[] = [];
+    for (let y = 90; y < BOT_Y; y++) {
+      for (let x = 32; x < p.w - 32; x++) {
+        if (p.a(x, y) >= 16) continue;
+        if (inFace(x, y)) continue;
+        let r = 0,
+          g = 0,
+          b = 0,
+          c = 0;
+        for (const [nx, ny] of [
+          [x - 1, y],
+          [x + 1, y],
+          [x, y - 1],
+          [x, y + 1],
+        ] as const) {
+          if (p.a(nx, ny) < 16) continue;
+          const i = (ny * p.w + nx) * 4;
+          r += p.d[i];
+          g += p.d[i + 1];
+          b += p.d[i + 2];
+          c++;
+        }
+        if (!c) continue;
+        fill.push(x, y, Math.round(r / c), Math.round(g / c), Math.round(b / c));
+      }
+    }
+    if (!fill.length) break;
+    for (let k = 0; k < fill.length; k += 5) {
+      p.set(fill[k], fill[k + 1], [fill[k + 2], fill[k + 3], fill[k + 4]], 255);
+    }
   }
 }
 
@@ -505,6 +542,7 @@ function paintChibi(f: Figure): Pix {
   restoreHands(p, top);
   closeHoles(p);
   closeHoles(p);
+  fillTorsoHoles(p);
   dropSpecks(p);
   const outside = outsideMask(p);
   const skinM = new Uint8Array(p.w * p.h);
@@ -518,13 +556,14 @@ function paintChibi(f: Figure): Pix {
         b = p.d[i + 2];
       const idx = y * p.w + x;
       if (isInk(r, g, b) && touchesOutside(outside, p.w, p.h, x, y)) continue;
-      if (isSkinPx(r, g, b)) skinM[idx] = 1;
+      if (isSkinPx(r, g, b) && (inFace(x, y) || isHandZone(x, y, p.w) || (y >= 130 && y < 158))) skinM[idx] = 1;
       else if (isHairPx(r, g, b, x, y, p.w)) hairM[idx] = 1;
     }
   }
   growMask(p, skinM, (r, g, b, x, y) => {
     if (hairM[y * p.w + x]) return false;
     if (isPupil(r, g, b, x, y) || isSclera(r, g, b)) return false;
+    if (!(inFace(x, y) || isHandZone(x, y, p.w) || (y >= 130 && y < 158))) return false;
     return isSkinPx(r, g, b);
   });
   growMask(p, hairM, (r, g, b, x, y) => {
