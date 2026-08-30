@@ -26,7 +26,7 @@ export function plantFurn(
   const destH = Math.max(8, Math.round(texH * s));
   return {
     x: Math.round(mid.sx - destW / 2),
-    y: Math.round(mid.sy - destH),
+    y: Math.round(mid.sy - destH + (TH / 4)),
     destW,
     destH,
   };

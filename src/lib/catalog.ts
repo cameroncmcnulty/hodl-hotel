@@ -377,8 +377,8 @@ export function visualFill(def: FurnDef) {
   if (s === "clock" || s === "radio" || s === "orb" || s === "dice" || s === "umbrella") return 0.42;
   if (s === "chair") return 0.62;
   if (s === "armchair" || s === "throne") return 0.72;
-  if (s === "sofa" || s === "bench") return 0.9;
-  if (s === "bed" || s === "canopy" || s === "lounger") return 0.88;
+  if (s === "sofa" || s === "bench") return 1;
+  if (s === "bed" || s === "canopy" || s === "lounger") return 1;
   if (s === "table" || s === "desk" || s === "chess") return 0.84;
   if (s === "tv" || s === "bar" || s === "dj") return 0.9;
   if (s === "fridge" || s === "wardrobe" || s === "divider" || s === "juke" || s === "arcade") return 0.74;

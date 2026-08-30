@@ -10,7 +10,6 @@ import {
   DYE,
   hairColors,
   hairsFor,
-  SKIN,
 } from "./lookDraw";
 
 export const OG_H = 62;
@@ -112,7 +111,6 @@ function flipH(src: HTMLCanvasElement) {
 function recolor(src: HTMLCanvasElement, fig: Figure, pose: string) {
   const girl = (fig.gender ?? 0) === 1;
   const pal = {
-    skin: SKIN[fig.skin] || SKIN[1],
     hair: hairColors(girl ? 1 : 0)[fig.hairColor] || "#8b5a2b",
     top: DYE[fig.top] || "#f5c542",
     bot: DYE[fig.bottom] || "#2a2a32",
@@ -145,14 +143,6 @@ function recolor(src: HTMLCanvasElement, fig: Figure, pose: string) {
       const legs = lay ? t >= 0.58 && t < 0.86 : t >= 0.62 && t < 0.88;
       const feet = lay ? t >= 0.8 : t >= 0.84;
 
-      const peach = hue > 8 && hue < 48 && s > 0.12 && s < 0.62 && L > 118;
-      if (peach) {
-        const [nr, ng, nb] = shadeHex(pal.skin, L);
-        d[i] = nr;
-        d[i + 1] = ng;
-        d[i + 2] = nb;
-        continue;
-      }
       const yellow = hue > 36 && hue < 78 && s > 0.35 && L > 70;
       const pink = (hue > 300 || hue < 22) && s > 0.22 && L > 60 && L < 230;
       if ((yellow || pink) && (mid || upper)) {

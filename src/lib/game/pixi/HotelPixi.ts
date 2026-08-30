@@ -287,7 +287,8 @@ export class HotelPixi {
       const seatDef = seat ? furn(seat.catalogId) : undefined;
       const walk: 0 | 1 = o.moving ? 1 : 0;
       const look = getOgCanvas(o.figure, { dir: o.dir, sit: sitting, lay: laying, walk });
-      const key = `og:${look ? look.width : 0}:${JSON.stringify(o.figure)}:${o.dir}:${sitting ? 1 : 0}:${laying ? 1 : 0}`;
+      const pose = laying ? "lay" : sitting ? "sit" : "stand";
+      const key = `og:${pose}:${look ? look.width : 0}:${JSON.stringify(o.figure)}:${o.dir}`;
       let body = this.avG.get(o.userId);
       if (!look) {
         if (body) body.visible = false;
@@ -328,8 +329,9 @@ export class HotelPixi {
         this.objects.addChild(label);
         this.names.set(o.userId, label);
       } else if (label.text !== o.username) label.text = o.username;
+      const bodyH = body.children[0] ? Math.abs((body.children[0] as Sprite).height) : 62;
       label.x = Math.round(p.sx - label.width / 2);
-      label.y = Math.round(p.sy - 58);
+      label.y = Math.round(p.sy - bodyH - 12);
       label.zIndex = body.zIndex + 1;
     }
     for (const [id, spr] of this.avG) {

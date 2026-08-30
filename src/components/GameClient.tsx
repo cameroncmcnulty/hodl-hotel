@@ -1132,8 +1132,8 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
                       const rarity = (f.rarity || (f.rare ? "rare" : "common")) as Rarity;
                       return (
                         <div key={f.id} className="rounded-2xl border border-white/10 bg-white/5 p-2">
-                          <div className="relative overflow-hidden rounded-xl bg-[#7ec8ea]">
-                            <FurnIcon id={f.id} className="h-24 w-full" />
+                          <div className="relative aspect-[8/7] w-full rounded-xl bg-[#7ec8ea]">
+                            <FurnIcon id={f.id} className="h-full w-full" />
                             {rarity !== "common" && (
                               <span className={`absolute left-1.5 top-1.5 rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide ${RARITY_TONE[rarity]}`}>
                                 {RARITY_LABEL[rarity]}

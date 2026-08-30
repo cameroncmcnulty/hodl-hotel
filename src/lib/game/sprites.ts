@@ -5,12 +5,11 @@ export const SPRITE_SRC: Record<string, string> = Object.fromEntries(
   CATALOG.filter((f) => f.id !== "ad_board").map((f) => [f.id, `/art/furn/${f.id}.png`])
 );
 
-/** Hot magenta/fuchsia backdrop only — does not eat purple sofas or pink loungers. */
+/** Only the hot-pink backdrop. Leaves mint, teal, purple, coral, gold furniture alone. */
 function isHotMagenta(r: number, g: number, b: number) {
-  if (g > 145) return false;
-  if (r < 190 || b < 155) return false;
-  if (Math.abs(r - b) > 95) return false;
-  if (g > Math.min(r, b) * 0.62) return false;
+  if (g > 110) return false;
+  if (r < 210 || b < 170) return false;
+  if (Math.abs(r - b) > 70) return false;
   return true;
 }
 
@@ -146,8 +145,8 @@ export function loadSprite(id: string) {
   if (cache[id]) return Promise.resolve(cache[id]);
   if (id in inflight) return inflight[id];
   inflight[id] = (async () => {
-    const png = await loadImage(`/art/furn/${id}.png?v=22`);
-    const img = png || (await loadImage(`/art/furn/${id}.jpg?v=22`));
+    const png = await loadImage(`/art/furn/${id}.png?v=23`);
+    const img = png || (await loadImage(`/art/furn/${id}.jpg?v=23`));
     if (!img) {
       const def = furn(id);
       if (!def) return null;
