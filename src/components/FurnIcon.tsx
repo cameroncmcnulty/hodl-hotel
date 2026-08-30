@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { furn, footprint } from "@/lib/catalog";
-import { iso } from "@/lib/game/iso";
+import { furn } from "@/lib/catalog";
 import { drawFurni } from "@/lib/game/pixi/pixiArt";
 import { Application, Graphics } from "pixi.js";
 
@@ -36,11 +35,10 @@ export function FurnIcon({ id, className }: { id: string; className?: string }) 
         host.appendChild(canvas);
         const g = new Graphics();
         drawFurni(g, def, 0, 0, 0, 0);
-        const { w, d } = footprint(def, 0);
-        const foot = iso(w, d);
-        const scale = Math.min(0.85, 120 / Math.max(40, (w + d) * 32 + def.h * 16));
+        const b = g.getLocalBounds();
+        const scale = Math.min(144 / Math.max(8, b.width), 124 / Math.max(8, b.height));
         g.scale.set(scale);
-        g.position.set(80 - foot.sx * scale, 122 - foot.sy * scale);
+        g.position.set(80 - (b.x + b.width / 2) * scale, 70 - (b.y + b.height / 2) * scale);
         g.roundPixels = true;
         app.stage.addChild(g);
       });
