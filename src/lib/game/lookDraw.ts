@@ -1,5 +1,5 @@
 import type { Figure } from "../types";
-import { Pix, rgb } from "./pix";
+import { hexMix, mix, Pix, rgb } from "./pix";
 
 export const LOOK_W = 96;
 export const LOOK_H = 176;
@@ -28,40 +28,40 @@ export const COLOR_N = 5;
 export const HAIR_COLOR_N = 6;
 
 const TOP_PAL: Record<string, string[]> = {
-  "0-hoodie": ["#9a9a9a", "#1e3a8a", "#1a1a1e", "#c41e3a", "#166534"],
-  "0-tee": ["#e8b931", "#c41e3a", "#f4f4f6", "#3b82f6", "#1a1a1e"],
-  "0-jacket": ["#1a1a1e", "#6d4c2f", "#c41e3a", "#1e3a5f", "#6b7280"],
-  "0-tank": ["#1a1a1e", "#f4f4f6", "#c41e3a", "#6b7280", "#1e3a8a"],
+  "0-hoodie": ["#8a8f98", "#1e3a8a", "#2a2a32", "#c41e3a", "#166534"],
+  "0-tee": ["#e8b931", "#c41e3a", "#f4f4f6", "#3b82f6", "#2a2a32"],
+  "0-jacket": ["#3a3a44", "#6d4c2f", "#c41e3a", "#1e3a5f", "#6b7280"],
+  "0-tank": ["#2a2a32", "#f4f4f6", "#c41e3a", "#6b7280", "#1e3a8a"],
   "0-sweater": ["#c4a574", "#1e3a5f", "#7f1d1d", "#6b7280", "#166534"],
-  "1-hoodie": ["#ff8fab", "#7c3aed", "#f4f4f6", "#9a9a9a", "#3b82f6"],
-  "1-tee": ["#f4f4f6", "#ff8fab", "#e8b931", "#c41e3a", "#1a1a1e"],
-  "1-jacket": ["#1a1a1e", "#ff8fab", "#7c3aed", "#f4f4f6", "#c41e3a"],
-  "1-tank": ["#1a1a1e", "#ff8fab", "#f4f4f6", "#7c3aed", "#c41e3a"],
-  "1-sweater": ["#f3e0c8", "#ff8fab", "#c4b5fd", "#9a9a9a", "#c41e3a"],
+  "1-hoodie": ["#ff8fab", "#7c3aed", "#f4f4f6", "#8a8f98", "#3b82f6"],
+  "1-tee": ["#f4f4f6", "#ff8fab", "#e8b931", "#c41e3a", "#2a2a32"],
+  "1-jacket": ["#3a3a44", "#ff8fab", "#7c3aed", "#f4f4f6", "#c41e3a"],
+  "1-tank": ["#2a2a32", "#ff8fab", "#f4f4f6", "#7c3aed", "#c41e3a"],
+  "1-sweater": ["#f3e0c8", "#ff8fab", "#c4b5fd", "#8a8f98", "#c41e3a"],
 };
 const BOT_PAL: Record<string, string[]> = {
-  "0-pants": ["#1a1a1e", "#1e3a5f", "#6d4c2f", "#9a9a9a", "#c4a574"],
-  "0-shorts": ["#9a9a9a", "#1e3a5f", "#1a1a1e", "#c41e3a", "#166534"],
-  "0-jeans": ["#2563eb", "#1e3a5f", "#1a1a1e", "#6b7280", "#93c5fd"],
-  "0-cargo": ["#c4a574", "#3f4f2f", "#1a1a1e", "#6d4c2f", "#9a9a9a"],
-  "0-joggers": ["#1a1a1e", "#6b7280", "#1e3a5f", "#c41e3a", "#3f4f2f"],
-  "1-skirt": ["#1e3a8a", "#ff8fab", "#1a1a1e", "#9a9a9a", "#c41e3a"],
-  "1-pants": ["#1a1a1e", "#1e3a5f", "#3b82f6", "#9a9a9a", "#6d4c2f"],
-  "1-shorts": ["#ff8fab", "#1a1a1e", "#f4f4f6", "#1e3a8a", "#9a9a9a"],
-  "1-jeans": ["#3b82f6", "#1a1a1e", "#6b7280", "#93c5fd", "#1e3a5f"],
-  "1-pleat": ["#1a1a1e", "#ff8fab", "#f4f4f6", "#1e3a8a", "#c41e3a"],
+  "0-pants": ["#2a2a32", "#1e3a5f", "#6d4c2f", "#8a8f98", "#c4a574"],
+  "0-shorts": ["#8a8f98", "#1e3a5f", "#2a2a32", "#c41e3a", "#166534"],
+  "0-jeans": ["#2563eb", "#1e3a5f", "#2a2a32", "#6b7280", "#93c5fd"],
+  "0-cargo": ["#c4a574", "#3f4f2f", "#2a2a32", "#6d4c2f", "#8a8f98"],
+  "0-joggers": ["#2a2a32", "#6b7280", "#1e3a5f", "#c41e3a", "#3f4f2f"],
+  "1-skirt": ["#1e3a8a", "#ff8fab", "#2a2a32", "#8a8f98", "#c41e3a"],
+  "1-pants": ["#2a2a32", "#1e3a5f", "#3b82f6", "#8a8f98", "#6d4c2f"],
+  "1-shorts": ["#ff8fab", "#2a2a32", "#f4f4f6", "#1e3a8a", "#8a8f98"],
+  "1-jeans": ["#3b82f6", "#2a2a32", "#6b7280", "#93c5fd", "#1e3a5f"],
+  "1-pleat": ["#2a2a32", "#ff8fab", "#f4f4f6", "#1e3a8a", "#c41e3a"],
 };
 const SHOE_PAL: Record<string, string[]> = {
-  "0-sneakers": ["#c41e3a", "#f4f4f6", "#1a1a1e", "#3b82f6", "#9a9a9a"],
-  "0-hightops": ["#1a1a1e", "#c41e3a", "#f4f4f6", "#7c3aed", "#6b7280"],
-  "0-boots": ["#1a1a1e", "#6d4c2f", "#c41e3a", "#6b7280", "#f4f4f6"],
-  "0-skate": ["#1a1a1e", "#f4f4f6", "#c41e3a", "#3b82f6", "#6b7280"],
-  "0-slides": ["#1a1a1e", "#f4f4f6", "#c41e3a", "#3b82f6", "#6b7280"],
-  "1-sneakers": ["#c41e3a", "#f4f4f6", "#1a1a1e", "#ff8fab", "#3b82f6"],
-  "1-hightops": ["#1a1a1e", "#ff8fab", "#f4f4f6", "#7c3aed", "#c41e3a"],
-  "1-boots": ["#1a1a1e", "#6d4c2f", "#c41e3a", "#ff8fab", "#f4f4f6"],
-  "1-skate": ["#1a1a1e", "#f4f4f6", "#ff8fab", "#3b82f6", "#c41e3a"],
-  "1-flats": ["#ff8fab", "#c41e3a", "#f4f4f6", "#1a1a1e", "#7c3aed"],
+  "0-sneakers": ["#c41e3a", "#f4f4f6", "#2a2a32", "#3b82f6", "#8a8f98"],
+  "0-hightops": ["#2a2a32", "#c41e3a", "#f4f4f6", "#7c3aed", "#6b7280"],
+  "0-boots": ["#2a2a32", "#6d4c2f", "#c41e3a", "#6b7280", "#f4f4f6"],
+  "0-skate": ["#2a2a32", "#f4f4f6", "#c41e3a", "#3b82f6", "#6b7280"],
+  "0-slides": ["#2a2a32", "#f4f4f6", "#c41e3a", "#3b82f6", "#6b7280"],
+  "1-sneakers": ["#c41e3a", "#f4f4f6", "#2a2a32", "#ff8fab", "#3b82f6"],
+  "1-hightops": ["#2a2a32", "#ff8fab", "#f4f4f6", "#7c3aed", "#c41e3a"],
+  "1-boots": ["#2a2a32", "#6d4c2f", "#c41e3a", "#ff8fab", "#f4f4f6"],
+  "1-skate": ["#2a2a32", "#f4f4f6", "#ff8fab", "#3b82f6", "#c41e3a"],
+  "1-flats": ["#ff8fab", "#c41e3a", "#f4f4f6", "#2a2a32", "#7c3aed"],
 };
 
 export const TOPS = TOP_PAL["0-hoodie"];
@@ -86,7 +86,6 @@ export function facesFor(_gender: number) {
 export function defaultHairName(gender: number) {
   return gender === 1 ? "pony" : "messy";
 }
-
 export function hairColors(gender: number) {
   return gender === 1 ? HAIR_GIRL_C : HAIR_BOY_C;
 }
@@ -141,9 +140,13 @@ export function clampFigure(f: Partial<Figure> | undefined): Figure {
 
 export type LookOpts = { back?: boolean; walk?: 0 | 1; sit?: boolean };
 
+const INK: [number, number, number] = [16, 12, 20];
+const WHITE: [number, number, number] = [248, 248, 252];
+const CX = 48;
+
 function palOf(f: Figure) {
   return {
-    skin: SKIN[f.skin] || SKIN[2],
+    skin: SKIN[f.skin] || SKIN[1],
     hair: hairColors(f.gender ?? 0)[f.hairColor] || HAIR_BOY_C[0],
     top: topColors(f.gender ?? 0, f.topCut ?? 0)[f.top] || TOPS[0],
     bot: botColors(f.gender ?? 0, f.botCut ?? 0)[f.bottom] || BOTTOMS[0],
@@ -151,273 +154,183 @@ function palOf(f: Figure) {
   };
 }
 
-const BOT_Y = 128;
-const SHOE_TOP: Record<string, number> = {
-  sneakers: 156,
-  hightops: 150,
-  boots: 146,
-  skate: 152,
-  slides: 158,
-  flats: 158,
-};
-
-const CHIBI = new Map<string, Pix>();
-
-export function setChibi(id: string, pix: Pix) {
-  CHIBI.set(id, pix);
+function drawBody(p: Pix, skin: string, girl: boolean) {
+  p.capsule(35, 118, 10, 38, skin);
+  p.capsule(51, 118, 10, 38, skin);
+  p.trap(34, 62, 74, 36, 60, 120, skin);
+  p.capsule(22, 78, 9, 46, skin);
+  p.capsule(65, 78, 9, 46, skin);
+  p.discShade(26, 126, 5.5, 5, skin);
+  p.discShade(70, 126, 5.5, 5, skin);
+  p.rect(44, 66, 8, 10, mix(skin, -6));
+  p.discShade(CX, 44, girl ? 23 : 22, girl ? 25 : 24, skin);
 }
 
-export function hasChibi(id: string) {
-  return CHIBI.has(id);
-}
-
-export function chibiIds(fig: Figure) {
-  const f = clampFigure(fig);
-  const g = f.gender === 1 ? "f" : "m";
-  return [
-    `${g}-hair-${hairsFor(f.gender ?? 0)[f.hair] || defaultHairName(f.gender ?? 0)}`,
-    `${g}-top-${topsFor(f.gender ?? 0)[f.topCut ?? 0] || "hoodie"}`,
-    `${g}-bot-${botsFor(f.gender ?? 0)[f.botCut ?? 0] || (f.gender === 1 ? "skirt" : "pants")}`,
-    `${g}-shoe-${shoesFor(f.gender ?? 0)[f.shoeCut ?? 0] || "sneakers"}`,
-  ];
-}
-
-export function allChibiIds() {
-  const ids: string[] = [];
-  for (const gender of [0, 1]) {
-    const g = gender === 1 ? "f" : "m";
-    for (const name of hairsFor(gender)) ids.push(`${g}-hair-${name}`);
-    for (const name of topsFor(gender)) ids.push(`${g}-top-${name}`);
-    for (const name of botsFor(gender)) ids.push(`${g}-bot-${name}`);
-    for (const name of shoesFor(gender)) ids.push(`${g}-shoe-${name}`);
+function drawFace(p: Pix, girl: boolean) {
+  p.disc(40, 50, 5.5, 6, WHITE);
+  p.disc(56, 50, 5.5, 6, WHITE);
+  p.disc(40, 51, 2.8, 3.2, INK);
+  p.disc(56, 51, 2.8, 3.2, INK);
+  p.set(41, 49, WHITE);
+  p.set(57, 49, WHITE);
+  if (girl) {
+    p.rect(35, 45, 3, 2, INK);
+    p.rect(58, 45, 3, 2, INK);
   }
-  return ids;
+  p.rect(46, 62, 4, 2, mix("#c45c6a", -8));
 }
 
-export function pixFromRgba(w: number, h: number, data: ArrayLike<number>) {
-  const p = new Pix(LOOK_W, LOOK_H);
-  const cw = Math.min(w, LOOK_W);
-  const ch = Math.min(h, LOOK_H);
-  const src = data;
-  for (let y = 0; y < ch; y++) {
-    for (let x = 0; x < cw; x++) {
-      const i = (y * w + x) * 4;
-      const a = src[i + 3];
-      if (a < 8) continue;
-      p.set(x, y, [src[i], src[i + 1], src[i + 2]], a);
+function drawBackHair(p: Pix, style: string, col: string, girl: boolean) {
+  if (!girl) return;
+  if (style === "pony") {
+    p.capsule(20, 36, 9, 34, col);
+    p.discShade(24, 72, 7, 8, col);
+  } else if (style === "pigtails") {
+    p.capsule(18, 42, 7, 20, col);
+    p.capsule(71, 42, 7, 20, col);
+    p.discShade(22, 40, 6, 6, col);
+    p.discShade(74, 40, 6, 6, col);
+  } else if (style === "long" || style === "waves") {
+    p.capsule(22, 48, 9, 44, col);
+    p.capsule(65, 48, 9, 44, col);
+  }
+}
+
+function drawFrontHair(p: Pix, style: string, col: string, girl: boolean) {
+  if (girl) {
+    p.discShade(CX, 32, 22, 14, col);
+    p.rect(30, 40, 8, 12, rgb(col));
+    p.rect(58, 40, 8, 12, rgb(col));
+    p.rect(36, 40, 24, 6, rgb(col));
+    if (style === "bob") {
+      p.rect(28, 48, 8, 16, rgb(col));
+      p.rect(60, 48, 8, 16, rgb(col));
+    } else if (style === "bun") {
+      p.discShade(CX, 16, 8, 7, col);
+    } else if (style === "waves") {
+      p.discShade(28, 64, 7, 9, col);
+      p.discShade(68, 64, 7, 9, col);
     }
+    return;
   }
-  return p;
+  if (style === "afro") {
+    p.discShade(CX, 34, 24, 20, col, (_x, y) => y < 52);
+    return;
+  }
+  if (style === "mohawk") {
+    p.rect(45, 12, 6, 24, rgb(col));
+    p.spike(CX, 8, 26, 5, col);
+    return;
+  }
+  if (style === "spikes") {
+    p.discShade(CX, 34, 16, 10, col);
+    p.spike(38, 18, 36, 4, col);
+    p.spike(48, 14, 34, 5, col);
+    p.spike(58, 18, 36, 4, col);
+    return;
+  }
+  if (style === "undercut") {
+    p.discShade(CX, 32, 15, 10, col);
+    return;
+  }
+  if (style === "side") {
+    p.discShade(40, 34, 15, 12, col);
+    p.rect(52, 36, 12, 10, rgb(col));
+    return;
+  }
+  p.discShade(CX, 32, 18, 12, col);
+  p.discShade(34, 30, 6, 5, col);
+  p.discShade(62, 30, 5, 5, col);
 }
 
-function isInk(r: number, g: number, b: number) {
-  return r + g + b < 36;
-}
-
-function isFlesh(r: number, g: number, b: number) {
-  if (r < 140 || g < 90 || b < 70) return false;
-  const rg = r - g;
-  const rb = r - b;
-  if (rg < 8 || rg > 80) return false;
-  if (rb < 35 || rb > 145) return false;
-  if (b > g + 8) return false;
-  return true;
-}
-
-function inEyes(x: number, y: number) {
-  return y >= 56 && y <= 76 && x >= 34 && x <= 62;
-}
-
-function isHairPx(r: number, g: number, b: number, x: number, y: number, w: number) {
-  if (isFlesh(r, g, b)) return false;
-  if (r > 228 && g > 228 && b > 220) return false;
-  if (inEyes(x, y) && r + g + b < 90) return false;
-  const brown = r > g - 5 && g >= b - 15 && r - b > 12 && r > 40 && r < 220 && g < 180;
-  const dark = r + g + b < 110 && y < 86;
-  if (y <= 78) return brown || dark;
-  if ((x < 22 || x > w - 22) && y <= 130 && brown) return true;
-  return false;
-}
-
-function isHand(x: number, y: number, w: number) {
-  return y >= 116 && y <= 148 && (x < 22 || x > w - 22);
-}
-
-function isSilhouette(p: Pix, x: number, y: number) {
-  return p.a(x - 1, y) < 16 || p.a(x + 1, y) < 16 || p.a(x, y - 1) < 16 || p.a(x, y + 1) < 16;
-}
-
-function stampBand(dst: Pix, src: Pix, y0: number, y1: number) {
-  const yA = Math.max(0, y0);
-  const yB = Math.min(dst.h, src.h, y1);
-  for (let y = yA; y < yB; y++) {
-    for (let x = 0; x < dst.w; x++) {
-      if (src.a(x, y) < 16) continue;
-      if (isHand(x, y, dst.w) && dst.a(x, y) >= 16) continue;
-      const i = (y * src.w + x) * 4;
-      dst.set(x, y, [src.d[i], src.d[i + 1], src.d[i + 2]], src.d[i + 3]);
+function drawBot(p: Pix, name: string, col: string, girl: boolean) {
+  if (girl && (name === "skirt" || name === "pleat")) {
+    p.trap(34, 62, 116, 26, 70, 142, col);
+    if (name === "pleat") {
+      p.rect(40, 120, 2, 18, mix(col, -28));
+      p.rect(48, 120, 2, 18, mix(col, -28));
+      p.rect(56, 120, 2, 18, mix(col, -28));
     }
+    return;
+  }
+  const short = name === "shorts";
+  const y1 = short ? 138 : 154;
+  p.capsule(35, 116, 11, y1 - 116, col);
+  p.capsule(50, 116, 11, y1 - 116, col);
+  p.rect(36, 116, 24, 8, rgb(col));
+  if (name === "cargo") {
+    p.rect(33, 132, 8, 9, mix(col, -18));
+    p.rect(55, 132, 8, 9, mix(col, -18));
+  }
+  if (name === "joggers") {
+    p.rect(35, 148, 11, 6, mix(col, -22));
+    p.rect(50, 148, 11, 6, mix(col, -22));
+  }
+  if (name === "jeans") {
+    p.rect(40, 124, 2, 22, mix(col, 28));
+    p.rect(54, 124, 2, 22, mix(col, 28));
   }
 }
 
-function eraseHair(p: Pix) {
-  for (let y = 0; y < 90; y++) {
-    for (let x = 0; x < p.w; x++) {
-      if (p.a(x, y) < 16) continue;
-      const i = (y * p.w + x) * 4;
-      const r = p.d[i],
-        g = p.d[i + 1],
-        b = p.d[i + 2];
-      if (isFlesh(r, g, b) || inEyes(x, y)) continue;
-      if (!isHairPx(r, g, b, x, y, p.w)) continue;
-      p.set(x, y, [0, 0, 0], 0);
-    }
+function drawTop(p: Pix, name: string, col: string, _girl: boolean) {
+  const sleeveless = name === "tank";
+  const shortSleeve = name === "tee";
+  p.trap(32, 64, 74, 36, 60, 118, col);
+  if (!sleeveless) {
+    const sleeveH = shortSleeve ? 18 : 40;
+    p.capsule(20, 76, 11, sleeveH, col);
+    p.capsule(65, 76, 11, sleeveH, col);
+  }
+  if (name === "hoodie") {
+    p.rect(36, 66, 24, 10, rgb(col));
+    p.rect(44, 80, 2, 12, WHITE);
+    p.rect(50, 80, 2, 12, WHITE);
+  }
+  if (name === "jacket") {
+    p.rect(46, 76, 4, 40, mix(col, 36));
+    p.trap(32, 46, 74, 36, 46, 116, hexMix(col, -14));
+    p.trap(50, 64, 74, 50, 60, 116, hexMix(col, -14));
+  }
+  if (name === "sweater") {
+    p.rect(40, 70, 16, 8, mix(col, -18));
+  }
+  if (name === "tank") {
+    p.rect(36, 74, 5, 8, mix(col, -16));
+    p.rect(55, 74, 5, 8, mix(col, -16));
   }
 }
 
-function stampHair(dst: Pix, src: Pix) {
-  for (let y = 0; y < 90; y++) {
-    for (let x = 0; x < src.w; x++) {
-      if (src.a(x, y) < 16) continue;
-      const i = (y * src.w + x) * 4;
-      const r = src.d[i],
-        g = src.d[i + 1],
-        b = src.d[i + 2];
-      if (!isHairPx(r, g, b, x, y, src.w)) continue;
-      if (dst.a(x, y) >= 16) {
-        const di = (y * dst.w + x) * 4;
-        if (isFlesh(dst.d[di], dst.d[di + 1], dst.d[di + 2]) && y > 58 && y < 86) continue;
-      }
-      dst.set(x, y, [r, g, b], src.d[i + 3]);
-    }
+function drawShoes(p: Pix, name: string, col: string) {
+  const y0 = name === "boots" ? 146 : name === "hightops" ? 150 : 156;
+  p.rect(33, y0, 13, 168 - y0, rgb(col));
+  p.rect(50, y0, 13, 168 - y0, rgb(col));
+  if (name === "sneakers" || name === "skate" || name === "hightops") {
+    p.rect(33, 164, 13, 4, WHITE);
+    p.rect(50, 164, 13, 4, WHITE);
   }
-}
-
-function restoreHands(dst: Pix, src: Pix) {
-  for (let y = 116; y < 148; y++) {
-    for (let x = 0; x < dst.w; x++) {
-      if (!isHand(x, y, dst.w)) continue;
-      if (src.a(x, y) < 16) continue;
-      const i = (y * src.w + x) * 4;
-      dst.set(x, y, [src.d[i], src.d[i + 1], src.d[i + 2]], src.d[i + 3]);
-    }
-  }
-}
-
-function tintPixels(p: Pix, hex: string, keep: (x: number, y: number) => boolean, contrast = 0.34) {
-  const t = rgb(hex);
-  const hits: number[] = [];
-  let minL = 255;
-  let maxL = 0;
-  for (let y = 0; y < p.h; y++) {
-    for (let x = 0; x < p.w; x++) {
-      if (p.a(x, y) < 16) continue;
-      if (!keep(x, y)) continue;
-      const i = (y * p.w + x) * 4;
-      const r = p.d[i],
-        g = p.d[i + 1],
-        b = p.d[i + 2];
-      if (isInk(r, g, b) && isSilhouette(p, x, y)) continue;
-      const lum = r * 0.32 + g * 0.5 + b * 0.18;
-      if (lum < minL) minL = lum;
-      if (lum > maxL) maxL = lum;
-      hits.push(x, y, lum);
-    }
-  }
-  if (hits.length < 12) return;
-  const span = maxL - minL;
-  const lo = 1 - contrast * 0.5;
-  for (let h = 0; h < hits.length; h += 3) {
-    const u = span < 8 ? 0.55 : (hits[h + 2] - minL) / span;
-    const s = lo + contrast * u;
-    p.set(hits[h], hits[h + 1], [
-      Math.max(0, Math.min(255, Math.round(t[0] * s))),
-      Math.max(0, Math.min(255, Math.round(t[1] * s))),
-      Math.max(0, Math.min(255, Math.round(t[2] * s))),
-    ]);
-  }
-}
-
-function isCloth(r: number, g: number, b: number, x: number, y: number, w: number) {
-  if (isFlesh(r, g, b)) return false;
-  if (isHairPx(r, g, b, x, y, w)) return false;
-  if (inEyes(x, y)) return false;
-  return true;
 }
 
 function paintChibi(f: Figure): Pix {
-  const ids = chibiIds(f);
-  const hair = CHIBI.get(ids[0])!;
-  const top = CHIBI.get(ids[1])!;
-  const bot = CHIBI.get(ids[2])!;
-  const shoe = CHIBI.get(ids[3])!;
-  const g = f.gender ?? 0;
-  const shoeName = shoesFor(g)[f.shoeCut ?? 0] || "sneakers";
-  const shoeTop = SHOE_TOP[shoeName] ?? 156;
-  const p = new Pix(LOOK_W, LOOK_H);
-  p.blit(top);
-  if (f.hair !== 0) {
-    eraseHair(p);
-    stampHair(p, hair);
-  }
-  if ((f.botCut ?? 0) !== 0 || (f.shoeCut ?? 0) !== 0) {
-    for (let y = BOT_Y; y < LOOK_H; y++) {
-      for (let x = 0; x < p.w; x++) {
-        if (isHand(x, y, p.w) && p.a(x, y) >= 16) continue;
-        p.set(x, y, [0, 0, 0], 0);
-      }
-    }
-    stampBand(p, bot, BOT_Y, shoeTop);
-    stampBand(p, shoe, shoeTop, LOOK_H);
-    restoreHands(p, top);
-  }
+  const girl = (f.gender ?? 0) === 1;
   const pal = palOf(f);
-  if (f.skin !== 1) {
-    tintPixels(p, pal.skin, (x, y) => {
-      if (p.a(x, y) < 16) return false;
-      const i = (y * p.w + x) * 4;
-      return isFlesh(p.d[i], p.d[i + 1], p.d[i + 2]);
-    }, 0.28);
-  }
-  if (f.hairColor !== 0) {
-    tintPixels(p, pal.hair, (x, y) => {
-      if (p.a(x, y) < 16) return false;
-      const i = (y * p.w + x) * 4;
-      return isHairPx(p.d[i], p.d[i + 1], p.d[i + 2], x, y, p.w);
-    }, 0.4);
-  }
-  if (f.top !== 0) {
-    tintPixels(p, pal.top, (x, y) => {
-      if (y < 88 || y >= BOT_Y || p.a(x, y) < 16) return false;
-      if (isHand(x, y, p.w)) return false;
-      const i = (y * p.w + x) * 4;
-      return isCloth(p.d[i], p.d[i + 1], p.d[i + 2], x, y, p.w);
-    }, 0.32);
-  }
-  if (f.bottom !== 0) {
-    tintPixels(p, pal.bot, (x, y) => {
-      if (y < BOT_Y || y >= shoeTop || p.a(x, y) < 16) return false;
-      if (isHand(x, y, p.w)) return false;
-      const i = (y * p.w + x) * 4;
-      if (isFlesh(p.d[i], p.d[i + 1], p.d[i + 2])) return false;
-      if (y > 142 && p.d[i] > 200 && p.d[i + 1] > 200 && p.d[i + 2] > 200) return false;
-      return true;
-    });
-  }
-  if (f.shoes !== 0) {
-    tintPixels(p, pal.shoe, (x, y) => {
-      if (y < shoeTop || p.a(x, y) < 16) return false;
-      const i = (y * p.w + x) * 4;
-      return !isFlesh(p.d[i], p.d[i + 1], p.d[i + 2]);
-    });
-  }
+  const hairName = hairsFor(f.gender ?? 0)[f.hair] || defaultHairName(f.gender ?? 0);
+  const topName = topsFor(f.gender ?? 0)[f.topCut ?? 0] || "hoodie";
+  const botName = botsFor(f.gender ?? 0)[f.botCut ?? 0] || (girl ? "skirt" : "pants");
+  const shoeName = shoesFor(f.gender ?? 0)[f.shoeCut ?? 0] || "sneakers";
+  const p = new Pix(LOOK_W, LOOK_H);
+  drawBackHair(p, hairName, pal.hair, girl);
+  drawBody(p, pal.skin, girl);
+  drawBot(p, botName, pal.bot, girl);
+  drawTop(p, topName, pal.top, girl);
+  drawShoes(p, shoeName, pal.shoe);
+  drawFrontHair(p, hairName, pal.hair, girl);
+  drawFace(p, girl);
+  p.outline(INK);
   return p;
 }
 
 export function paintLook(fig: Figure, _opts: LookOpts = {}): Pix {
-  const f = clampFigure(fig);
-  if (chibiIds(f).every(hasChibi)) return paintChibi(f);
-  return new Pix(LOOK_W, LOOK_H);
+  return paintChibi(clampFigure(fig));
 }
 
 export function lookKey(fig: Figure, opts: LookOpts = {}) {
@@ -437,4 +350,28 @@ export function lookKey(fig: Figure, opts: LookOpts = {}) {
     opts.walk ?? 0,
     opts.sit ? 1 : 0,
   ].join(".");
+}
+
+export function setChibi(_id: string, _pix: Pix) {}
+export function hasChibi(_id?: string) {
+  return true;
+}
+export function chibiIds(_fig?: Figure) {
+  return [] as string[];
+}
+export function allChibiIds() {
+  return [] as string[];
+}
+export function pixFromRgba(w: number, h: number, data: ArrayLike<number>) {
+  const p = new Pix(LOOK_W, LOOK_H);
+  const cw = Math.min(w, LOOK_W);
+  const ch = Math.min(h, LOOK_H);
+  for (let y = 0; y < ch; y++) {
+    for (let x = 0; x < cw; x++) {
+      const i = (y * w + x) * 4;
+      if (data[i + 3] < 8) continue;
+      p.set(x, y, [data[i], data[i + 1], data[i + 2]], data[i + 3]);
+    }
+  }
+  return p;
 }
