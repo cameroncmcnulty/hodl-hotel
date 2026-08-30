@@ -58,12 +58,9 @@ export {
   type ThumbZone,
 } from "./lookDraw";
 
-export const AVATAR_TILE_W = 48;
-export const AVATAR_DRAW_H = 80;
-export const AVATAR_NAME_LIFT = 58;
-/** Shoe soles in look space. Plant this row on the tile center. */
-const FOOT_Y = 128;
-const AVATAR_SCALE = 0.7;
+export const AVATAR_TILE_W = 40;
+export const AVATAR_DRAW_H = 64;
+export const AVATAR_NAME_LIFT = 60;
 export const SPRITE_W = LOOK_W;
 export const SPRITE_H = LOOK_H;
 export const SPRITE_V = 40;
@@ -205,15 +202,14 @@ export function drawAvatarIso(
   const sit = !!opts.sit && !walking;
   const frame = dance ? Math.floor(t * 8) % 4 : walking ? Math.floor((opts.dist || 0) * 2) % 2 : 0;
   const walk: 0 | 1 = walking && frame % 2 === 1 ? 1 : 0;
-  const src = lookCanvas(fig, { view: dir, walk, sit });
+  const rec = lookCached(fig, { view: dir, walk, sit });
   const bob = dance ? (frame % 2 === 0 ? -2 : 0) : walking ? (frame % 2 === 0 ? 0 : -2) : 0;
-  const sitLift = sit ? 6 : 0;
-  const dw = Math.round(LOOK_W * AVATAR_SCALE);
-  const dh = Math.round(LOOK_H * AVATAR_SCALE);
+  const dw = AVATAR_TILE_W;
+  const dh = Math.max(24, Math.round((dw * rec.h) / Math.max(1, rec.w)));
   const dx = Math.round(sx - dw / 2);
-  const dy = Math.round(sy - FOOT_Y * AVATAR_SCALE + bob + sitLift);
+  const dy = Math.round(sy - dh + bob + (sit ? Math.round(dh * 0.16) : 0));
   ctx.imageSmoothingEnabled = false;
-  ctx.drawImage(src, dx, dy, dw, dh);
+  ctx.drawImage(rec.canvas, rec.x, rec.y, rec.w, rec.h, dx, dy, dw, dh);
 }
 
 export function shade(hex: string, amt: number) {

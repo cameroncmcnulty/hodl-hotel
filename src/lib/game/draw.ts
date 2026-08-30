@@ -2,7 +2,7 @@ import type { FurnDef } from "../catalog";
 import { furn, footprint } from "../catalog";
 import type { Ad, Occupant, Placed, Room } from "../types";
 import { layoutById, isDance, isDoor, isOutdoor, isStair, isWater, tileH, walkable } from "../layouts";
-import { iso, TW, TH } from "./iso";
+import { iso, TW, TH, ZH } from "./iso";
 import type { Layout } from "../layouts";
 import { AVATAR_NAME_LIFT, drawAvatarIso, shade } from "./avatar";
 
@@ -195,11 +195,20 @@ function drawSprite(
   const left = iso(x, y + d, z);
   const right = iso(x + w, y, z);
   const front = iso(x + w, y + d, z);
-  const destW = Math.max(8, snap(right.sx - left.sx));
-  const destH =
-    h < 0.2
-      ? Math.max(8, snap((w + d) * (TH / 2)))
-      : Math.max(8, snap(destW * (spr.height / Math.max(1, spr.width))));
+  // Occupied tiles form one iso box: diamond width × (diamond + height).
+  // Uniform scale so a lamp stays thin and a 2×1 sofa fills two squares.
+  const spanX = Math.max(8, snap(right.sx - left.sx));
+  const spanY = Math.max(8, snap((w + d) * (TH / 2) + Math.max(h, 0.05) * ZH));
+  let destW: number;
+  let destH: number;
+  if (h < 0.2) {
+    destW = spanX;
+    destH = Math.max(8, snap((w + d) * (TH / 2)));
+  } else {
+    const s = Math.min(spanX / Math.max(1, spr.width), spanY / Math.max(1, spr.height));
+    destW = Math.max(8, snap(spr.width * s));
+    destH = Math.max(8, snap(spr.height * s));
+  }
   const cx = snap((left.sx + right.sx) / 2);
   const foot = snap(front.sy);
   if (h >= 0.15) {
@@ -207,7 +216,7 @@ function drawSprite(
     ctx.globalAlpha = 0.14;
     ctx.fillStyle = "#1a1020";
     ctx.beginPath();
-    ctx.ellipse(cx, foot - 2, destW * 0.22, TH * 0.12, 0, 0, Math.PI * 2);
+    ctx.ellipse(cx, foot - 2, Math.max(4, spanX * 0.18), TH * 0.12, 0, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
   }
