@@ -2,14 +2,18 @@ export const TW = 64;
 export const TH = 32;
 export const ZH = 16;
 
-/** Fit a sprite into the iso box of a w×d×h footprint and plant the feet on the near corner. */
+/**
+ * Plant a furniture sprite on a w×d occupancy.
+ * Width matches the iso diamond ((w+d)×32). Height keeps the art's aspect —
+ * no independent stretch. Feet sit on the near vertex of the tile rectangle.
+ */
 export function plantFurn(
   x: number,
   y: number,
   z: number,
   w: number,
   d: number,
-  h: number,
+  _h: number,
   texW: number,
   texH: number
 ) {
@@ -17,8 +21,7 @@ export function plantFurn(
   const right = iso(x + w, y, z);
   const front = iso(x + w, y + d, z);
   const spanX = Math.max(8, (w + d) * (TW / 2));
-  const spanY = Math.max(8, (w + d) * (TH / 2) + Math.max(h, 0.05) * ZH);
-  const s = Math.min(spanX / Math.max(1, texW), spanY / Math.max(1, texH));
+  const s = spanX / Math.max(1, texW);
   const destW = Math.max(8, Math.round(texW * s));
   const destH = Math.max(8, Math.round(texH * s));
   return {

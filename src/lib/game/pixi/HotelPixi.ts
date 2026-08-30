@@ -5,11 +5,11 @@ import { furn, footprint } from "../../catalog";
 import { isDance, isDoor, isOutdoor, isStair, isWater, layoutById, tileH, walkable, type Layout } from "../../layouts";
 import type { Occupant, Room } from "../../types";
 import { seatZ } from "../furnDraw";
-import { iso } from "../iso";
+import { iso, plantFurn, TW } from "../iso";
 import { furnAt } from "../path";
 import { shade } from "../avatar";
-import { Application, Container, Graphics, Text } from "pixi.js";
-import { drawFurni, guestContainer, isoBox, isoDiamond } from "./pixiArt";
+import { Application, Container, Graphics, Sprite, Text, Texture, TextureStyle } from "pixi.js";
+import { guestContainer, isoBox, isoDiamond } from "./pixiArt";
 
 export type PixiFrame = {
   room: Room;
@@ -20,6 +20,7 @@ export type PixiFrame = {
   ghost?: { def: FurnDef; x: number; y: number; rot: 0 | 1 | 2 | 3; ok: boolean; wallLift?: 0 | 1 | 2 | 3 };
   view: { w: number; h: number };
   zoom: number;
+  sprites?: Record<string, HTMLCanvasElement>;
 };
 
 function hexNum(s: string) {
@@ -44,7 +45,10 @@ export class HotelPixi {
   floor = new Graphics();
   objects = new Container({ sortableChildren: true });
   ghost = new Graphics();
-  private furnG = new Map<string, Graphics>();
+  private ghostSpr = new Sprite();
+  private furnN = new Map<string, Container>();
+  private furnKind = new Map<string, string>();
+  private tex = new Map<string, { tex: Texture; w: number; h: number }>();
   private avG = new Map<string, Container>();
   private avKey = new Map<string, string>();
   private names = new Map<string, Text>();
@@ -53,6 +57,7 @@ export class HotelPixi {
 
   async mount(host: HTMLElement) {
     this.host = host;
+    TextureStyle.defaultOptions.scaleMode = "nearest";
     const app = new Application();
     await app.init({
       background: 0x050508,
@@ -69,9 +74,13 @@ export class HotelPixi {
     canvas.style.imageRendering = "pixelated";
     canvas.className = "absolute inset-0 h-full w-full cursor-pointer touch-none select-none";
     host.appendChild(canvas);
+    this.ghostSpr.anchor.set(0.5, 1);
+    this.ghostSpr.roundPixels = true;
+    this.ghostSpr.visible = false;
     this.world.addChild(this.floor);
     this.world.addChild(this.objects);
     this.world.addChild(this.ghost);
+    this.world.addChild(this.ghostSpr);
     app.stage.addChild(this.world);
     this.app = app;
     this.ready = true;
@@ -89,7 +98,7 @@ export class HotelPixi {
     this.world.position.set(cam.x * zoom + (view.w / 2) * (1 - zoom), cam.y * zoom + (view.h / 2) * (1 - zoom));
 
     this.paintFloor(layout, room, frame.t);
-    this.paintFurniture(room, layout);
+    this.paintFurniture(room, layout, frame.sprites);
     this.paintAvatars(room, occupants, layout);
     this.paintGhost(frame, layout);
     this.objects.sortChildren();
@@ -188,29 +197,84 @@ export class HotelPixi {
     g.fill({ color: hexNum(shade(paper, -22)) });
   }
 
-  private paintFurniture(room: Room, layout: Layout) {
+  private textureFor(id: string, canvas: HTMLCanvasElement) {
+    const hit = this.tex.get(id);
+    if (hit && hit.w === canvas.width && hit.h === canvas.height) return hit.tex;
+    const tex = Texture.from(canvas);
+    tex.source.scaleMode = "nearest";
+    this.tex.set(id, { tex, w: canvas.width, h: canvas.height });
+    return tex;
+  }
+
+  private plantSprite(
+    spr: Sprite,
+    node: Container,
+    canvas: HTMLCanvasElement,
+    def: FurnDef,
+    x: number,
+    y: number,
+    z: number,
+    rot: 0 | 1 | 2 | 3,
+    wallLift: 0 | 1 | 2 | 3 = 1
+  ) {
+    const { w, d } = footprint(def, rot);
+    if (def.slot === "wall") {
+      const lift = 1.05 + wallLift * 1.55;
+      const west = rot === 1 || rot === 3;
+      const a = iso(x, y, z + lift);
+      const b = west ? iso(x, y + Math.max(w, d), z + lift) : iso(x + Math.max(w, d), y, z + lift);
+      const wallW = Math.max(16, Math.abs(b.sx - a.sx) || Math.max(w, d) * (TW / 2));
+      const s = wallW / Math.max(1, canvas.width);
+      spr.anchor.set(0.5, 0.55);
+      spr.scale.set(s);
+      node.position.set(Math.round((a.sx + b.sx) / 2), Math.round((a.sy + b.sy) / 2));
+      return;
+    }
+    const planted = plantFurn(x, y, z, w, d, def.h, canvas.width, canvas.height);
+    const s = planted.destW / Math.max(1, canvas.width);
+    const flip = rot === 1 || rot === 3;
+    spr.anchor.set(0.5, 1);
+    spr.scale.set(flip ? -s : s, s);
+    node.position.set(planted.x + planted.destW / 2, planted.y + planted.destH);
+  }
+
+  private paintFurniture(room: Room, layout: Layout, sprites?: Record<string, HTMLCanvasElement>) {
     const seen = new Set<string>();
     for (const p of room.furniture) {
       const def = furn(p.catalogId);
       if (!def) continue;
       const { w, d } = footprint(def, p.rot);
-      let g = this.furnG.get(p.uid);
-      if (!g) {
-        g = new Graphics();
-        this.objects.addChild(g);
-        this.furnG.set(p.uid, g);
-      }
-      g.clear();
       const z = tileH(layout, p.x, p.y);
-      drawFurni(g, def, p.x, p.y, z, p.rot);
-      g.roundPixels = true;
-      g.zIndex = (p.x + w / 2 + p.y + d / 2) * 1000 + def.h;
+      const canvas = sprites?.[def.id];
+      let node = this.furnN.get(p.uid);
+      if (!node) {
+        node = new Container();
+        this.objects.addChild(node);
+        this.furnN.set(p.uid, node);
+      }
+      if (!canvas) {
+        node.visible = false;
+        seen.add(p.uid);
+        continue;
+      }
+      const kind = `s:${def.id}:${canvas.width}`;
+      if (this.furnKind.get(p.uid) !== kind) {
+        node.removeChildren();
+        const spr = new Sprite(this.textureFor(def.id, canvas));
+        spr.roundPixels = true;
+        node.addChild(spr);
+        this.furnKind.set(p.uid, kind);
+      }
+      node.visible = true;
+      this.plantSprite(node.children[0] as Sprite, node, canvas, def, p.x, p.y, z, p.rot, p.wallLift ?? 1);
+      node.zIndex = (p.x + w / 2 + p.y + d / 2) * 1000 + def.h;
       seen.add(p.uid);
     }
-    for (const [uid, g] of this.furnG) {
+    for (const [uid, node] of this.furnN) {
       if (seen.has(uid)) continue;
-      g.destroy();
-      this.furnG.delete(uid);
+      node.destroy({ children: true });
+      this.furnN.delete(uid);
+      this.furnKind.delete(uid);
     }
   }
 
@@ -268,6 +332,7 @@ export class HotelPixi {
   private paintGhost(frame: PixiFrame, layout: Layout) {
     const g = this.ghost;
     g.clear();
+    this.ghostSpr.visible = false;
     if (frame.ghost) {
       const { w, d } = footprint(frame.ghost.def, frame.ghost.rot);
       for (let dy = 0; dy < d; dy++) {
@@ -277,6 +342,24 @@ export class HotelPixi {
         }
       }
       g.alpha = 0.45;
+      const canvas = frame.sprites?.[frame.ghost.def.id];
+      if (canvas) {
+        this.ghostSpr.texture = this.textureFor(frame.ghost.def.id, canvas);
+        this.ghostSpr.alpha = 0.55;
+        this.ghostSpr.visible = true;
+        const z = tileH(layout, frame.ghost.x, frame.ghost.y);
+        this.plantSprite(
+          this.ghostSpr,
+          this.ghostSpr,
+          canvas,
+          frame.ghost.def,
+          frame.ghost.x,
+          frame.ghost.y,
+          z,
+          frame.ghost.rot,
+          frame.ghost.wallLift ?? 1
+        );
+      }
     } else if (frame.hover && walkable(layout, frame.hover.x, frame.hover.y)) {
       isoDiamond(g, frame.hover.x, frame.hover.y, tileH(layout, frame.hover.x, frame.hover.y), "#14F195");
       g.alpha = 0.35;
@@ -287,7 +370,9 @@ export class HotelPixi {
     this.ready = false;
     this.app?.destroy({ removeView: true });
     this.app = null;
-    this.furnG.clear();
+    this.furnN.clear();
+    this.furnKind.clear();
+    this.tex.clear();
     this.avG.clear();
     this.avKey.clear();
     this.names.clear();

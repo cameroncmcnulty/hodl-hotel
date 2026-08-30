@@ -11,8 +11,9 @@
  *   public/nitro/assets/furn/<classname>/{spritesheet.json, spritesheet.png}
  *   public/nitro/assets/figure/<lib>/{spritesheet.json, spritesheet.png}
  *
- * Until those exist, HotelPixi paints from our catalog + look compositor
- * onto Pixi textures so snap, sit, and scale already run on PixiJS.
+ * Until those exist, HotelPixi blits our own pixel-art sprites (public/art/furn)
+ * onto the same 64×32 dimetric grid Nitro uses. Pixi is the renderer — the
+ * art is authored PNGs, not Graphics cubes.
  */
 
 export type NitroFigurePart = {

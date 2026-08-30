@@ -451,6 +451,7 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
                   : undefined,
               view: { w, h },
               zoom: zoomRef.current,
+              sprites: spritesRef.current,
             });
           }
       }
