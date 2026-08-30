@@ -140,8 +140,8 @@ export function clampFigure(f: Partial<Figure> | undefined): Figure {
 
 export type LookOpts = { back?: boolean; walk?: 0 | 1; sit?: boolean };
 
-const INK: [number, number, number] = [16, 12, 20];
-const WHITE: [number, number, number] = [248, 248, 252];
+const INK: [number, number, number] = [0, 0, 0];
+const WHITE: [number, number, number] = [255, 255, 255];
 const CX = 48;
 
 function palOf(f: Figure) {
@@ -154,217 +154,231 @@ function palOf(f: Figure) {
   };
 }
 
-function drawLegs(p: Pix, skin: string) {
-  p.capsule(36, 112, 10, 40, skin);
-  p.capsule(50, 112, 10, 40, skin);
+function C(hex: string) {
+  return rgb(hex);
+}
+function D(hex: string) {
+  return mix(hex, -28);
 }
 
-function drawTorso(p: Pix, skin: string) {
-  p.trap(35, 61, 70, 37, 59, 114, skin);
-  p.rect(44, 64, 8, 8, mix(skin, -8));
+function oval(p: Pix, cx: number, cy: number, rx: number, ry: number, c: [number, number, number]) {
+  p.disc(cx, cy, rx, ry, c);
 }
 
-function drawArms(p: Pix, skin: string, sleeveless: boolean) {
-  const y0 = sleeveless ? 72 : 108;
-  const h = sleeveless ? 48 : 16;
-  p.capsule(23, y0, 8, h, skin);
-  p.capsule(65, y0, 8, h, skin);
+function box(p: Pix, x: number, y: number, w: number, h: number, c: [number, number, number]) {
+  p.rect(x, y, w, h, c);
 }
 
-function drawHands(p: Pix, skin: string) {
-  p.discShade(27, 122, 5, 4.5, skin);
-  p.discShade(69, 122, 5, 4.5, skin);
+function drawHead(p: Pix, skin: string) {
+  oval(p, CX, 52, 25, 27, C(skin));
+  oval(p, CX - 8, 42, 8, 7, mix(skin, 20));
 }
 
-function drawHead(p: Pix, skin: string, girl: boolean) {
-  p.discShade(CX, 42, girl ? 21 : 20, girl ? 23 : 22, skin);
+function drawFace(p: Pix) {
+  oval(p, 40, 54, 5, 6, WHITE);
+  oval(p, 56, 54, 5, 6, WHITE);
+  oval(p, 40, 55, 2.4, 3, INK);
+  oval(p, 56, 55, 2.4, 3, INK);
+  p.set(41, 53, WHITE);
+  p.set(57, 53, WHITE);
+  box(p, 46, 66, 4, 2, INK);
 }
 
-function drawFace(p: Pix, girl: boolean) {
-  p.disc(40, 46, 4.2, 5, WHITE);
-  p.disc(56, 46, 4.2, 5, WHITE);
-  p.disc(40, 47, 2.2, 2.6, INK);
-  p.disc(56, 47, 2.2, 2.6, INK);
-  p.set(41, 45, WHITE);
-  p.set(57, 45, WHITE);
-  if (girl) {
-    p.rect(36, 42, 3, 1, INK);
-    p.rect(57, 42, 3, 1, INK);
-    p.disc(40, 58, 2, 1.4, mix("#e07a8a", 0));
-    p.disc(56, 58, 2, 1.4, mix("#e07a8a", 0));
-  }
-  p.rect(46, 58, 4, 2, mix("#b45a62", -6));
+function punchFace(p: Pix, skin: string) {
+  oval(p, CX, 56, 18, 17, C(skin));
+  oval(p, CX - 6, 48, 6, 5, mix(skin, 16));
 }
 
 function drawBackHair(p: Pix, style: string, col: string, girl: boolean) {
+  const h = C(col);
   if (girl) {
     if (style === "pony") {
-      p.discShade(26, 36, 8, 9, col);
-      p.capsule(19, 38, 9, 32, col);
-      p.discShade(23, 70, 7, 7, col);
+      oval(p, 24, 44, 8, 10, h);
+      box(p, 16, 44, 10, 28, h);
+      oval(p, 21, 72, 7, 7, h);
     } else if (style === "pigtails") {
-      p.discShade(22, 38, 7, 7, col);
-      p.discShade(74, 38, 7, 7, col);
-      p.capsule(17, 42, 7, 18, col);
-      p.capsule(72, 42, 7, 18, col);
-    } else if (style === "long") {
-      p.capsule(22, 44, 10, 46, col);
-      p.capsule(64, 44, 10, 46, col);
-    } else if (style === "waves") {
-      p.discShade(24, 52, 9, 12, col);
-      p.discShade(72, 52, 9, 12, col);
-      p.discShade(26, 72, 8, 10, col);
-      p.discShade(70, 72, 8, 10, col);
+      oval(p, 20, 42, 7, 7, h);
+      oval(p, 76, 42, 7, 7, h);
+      box(p, 16, 44, 8, 16, h);
+      box(p, 72, 44, 8, 16, h);
+    } else if (style === "long" || style === "waves") {
+      box(p, 20, 50, 10, 40, h);
+      box(p, 66, 50, 10, 40, h);
+      oval(p, 25, 90, 8, 8, h);
+      oval(p, 71, 90, 8, 8, h);
     }
     return;
   }
-  if (style === "afro") p.discShade(CX, 38, 26, 24, col);
-}
-
-function punchFace(p: Pix, skin: string, girl: boolean) {
-  p.discShade(CX, 46, girl ? 16 : 15, girl ? 16 : 15, skin, (_x, y) => y >= 36);
-}
-
-function bangs(p: Pix, col: string) {
-  p.rect(34, 34, 28, 7, rgb(col));
-  p.discShade(40, 36, 6, 4, col);
-  p.discShade(48, 35, 6, 4, col);
-  p.discShade(56, 36, 6, 4, col);
+  if (style === "afro") oval(p, CX, 46, 28, 26, h);
 }
 
 function drawFrontHair(p: Pix, style: string, col: string, girl: boolean, skin: string) {
+  const h = C(col);
   if (girl) {
-    p.discShade(CX, 30, 22, 16, col);
-    p.discShade(30, 40, 9, 12, col);
-    p.discShade(66, 40, 9, 12, col);
+    oval(p, CX, 34, 26, 20, h);
+    box(p, 26, 38, 12, 18, h);
+    box(p, 58, 38, 12, 18, h);
     if (style === "bob") {
-      p.discShade(29, 54, 9, 12, col);
-      p.discShade(67, 54, 9, 12, col);
+      oval(p, 27, 58, 10, 12, h);
+      oval(p, 69, 58, 10, 12, h);
     }
-    if (style === "bun") p.discShade(CX, 12, 8, 7, col);
-    punchFace(p, skin, true);
-    bangs(p, col);
+    if (style === "bun") oval(p, CX, 14, 8, 7, h);
+    punchFace(p, skin);
+    box(p, 30, 40, 36, 8, h);
+    oval(p, 38, 42, 6, 5, h);
+    oval(p, 48, 40, 6, 5, h);
+    oval(p, 58, 42, 6, 5, h);
     return;
   }
   if (style === "afro") {
-    punchFace(p, skin, false);
-    bangs(p, col);
+    punchFace(p, skin);
+    box(p, 34, 40, 28, 6, h);
     return;
   }
   if (style === "mohawk") {
-    p.discShade(CX, 20, 6, 14, col);
-    p.spike(CX, 6, 22, 5, col);
+    box(p, 44, 10, 8, 28, h);
+    oval(p, CX, 12, 6, 6, h);
     return;
   }
   if (style === "spikes") {
-    p.discShade(CX, 28, 16, 10, col);
-    p.spike(36, 14, 32, 4, col);
-    p.spike(48, 10, 30, 5, col);
-    p.spike(60, 14, 32, 4, col);
-    punchFace(p, skin, false);
+    oval(p, CX, 34, 16, 10, h);
+    box(p, 34, 16, 5, 20, h);
+    box(p, 45, 12, 6, 24, h);
+    box(p, 57, 16, 5, 20, h);
+    punchFace(p, skin);
     return;
   }
   if (style === "undercut") {
-    p.discShade(CX, 26, 15, 10, col);
-    punchFace(p, skin, false);
+    oval(p, CX, 32, 14, 10, h);
+    punchFace(p, skin);
     return;
   }
   if (style === "side") {
-    p.discShade(36, 28, 15, 13, col);
-    p.discShade(56, 30, 11, 10, col);
-    punchFace(p, skin, false);
-    bangs(p, col);
+    oval(p, 38, 34, 16, 14, h);
+    box(p, 48, 32, 16, 14, h);
+    punchFace(p, skin);
+    box(p, 32, 40, 28, 6, h);
     return;
   }
-  p.discShade(CX, 26, 18, 12, col);
-  punchFace(p, skin, false);
-  bangs(p, col);
+  oval(p, CX, 32, 22, 16, h);
+  punchFace(p, skin);
+  box(p, 30, 40, 36, 7, h);
+}
+
+function drawLegs(p: Pix, skin: string) {
+  box(p, 37, 116, 9, 28, C(skin));
+  box(p, 50, 116, 9, 28, C(skin));
+}
+
+function drawTorso(p: Pix, skin: string) {
+  box(p, 36, 78, 24, 40, C(skin));
+  box(p, 44, 74, 8, 6, C(skin));
+}
+
+function drawArms(p: Pix, skin: string, sleeveless: boolean) {
+  const y0 = sleeveless ? 80 : 110;
+  const h = sleeveless ? 36 : 10;
+  box(p, 26, y0, 7, h, C(skin));
+  box(p, 63, y0, 7, h, C(skin));
+}
+
+function drawHands(p: Pix, skin: string) {
+  oval(p, 29, 124, 5, 5, C(skin));
+  oval(p, 67, 124, 5, 5, C(skin));
 }
 
 function drawBot(p: Pix, name: string, col: string, girl: boolean) {
+  const c = C(col);
+  const d = D(col);
   if (girl && (name === "skirt" || name === "pleat")) {
-    p.trap(36, 60, 110, 28, 68, 136, col);
+    for (let y = 112; y <= 138; y++) {
+      const t = (y - 112) / 26;
+      const w = Math.round(12 + t * 14);
+      box(p, CX - w, y, w * 2, 1, c);
+    }
     if (name === "pleat") {
-      p.rect(42, 114, 2, 18, mix(col, -30));
-      p.rect(48, 114, 2, 18, mix(col, -30));
-      p.rect(54, 114, 2, 18, mix(col, -30));
+      box(p, 42, 116, 2, 20, d);
+      box(p, 48, 116, 2, 20, d);
+      box(p, 54, 116, 2, 20, d);
     }
     return;
   }
-  const short = name === "shorts";
-  const y1 = short ? 134 : 150;
-  p.capsule(36, 110, 11, y1 - 110, col);
-  p.capsule(49, 110, 11, y1 - 110, col);
-  p.roundBlock(37, 108, 22, 10, 3, col);
+  const y1 = name === "shorts" ? 134 : 146;
+  box(p, 36, 112, 11, y1 - 112, c);
+  box(p, 49, 112, 11, y1 - 112, c);
+  box(p, 36, 112, 24, 6, c);
   if (name === "cargo") {
-    p.roundBlock(33, 126, 8, 9, 2, hexMix(col, -16));
-    p.roundBlock(55, 126, 8, 9, 2, hexMix(col, -16));
+    box(p, 32, 126, 8, 8, d);
+    box(p, 56, 126, 8, 8, d);
   }
   if (name === "joggers") {
-    p.roundBlock(36, 144, 11, 6, 2, hexMix(col, -20));
-    p.roundBlock(49, 144, 11, 6, 2, hexMix(col, -20));
+    box(p, 36, 140, 11, 6, d);
+    box(p, 49, 140, 11, 6, d);
   }
   if (name === "jeans") {
-    p.rect(41, 118, 2, 24, mix(col, 32));
-    p.rect(53, 118, 2, 24, mix(col, 32));
+    box(p, 41, 118, 2, 22, mix(col, 40));
+    box(p, 53, 118, 2, 22, mix(col, 40));
   }
 }
 
 function drawTop(p: Pix, name: string, col: string) {
+  const c = C(col);
+  const d = D(col);
   if (name === "hoodie") {
-    p.trap(32, 64, 70, 36, 60, 112, col);
-    p.capsule(22, 74, 11, 36, col);
-    p.capsule(63, 74, 11, 36, col);
-    p.roundBlock(38, 88, 20, 16, 5, hexMix(col, -18));
-    p.roundBlock(38, 64, 20, 8, 3, col);
-    p.rect(44, 76, 2, 12, WHITE);
-    p.rect(50, 76, 2, 12, WHITE);
+    box(p, 34, 78, 28, 36, c);
+    box(p, 24, 80, 10, 32, c);
+    box(p, 62, 80, 10, 32, c);
+    box(p, 38, 74, 20, 8, c);
+    box(p, 40, 92, 16, 12, d);
+    box(p, 44, 82, 2, 10, WHITE);
+    box(p, 50, 82, 2, 10, WHITE);
     return;
   }
-  p.trap(33, 63, 70, 37, 59, 112, col);
+  box(p, 35, 78, 26, 36, c);
   if (name === "tee") {
-    p.capsule(22, 72, 10, 16, col);
-    p.capsule(64, 72, 10, 16, col);
-    p.disc(CX, 70, 6, 4, mix(col, 20));
+    box(p, 25, 80, 10, 14, c);
+    box(p, 61, 80, 10, 14, c);
+    oval(p, CX, 78, 6, 4, C(col));
   } else if (name === "jacket") {
-    p.capsule(21, 72, 11, 38, col);
-    p.capsule(64, 72, 11, 38, col);
-    p.rect(44, 72, 8, 38, mix("#d8d2c8", 0));
-    p.trap(33, 44, 70, 37, 44, 110, hexMix(col, -10));
-    p.trap(52, 63, 70, 52, 59, 110, hexMix(col, -10));
+    box(p, 24, 80, 11, 34, c);
+    box(p, 61, 80, 11, 34, c);
+    box(p, 44, 78, 8, 36, C("#e6e0d4"));
+    box(p, 34, 78, 12, 36, d);
+    box(p, 50, 78, 12, 36, d);
   } else if (name === "tank") {
-    p.rect(36, 70, 5, 8, mix(col, -20));
-    p.rect(55, 70, 5, 8, mix(col, -20));
+    box(p, 37, 78, 5, 6, d);
+    box(p, 54, 78, 5, 6, d);
   } else if (name === "sweater") {
-    p.capsule(22, 72, 11, 38, col);
-    p.capsule(63, 72, 11, 38, col);
-    p.roundBlock(38, 66, 20, 8, 3, hexMix(col, -22));
-    p.roundBlock(36, 106, 24, 6, 2, hexMix(col, -18));
+    box(p, 24, 80, 11, 34, c);
+    box(p, 61, 80, 11, 34, c);
+    box(p, 38, 74, 20, 8, d);
+    box(p, 35, 108, 26, 6, d);
   }
 }
 
 function drawShoes(p: Pix, name: string, col: string) {
+  const c = C(col);
   if (name === "boots") {
-    p.roundBlock(34, 142, 13, 24, 3, col);
-    p.roundBlock(49, 142, 13, 24, 3, col);
+    box(p, 35, 140, 12, 22, c);
+    box(p, 49, 140, 12, 22, c);
     return;
   }
   if (name === "hightops") {
-    p.roundBlock(34, 146, 13, 20, 3, col);
-    p.roundBlock(49, 146, 13, 20, 3, col);
-    p.rect(34, 162, 13, 4, WHITE);
-    p.rect(49, 162, 13, 4, WHITE);
+    box(p, 35, 144, 12, 18, c);
+    box(p, 49, 144, 12, 18, c);
+    box(p, 35, 158, 12, 4, WHITE);
+    box(p, 49, 158, 12, 4, WHITE);
     return;
   }
   if (name === "slides" || name === "flats") {
-    p.discShade(40, 160, 8, 5, col);
-    p.discShade(56, 160, 8, 5, col);
+    box(p, 35, 154, 12, 8, c);
+    box(p, 49, 154, 12, 8, c);
     return;
   }
-  p.roundBlock(34, 152, 13, 14, 4, col);
-  p.roundBlock(49, 152, 13, 14, 4, col);
-  p.rect(34, 162, 13, 4, WHITE);
-  p.rect(49, 162, 13, 4, WHITE);
+  box(p, 35, 148, 12, 14, c);
+  box(p, 49, 148, 12, 14, c);
+  box(p, 35, 158, 12, 4, WHITE);
+  box(p, 49, 158, 12, 4, WHITE);
 }
 
 function paintChibi(f: Figure): Pix {
@@ -384,9 +398,9 @@ function paintChibi(f: Figure): Pix {
   drawTop(p, topName, pal.top);
   drawHands(p, pal.skin);
   drawShoes(p, shoeName, pal.shoe);
-  drawHead(p, pal.skin, girl);
+  drawHead(p, pal.skin);
   drawFrontHair(p, hairName, pal.hair, girl, pal.skin);
-  drawFace(p, girl);
+  drawFace(p);
   p.outline(INK);
   return p;
 }
