@@ -1,4 +1,5 @@
-import { CATALOG } from "../catalog";
+import { CATALOG, furn } from "../catalog";
+import { paintFurn } from "./furnDraw";
 
 export const SPRITE_SRC: Record<string, string> = Object.fromEntries(
   CATALOG.filter((f) => f.id !== "ad_board").map((f) => [f.id, `/art/furn/${f.id}.png`])
@@ -128,7 +129,17 @@ function inkOutline(src: HTMLCanvasElement) {
   for (let y = 0; y < c.height; y++) {
     for (let x = 0; x < c.width; x++) {
       if (a(x, y) > 12) continue;
-      if (a(x - 1, y) > 12 || a(x + 1, y) > 12 || a(x, y - 1) > 12 || a(x, y + 1) > 12) marks.push(x, y);
+      if (
+        a(x - 1, y) > 12 ||
+        a(x + 1, y) > 12 ||
+        a(x, y - 1) > 12 ||
+        a(x, y + 1) > 12 ||
+        a(x - 1, y - 1) > 12 ||
+        a(x + 1, y - 1) > 12 ||
+        a(x - 1, y + 1) > 12 ||
+        a(x + 1, y + 1) > 12
+      )
+        marks.push(x, y);
     }
   }
   for (let i = 0; i < marks.length; i += 2) {
@@ -156,10 +167,16 @@ const inflight: Record<string, Promise<HTMLCanvasElement | null>> = {};
 
 export function loadSprite(id: string) {
   if (cache[id]) return Promise.resolve(cache[id]);
+  const def = furn(id);
+  if (def) {
+    const canvas = paintFurn(def, 0);
+    if (canvas.width > 4) cache[id] = canvas;
+    return Promise.resolve(canvas.width > 4 ? canvas : null);
+  }
   if (id in inflight) return inflight[id];
   inflight[id] = (async () => {
-    const png = await loadImage(`/art/furn/${id}.png?v=17`);
-    const img = png || (await loadImage(`/art/furn/${id}.jpg?v=17`));
+    const png = await loadImage(`/art/furn/${id}.png?v=19`);
+    const img = png || (await loadImage(`/art/furn/${id}.jpg?v=19`));
     if (!img) return null;
     const canvas = keyAndTrim(img);
     if (canvas.width > 4) cache[id] = canvas;

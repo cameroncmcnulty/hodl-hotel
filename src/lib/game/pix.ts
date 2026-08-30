@@ -152,12 +152,22 @@ export class Pix {
     }
   }
 
+  /** 8-connected ink so diamond corners are not nipped. */
   outline(col: [number, number, number] = [22, 16, 26]) {
     const marks: number[] = [];
     for (let y = 0; y < this.h; y++) {
       for (let x = 0; x < this.w; x++) {
         if (this.a(x, y) > 0) continue;
-        if (this.a(x - 1, y) || this.a(x + 1, y) || this.a(x, y - 1) || this.a(x, y + 1)) {
+        if (
+          this.a(x - 1, y) ||
+          this.a(x + 1, y) ||
+          this.a(x, y - 1) ||
+          this.a(x, y + 1) ||
+          this.a(x - 1, y - 1) ||
+          this.a(x + 1, y - 1) ||
+          this.a(x - 1, y + 1) ||
+          this.a(x + 1, y + 1)
+        ) {
           marks.push(x, y);
         }
       }

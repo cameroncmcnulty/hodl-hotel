@@ -2,9 +2,10 @@ import type { FurnDef } from "../catalog";
 import { furn, footprint } from "../catalog";
 import type { Ad, Occupant, Placed, Room } from "../types";
 import { layoutById, isDance, isDoor, isOutdoor, isStair, isWater, tileH, walkable } from "../layouts";
-import { iso, TW, TH, ZH } from "./iso";
+import { iso, TW, TH } from "./iso";
 import type { Layout } from "../layouts";
 import { AVATAR_NAME_LIFT, drawAvatarIso, shade } from "./avatar";
+import { FURN_PAD, paintFurn } from "./furnDraw";
 
 function snap(n: number) {
   return Math.round(n);
@@ -40,16 +41,19 @@ export function tileAt(cam: Cam, mx: number, my: number, layout?: Layout, view?:
 }
 
 function diamond(ctx: CanvasRenderingContext2D, x: number, y: number, fill: string, stroke = "#2a1810", z = 0) {
-  const p = iso(x, y, z);
-  const t = { x: snap(p.sx), y: snap(p.sy) };
-  const r = { x: snap(p.sx + TW / 2), y: snap(p.sy + TH / 2) };
-  const b = { x: snap(p.sx), y: snap(p.sy + TH) };
-  const l = { x: snap(p.sx - TW / 2), y: snap(p.sy + TH / 2) };
+  const t = iso(x, y, z);
+  const r = iso(x + 1, y, z);
+  const b = iso(x + 1, y + 1, z);
+  const l = iso(x, y + 1, z);
+  const tp = { x: snap(t.sx), y: snap(t.sy) };
+  const rp = { x: snap(r.sx), y: snap(r.sy) };
+  const bp = { x: snap(b.sx), y: snap(b.sy) };
+  const lp = { x: snap(l.sx), y: snap(l.sy) };
   ctx.beginPath();
-  ctx.moveTo(t.x, t.y);
-  ctx.lineTo(r.x, r.y);
-  ctx.lineTo(b.x, b.y);
-  ctx.lineTo(l.x, l.y);
+  ctx.moveTo(tp.x, tp.y);
+  ctx.lineTo(rp.x, rp.y);
+  ctx.lineTo(bp.x, bp.y);
+  ctx.lineTo(lp.x, lp.y);
   ctx.closePath();
   ctx.fillStyle = fill;
   ctx.fill();
@@ -63,10 +67,9 @@ function diamond(ctx: CanvasRenderingContext2D, x: number, y: number, fill: stri
 const EDGE = 12;
 
 function floorDrop(ctx: CanvasRenderingContext2D, x: number, y: number, east: boolean, south: boolean, dark: string, mid: string, z = 0) {
-  const p = iso(x, y, z);
-  const r = { sx: snap(p.sx + TW / 2), sy: snap(p.sy + TH / 2) };
-  const b = { sx: snap(p.sx), sy: snap(p.sy + TH) };
-  const l = { sx: snap(p.sx - TW / 2), sy: snap(p.sy + TH / 2) };
+  const r = iso(x + 1, y, z);
+  const b = iso(x + 1, y + 1, z);
+  const l = iso(x, y + 1, z);
   if (east) {
     poly(ctx, [r, b, { sx: b.sx, sy: b.sy + EDGE }, { sx: r.sx, sy: r.sy + EDGE }], dark);
   }
@@ -151,8 +154,7 @@ function drawSprite(
   d: number,
   z = 0,
   h = 1,
-  wall = false,
-  flip = false
+  wall = false
 ) {
   ctx.imageSmoothingEnabled = false;
   if (wall) {
@@ -160,19 +162,16 @@ function drawSprite(
     const b = iso(x + w, y, z + 2.1);
     const cx = snap((a.sx + b.sx) / 2);
     const cy = snap((a.sy + b.sy) / 2);
-    const wallW = Math.max(16, snap(Math.abs(b.sx - a.sx) * 0.92) || w * (TW / 2));
+    const wallW = Math.max(16, snap(Math.abs(b.sx - a.sx)) || w * (TW / 2));
     const wallH = snap(wallW * (spr.height / Math.max(1, spr.width)));
-    ctx.drawImage(spr, cx - Math.round(wallW / 2), cy - wallH, wallW, wallH);
+    ctx.drawImage(spr, cx - Math.round(wallW / 2), cy - wallH + 6, wallW, wallH);
     return;
   }
   const left = iso(x, y + d, z);
   const right = iso(x + w, y, z);
   const front = iso(x + w, y + d, z);
-  const destW = Math.max(8, snap(right.sx - left.sx));
-  const destH =
-    h < 0.2
-      ? Math.max(8, snap((w + d) * (TH / 2)))
-      : Math.max(8, snap(destW * (spr.height / Math.max(1, spr.width))));
+  const destW = spr.width;
+  const destH = spr.height;
   const cx = snap((left.sx + right.sx) / 2);
   const foot = snap(front.sy);
   if (h >= 0.15) {
@@ -180,21 +179,13 @@ function drawSprite(
     ctx.globalAlpha = 0.14;
     ctx.fillStyle = "#1a1020";
     ctx.beginPath();
-    ctx.ellipse(cx, foot - 2, destW * 0.22, TH * 0.12, 0, 0, Math.PI * 2);
+    ctx.ellipse(cx, foot - 2, Math.max(6, (w + d) * (TW / 2) * 0.18), TH * 0.12, 0, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
   }
-  const dx = cx - Math.round(destW / 2);
-  const dy = foot - destH;
-  if (flip) {
-    ctx.save();
-    ctx.translate(cx, 0);
-    ctx.scale(-1, 1);
-    ctx.drawImage(spr, -Math.round(destW / 2), dy, destW, destH);
-    ctx.restore();
-  } else {
-    ctx.drawImage(spr, dx, dy, destW, destH);
-  }
+  const dx = snap(left.sx) - FURN_PAD;
+  const dy = foot - destH + FURN_PAD;
+  ctx.drawImage(spr, dx, dy, destW, destH);
 }
 
 function drawShillboard(ctx: CanvasRenderingContext2D, spr: HTMLCanvasElement, def: FurnDef, p: Placed, z: number) {
@@ -244,17 +235,17 @@ export function drawFurniture(
   z = 0
 ) {
   const { w, d } = footprint(def, p.rot);
-  const spr = sprites?.[def.id];
-  if (spr && spr.width > 4) {
+  const baked = paintFurn(def, p.rot);
+  if (baked && baked.width > 4) {
     const wall = def.slot === "wall";
-    const flip = !wall && (p.rot === 1 || p.rot === 2);
     if (def.use === "ticker" && wall) {
-      drawShillboard(ctx, spr, def, p, z);
+      drawShillboard(ctx, baked, def, p, z);
       return;
     }
-    drawSprite(ctx, spr, p.x, p.y, w, d, z, def.h, wall, flip);
+    drawSprite(ctx, baked, p.x, p.y, w, d, z, def.h, wall);
     return;
   }
+  void sprites;
   const c = def.colors;
   const x = p.x;
   const y = p.y;

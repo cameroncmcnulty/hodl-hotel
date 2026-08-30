@@ -17,5 +17,7 @@ npm-debug.log*
 *.tsbuildinfo
 next-env.d.ts
 /scripts/look-tests/
+/scripts/furn-tests/
+/tmp-bake/
 
 .vercel
