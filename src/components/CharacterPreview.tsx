@@ -11,8 +11,6 @@ import {
   DYE,
   hairColors,
   hairsFor,
-  hatColors,
-  hatsFor,
   ITEM_LABEL,
   loadAvatars,
   LOOK_H,
@@ -128,10 +126,9 @@ export function CharacterPreview({
   );
 }
 
-const TABS: { id: "skin" | "hair" | "hat" | "ch" | "lg" | "sh"; label: string; zone: ThumbZone }[] = [
+const TABS: { id: "skin" | "hair" | "ch" | "lg" | "sh"; label: string; zone: ThumbZone }[] = [
   { id: "skin", label: "Body", zone: "full" },
   { id: "hair", label: "Hair", zone: "head" },
-  { id: "hat", label: "Hat", zone: "head" },
   { id: "ch", label: "Shirt", zone: "chest" },
   { id: "lg", label: "Pants", zone: "legs" },
   { id: "sh", label: "Shoes", zone: "legs" },
@@ -155,8 +152,6 @@ function shuffleFigure(f: Figure): Figure {
     bottom: pick(DYE.length),
     shoeCut: pick(shoesFor(g).length),
     shoes: pick(DYE.length),
-    hat: pick(hatsFor().length),
-    hatColor: pick(DYE.length),
   });
 }
 
@@ -174,8 +169,6 @@ export function FigureEditor({ figure, onChange }: { figure: Figure; onChange: (
   const tops = topsFor(g);
   const bots = botsFor(g);
   const shoes = shoesFor(g);
-  const hats = hatsFor();
-
   return (
     <div className="rounded-3xl border border-white/10 bg-[#1a1428] p-4 text-white shadow-2xl">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
@@ -259,29 +252,9 @@ export function FigureEditor({ figure, onChange }: { figure: Figure; onChange: (
                     key={`hr-${g}-${i}`}
                     zone="head"
                     label={labelOf(name)}
-                    figure={{ ...f, hair: i, hat: 0 }}
+                    figure={{ ...f, hair: i }}
                     on={f.hair === i}
                     onClick={() => push({ hair: i })}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
-
-          {tab === "hat" && (
-            <div className="grid gap-3">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/50">Color</p>
-              <Swatches colors={hatColors()} on={f.hatColor ?? 0} onPick={(i) => push({ hatColor: i, acc: f.hat ?? 0 })} />
-              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/50">Style</p>
-              <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
-                {hats.map((name, i) => (
-                  <SlotThumb
-                    key={`ha-${i}`}
-                    zone="head"
-                    label={labelOf(name)}
-                    figure={{ ...f, hat: i, acc: i }}
-                    on={(f.hat ?? 0) === i}
-                    onClick={() => push({ hat: i, acc: i })}
                   />
                 ))}
               </div>

@@ -30,7 +30,13 @@ export function canPlaceFurn(
       if (isStair(layout, x + dx, y + dy) && def.slot === "floor" && !def.walkable) return false;
     }
   }
-  if (def.walkable || def.slot === "wall") return true;
+  if (def.walkable) return true;
+  if (def.slot === "wall") {
+    if (!walkable(layout, x, y)) return false;
+    const onBack = !walkable(layout, x, y - 1);
+    const onLeft = !walkable(layout, x - 1, y);
+    return onBack || onLeft;
+  }
   const blocked = blockedSet(room.layoutId, room.furniture);
   for (let dy = 0; dy < d; dy++) {
     for (let dx = 0; dx < w; dx++) {

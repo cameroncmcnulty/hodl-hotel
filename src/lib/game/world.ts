@@ -1,6 +1,6 @@
 import { BACKPACK_SLOTS, CHAT_MAX, HISTORY_LIMIT, TRADE_SLOTS } from "../constants";
 import { furn, footprint } from "../catalog";
-import { FREE_LAYOUT_IDS, layoutById, walkable, isDance } from "../layouts";
+import { FREE_LAYOUT_IDS, layoutById, walkable, isDance, isDoor, ownsLayout } from "../layouts";
 import { moderate } from "../moderate";
 import { dropOccupant, findRoom, findUser, liveRoom, loadDB, log, occupantCount, pruneLive, reloadDB, saveDB } from "../store";
 import type { Figure, Item, Occupant, Placed, User } from "../types";
@@ -22,7 +22,10 @@ export type Action =
   | { type: "setFrame"; uid: string; nftMint?: string; nftUrl?: string }
   | { type: "setTicker"; uid: string; ticker?: string }
   | { type: "setLayout"; layoutId: string }
-  | { type: "look"; figure: Figure };
+  | { type: "look"; figure: Figure }
+  | { type: "applyFinish"; catalogId: string }
+  | { type: "createRoom"; name?: string; layoutId?: string }
+  | { type: "listRooms" };
 
 export function sanitizeTicker(raw: string) {
   return String(raw || "")
@@ -147,6 +150,39 @@ export function applyAction(userId: string, action: Action) {
     return snapshot(room.id, userId);
   }
 
+  if (action.type === "listRooms") {
+    const rooms = db.rooms.filter((r) => r.ownerId === userId).map((r) => ({
+      id: r.id,
+      name: r.name,
+      layoutId: r.layoutId,
+      visibility: r.visibility,
+    }));
+    return { ok: true, rooms };
+  }
+
+  if (action.type === "createRoom") {
+    const owned = db.rooms.filter((r) => r.ownerId === userId);
+    if (owned.length >= 50) return { error: "50 rooms max" };
+    const layoutId = String(action.layoutId || FREE_LAYOUT_IDS[0]);
+    if (!ownsLayout(u.ownedLayoutIds, layoutId)) return { error: "You don't own that floor plan" };
+    const now = new Date().toISOString();
+    const room = {
+      id: crypto.randomUUID(),
+      name: String(action.name || `${u.username}'s pad`).slice(0, 32),
+      ownerId: userId,
+      layoutId,
+      visibility: "public" as const,
+      furniture: [] as { uid: string; catalogId: string; x: number; y: number; rot: 0 | 1 | 2 | 3; ownerId: string }[],
+      maxUsers: 20,
+      createdAt: now,
+      lastActiveAt: now,
+    };
+    db.rooms.push(room);
+    u.ownedRoomIds = [...new Set([...(u.ownedRoomIds || []), room.id])];
+    saveDB(db);
+    return { ok: true, room };
+  }
+
   let here = current();
   if (!here && action.type !== "leave") {
     const fallback = u.roomHistory[0]?.roomId || u.ownedRoomIds[0];
@@ -175,7 +211,7 @@ export function applyAction(userId: string, action: Action) {
   if (action.type === "leave") {
     live.occupants = live.occupants.filter((o) => o.userId !== userId);
     saveDB(db);
-    return { ok: true };
+    return { ok: true, lobby: true };
   }
 
   if (action.type === "ping") {
@@ -217,6 +253,11 @@ export function applyAction(userId: string, action: Action) {
     const layout = layoutById(room.layoutId);
     const seat = furnAt(room.furniture, action.x, action.y);
     const sittingThere = !!(seat && furn(seat.catalogId)?.sittable);
+    if (isDoor(layout, action.x, action.y) && room.ownerId) {
+      live.occupants = live.occupants.filter((o) => o.userId !== userId);
+      saveDB(db);
+      return { ok: true, lobby: true };
+    }
     if (!walkable(layout, action.x, action.y) && !sittingThere) return snapshot(here.roomId, userId);
     const path = astar(room.layoutId, room.furniture, Math.round(occ.x), Math.round(occ.y), action.x, action.y);
     occ.path = path;
@@ -366,6 +407,22 @@ export function applyAction(userId: string, action: Action) {
     const pairId = crypto.randomUUID();
     a.pairId = pairId;
     b.pairId = pairId;
+    saveDB(db);
+    return snapshot(here.roomId, userId);
+  }
+
+  if (action.type === "applyFinish") {
+    if (room.ownerId !== userId) return { error: "Only the host can change walls and floors" };
+    const def = furn(action.catalogId);
+    if (!def?.finish) return { error: "Not a wallpaper or floor" };
+    const slot = u.backpack.findIndex((s) => s?.catalogId === def.id);
+    if (slot < 0) return { error: "Buy that finish first" };
+    if (def.finish === "paper") room.paper = def.colors.top;
+    if (def.finish === "floor") {
+      room.floorA = def.colors.top;
+      room.floorB = def.colors.left || def.colors.right;
+    }
+    u.backpack[slot] = null;
     saveDB(db);
     return snapshot(here.roomId, userId);
   }

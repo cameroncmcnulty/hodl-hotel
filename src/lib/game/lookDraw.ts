@@ -29,11 +29,11 @@ export const BOT_BOY = ["pants", "shorts", "jeans"];
 export const BOT_GIRL = ["skirt", "pants", "shorts"];
 export const SHOE_BOY = ["sneakers", "boots", "slides"];
 export const SHOE_GIRL = ["sneakers", "boots", "slides"];
-export const HATS = ["none", "beanie", "cap", "bucket", "visor", "bow"];
+export const HATS = ["none"];
 export const HAIR_STYLES = HAIR_BOY;
 export const TOP_CUTS = TOP_BOY;
 export const BOT_CUTS = BOT_GIRL;
-export const ACC = HATS;
+export const ACC = ["none"];
 export const GENDERS = ["boy", "girl"];
 export const SKIN_N = 8;
 export const COLOR_N = 8;
@@ -104,12 +104,6 @@ export const ITEM_LABEL: Record<string, string> = {
   sneakers: "Sneakers",
   boots: "Boots",
   slides: "Slides",
-  none: "None",
-  beanie: "Beanie",
-  cap: "Cap",
-  bucket: "Bucket",
-  visor: "Visor",
-  bow: "Bow",
 };
 
 export const DEFAULT_FIGURE: Figure = {
@@ -163,51 +157,50 @@ const BASE = "#8c8c8c";
 const CX = 48;
 
 /**
- * Style lock: hotel-sticker chibi.
- * Same 2:1 dimetric lighting as the furniture (light NW, dark SE, one highlight),
- * 2-heads-tall bobble, giant sparkle eyes, stubby isometric body, 1px ink.
+ * Style lock: the 8-view isometric hotel sprites (compact 3/4, strand hair,
+ * zip hoodie, chunky boots). Same 2:1 dimetric lighting as the furniture.
  * Feet stay near the canvas bottom so the sprite plants on a tile.
  */
 const R = {
   headX: 48,
-  headY: 86,
-  headRx: 27,
-  headRy: 26,
-  earLX: 24,
-  earLY: 92,
-  earRX: 72,
-  earRY: 88,
-  torsoX: 35,
-  torsoY: 110,
-  torsoW: 26,
-  torsoH: 22,
-  armW: 8,
-  armH: 22,
-  armLX: 26,
-  armLY: 114,
-  armRX: 62,
-  armRY: 112,
-  handLX: 30,
-  handLY: 138,
-  handRX: 66,
-  handRY: 136,
-  legW: 10,
-  legH: 24,
-  legLX: 36,
-  legLY: 130,
+  headY: 108,
+  headRx: 16,
+  headRy: 17,
+  earLX: 32,
+  earLY: 110,
+  earRX: 64,
+  earRY: 108,
+  torsoX: 38,
+  torsoY: 126,
+  torsoW: 20,
+  torsoH: 16,
+  armW: 6,
+  armH: 16,
+  armLX: 30,
+  armLY: 128,
+  armRX: 60,
+  armRY: 126,
+  handLX: 33,
+  handLY: 146,
+  handRX: 63,
+  handRY: 144,
+  legW: 8,
+  legH: 16,
+  legLX: 38,
+  legLY: 140,
   legRX: 50,
-  legRY: 128,
-  shoeW: 14,
-  shoeH: 9,
-  shoeLX: 34,
+  legRY: 138,
+  shoeW: 12,
+  shoeH: 8,
+  shoeLX: 36,
   shoeLY: 154,
   shoeRX: 50,
   shoeRY: 152,
 };
 
 function onFace(x: number, y: number) {
-  const dx = (x - CX) / 19;
-  const dy = (y - (R.headY + 4)) / 18;
+  const dx = (x - CX) / 11;
+  const dy = (y - (R.headY + 3)) / 11;
   return dx * dx + dy * dy < 1;
 }
 
@@ -404,34 +397,26 @@ function partBd(girl: boolean, walk: number, sit: boolean): Pix {
 function partHd(): Pix {
   const p = blank();
   ball(p, R.headX, R.headY, R.headRx, R.headRy, BASE);
-  ball(p, R.headX, R.headY + 12, 18, 14, BASE);
-  ball(p, R.earLX, R.earLY, 3.2, 3.6, BASE);
-  ball(p, R.earRX, R.earRY, 3.2, 3.6, BASE);
+  ball(p, R.earLX, R.earLY, 2.6, 3.2, BASE);
+  ball(p, R.earRX, R.earRY, 2.6, 3.2, BASE);
   return finish(p);
 }
 
 /** fc + ey — giant sparkle eyes, tiny smile. Never dyed. */
 function partFc(girl: boolean): Pix {
   const p = blank();
-  const ey = R.headY + 4;
-  p.disc(37, ey, 5.8, 6.6, WHITE);
-  p.disc(59, ey - 1, 5.8, 6.6, WHITE);
-  p.disc(37, ey + 1, 2.8, 3.2, INK);
-  p.disc(59, ey, 2.8, 3.2, INK);
-  p.set(35, ey - 1, WHITE);
-  p.set(57, ey - 2, WHITE);
-  p.rect(34, ey - 6, 7, 1, INK);
-  p.rect(56, ey - 7, 7, 1, INK);
-  const my = R.headY + 20;
-  p.set(45, my, [210, 110, 120]);
-  p.set(46, my + 1, [210, 110, 120]);
-  p.set(47, my + 1, [210, 110, 120]);
-  p.set(48, my + 1, [210, 110, 120]);
-  p.set(49, my + 1, [210, 110, 120]);
-  p.set(50, my, [210, 110, 120]);
+  const ey = R.headY + 2;
+  p.disc(42, ey, 3.6, 4.2, WHITE);
+  p.disc(54, ey - 1, 3.6, 4.2, WHITE);
+  p.disc(42, ey + 1, 1.7, 2, INK);
+  p.disc(54, ey, 1.7, 2, INK);
+  p.set(41, ey - 1, WHITE);
+  p.set(53, ey - 2, WHITE);
+  const my = R.headY + 12;
+  p.rect(45, my, 6, 1, [180, 90, 100]);
   if (girl) {
-    ball(p, 30, ey + 10, 3.2, 2.2, "#f4a7b0");
-    ball(p, 66, ey + 9, 3.2, 2.2, "#f4a7b0");
+    ball(p, 38, ey + 7, 2.2, 1.5, "#f4a7b0");
+    ball(p, 58, ey + 6, 2.2, 1.5, "#f4a7b0");
   }
   return p;
 }
@@ -593,20 +578,15 @@ function partCh(name: string, back: boolean, sit: boolean): Pix {
     p.capsule(R.armRX, R.armRY + drop, R.armW, sleeveH, BASE);
   }
   if (name === "hoodie") {
-    chunk(p, 34, y - 14, 28, 14, hexMix(BASE, -10));
-    blob(p, CX, y - 8, 11, 6, hexMix(BASE, -18));
-    chunk(p, 38, y + 8, 20, 10, hexMix(BASE, -16));
-    p.rect(40, y + 12, 16, 1, mix(BASE, -40));
+    blob(p, CX, y - 4, 8, 5, hexMix(BASE, -12));
     if (!back) {
-      p.rect(44, y - 4, 1, 10, WHITE);
-      p.rect(51, y - 4, 1, 10, WHITE);
-      p.set(44, y + 6, WHITE);
-      p.set(51, y + 6, WHITE);
+      p.rect(47, y, 1, 14, INK);
+      for (let i = 0; i < 4; i++) p.set(47, y + 2 + i * 3, WHITE);
+      chunk(p, 40, y + 8, 16, 6, hexMix(BASE, -18));
     }
-    p.rect(R.armLX, R.armLY + drop + sleeveH - 3, R.armW, 3, mix(BASE, -22));
-    p.rect(R.armRX, R.armRY + drop + sleeveH - 3, R.armW, 3, mix(BASE, -22));
-    p.rect(R.torsoX, y + R.torsoH, R.torsoW, 2, mix(BASE, -22));
-    if (back) blob(p, CX, y - 10, 13, 9, hexMix(BASE, -12));
+    p.rect(R.armLX, R.armLY + drop + sleeveH - 2, R.armW, 2, mix(BASE, -22));
+    p.rect(R.armRX, R.armRY + drop + sleeveH - 2, R.armW, 2, mix(BASE, -22));
+    if (back) blob(p, CX, y - 8, 11, 8, hexMix(BASE, -14));
   } else if (name === "tee") {
     blob(p, CX, y + 2, 8, 4, hexMix(BASE, -16));
     p.rect(R.armLX, R.armLY + drop + sleeveH - 2, R.armW, 2, mix(BASE, -20));
@@ -731,9 +711,6 @@ export function paintLook(fig: Figure, opts: LookOpts = {}): Pix {
   const topName = topsFor(g)[f.topCut ?? 0] || "hoodie";
   const botName = botsFor(g)[f.botCut ?? 0] || (girl ? "skirt" : "pants");
   const shoeName = shoesFor(g)[f.shoeCut ?? 0] || "sneakers";
-  const hatName = hatsFor()[f.hat ?? 0] || "none";
-  const hideHair = HAT_HIDE.has(hatName);
-
   const hrb = cached(`hrb.${hairName}`, () => dye(partHrb(hairName), pal.hair));
   const bd = cached(`bd.${pal.skin}.${girl}.${walk}.${sit}`, () => dye(partBd(girl, walk, sit), pal.skin));
   const sh = cached(`sh.${shoeName}.${pal.shoe}.${walk}.${sit}`, () => dye(partSh(shoeName, walk, sit), pal.shoe));
@@ -742,20 +719,18 @@ export function paintLook(fig: Figure, opts: LookOpts = {}): Pix {
   const rh = cached(`rh.${pal.skin}.${walk}.${sit}`, () => dye(partRh(walk, sit), pal.skin));
   const hd = cached(`hd.${pal.skin}`, () => dye(partHd(), pal.skin));
   const hr = cached(`hr.${hairName}.${pal.hair}.${back}`, () => dye(partHr(hairName, back), pal.hair));
-  const ha = cached(`ha.${hatName}.${pal.hat}.${back}`, () => dye(partHa(hatName, back), pal.hat));
   const fc = cached(`fc.${girl}`, () => partFc(girl));
 
   const out = blank();
-  if (!hideHair) out.blit(hrb);
+  out.blit(hrb);
   out.blit(bd);
   out.blit(sh);
   out.blit(lg);
   out.blit(ch);
   out.blit(rh);
   out.blit(hd);
-  if (!hideHair) out.blit(hr);
+  out.blit(hr);
   if (!back) out.blit(fc);
-  if (hatName !== "none") out.blit(ha);
   out.outline(INK);
   if (view === 0 || view === 3) return flipH(out);
   return out;
@@ -763,10 +738,10 @@ export function paintLook(fig: Figure, opts: LookOpts = {}): Pix {
 
 export type ThumbZone = "head" | "chest" | "legs" | "full";
 export const THUMB_BOX: Record<ThumbZone, { x: number; y: number; w: number; h: number }> = {
-  head: { x: 16, y: 50, w: 64, h: 70 },
-  chest: { x: 18, y: 98, w: 60, h: 50 },
-  legs: { x: 18, y: 122, w: 60, h: 50 },
-  full: { x: 14, y: 54, w: 68, h: 116 },
+  head: { x: 24, y: 86, w: 48, h: 48 },
+  chest: { x: 24, y: 118, w: 48, h: 36 },
+  legs: { x: 24, y: 136, w: 48, h: 36 },
+  full: { x: 22, y: 90, w: 52, h: 76 },
 };
 
 export function paintThumb(fig: Figure, zone: ThumbZone = "full"): Pix {

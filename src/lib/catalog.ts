@@ -18,6 +18,8 @@ export type FurnDef = {
   sittable?: boolean;
   hotelOnly?: boolean;
   use?: FurnUse;
+  layable?: boolean;
+  finish?: "paper" | "floor";
   shape: string;
   colors: { top: string; left: string; right: string; accent?: string };
 };
@@ -51,8 +53,8 @@ export const CATALOG: FurnDef[] = [
   F({ id: "chair_fold", name: "Fold Chair", desc: "Lobby extra.", category: "seating", price: 8, w: 1, d: 1, h: 1.3, sittable: true, use: "sit", shape: "chair", colors: { top: "#e8eefc", left: "#6b7280", right: "#d1d5db" } }),
   F({ id: "sofa_mint", name: "Mint Club Sofa", desc: "Hotel signature.", category: "seating", price: 84, w: 2, d: 1, h: 1.4, sittable: true, use: "sit", shape: "sofa", colors: { top: "#14F195", left: "#0d9b6a", right: "#5ee0d4" } }),
 
-  F({ id: "bed_twin", name: "Twin Cloud Bed", desc: "Starter sleep.", category: "beds", price: 48, w: 1, d: 2, h: 0.8, sittable: true, use: "sit", shape: "bed", colors: { top: "#e8eefc", left: "#8aa4d4", right: "#c9d6f2", accent: "#ff6b5a" } }),
-  F({ id: "bed_double", name: "Double Drift Bed", desc: "Room for sprawl.", category: "beds", price: 88, w: 2, d: 2, h: 0.9, sittable: true, use: "sit", shape: "bed", colors: { top: "#f4e4ff", left: "#9945FF", right: "#d4b3ff", accent: "#14F195" } }),
+  F({ id: "bed_twin", name: "Twin Cloud Bed", desc: "Starter sleep.", category: "beds", price: 48, w: 1, d: 2, h: 0.8, sittable: true, layable: true, use: "sit", shape: "bed", colors: { top: "#e8eefc", left: "#8aa4d4", right: "#c9d6f2", accent: "#ff6b5a" } }),
+  F({ id: "bed_double", name: "Double Drift Bed", desc: "Room for sprawl.", category: "beds", price: 88, w: 2, d: 2, h: 0.9, sittable: true, layable: true, use: "sit", shape: "bed", colors: { top: "#f4e4ff", left: "#9945FF", right: "#d4b3ff", accent: "#14F195" } }),
   F({ id: "bed_canopy", name: "Canopy Orbit Bed", desc: "Rare four-poster.", category: "beds", price: 640, w: 2, d: 2, h: 2.2, rarity: "rare", sittable: true, use: "sit", shape: "canopy", colors: { top: "#fff6d6", left: "#c9a227", right: "#f5c542" } }),
   F({ id: "bed_king_gold", name: "King Gilt Bed", desc: "Elite suite sleep.", category: "beds", price: 2800, w: 2, d: 2, h: 1.2, rarity: "gold", sittable: true, use: "sit", shape: "bed", colors: { top: "#fff6d6", left: "#c9a227", right: "#f5c542" } }),
   F({ id: "bed_day", name: "Daybed", desc: "Nap in the lobby.", category: "beds", price: 58, w: 2, d: 1, h: 0.85, sittable: true, use: "sit", shape: "bed", colors: { top: "#e8eefc", left: "#8aa4d4", right: "#ff8fab" } }),
@@ -170,6 +172,15 @@ export const CATALOG: FurnDef[] = [
   F({ id: "firepit", name: "Fire Pit", desc: "Courtyard glow.", category: "outdoor", price: 74, w: 1, d: 1, h: 0.7, rarity: "uncommon", shape: "fountain", colors: { top: "#ff6b5a", left: "#6d4c2f", right: "#f5c542" } }),
   F({ id: "pool_float", name: "Pool Float", desc: "Mint ring.", category: "outdoor", price: 26, w: 1, d: 1, h: 0.25, sittable: true, use: "sit", walkable: true, shape: "pad", colors: { top: "#14F195", left: "#2ec4b6", right: "#ffe08a" } }),
   F({ id: "cabana_bed", name: "Cabana Daybed", desc: "Shaded sprawl.", category: "outdoor", price: 190, w: 2, d: 2, h: 1.6, rarity: "rare", sittable: true, use: "sit", shape: "canopy", colors: { top: "#ff8fab", left: "#2ec4b6", right: "#fff6e8" } }),
+
+  F({ id: "paper_cream", name: "Cream Wallpaper", desc: "Warm plaster. Applies to your suite walls.", category: "finish", price: 48, w: 1, d: 1, h: 0.01, walkable: true, finish: "paper", shape: "rug", colors: { top: "#f3e0c4", left: "#e6d7bc", right: "#fff6e8" } }),
+  F({ id: "paper_mint", name: "Mint Wallpaper", desc: "Hotel signature walls.", category: "finish", price: 80, w: 1, d: 1, h: 0.01, walkable: true, finish: "paper", shape: "rug", colors: { top: "#bbf7d0", left: "#14F195", right: "#ecfdf5" } }),
+  F({ id: "paper_night", name: "Night Wallpaper", desc: "Deep club plaster.", category: "finish", price: 96, w: 1, d: 1, h: 0.01, walkable: true, finish: "paper", shape: "rug", colors: { top: "#3b1860", left: "#24143d", right: "#6b21c4" } }),
+  F({ id: "paper_gold", name: "Gilt Wallpaper", desc: "Elite suite paper.", category: "finish", price: 420, w: 1, d: 1, h: 0.01, rarity: "gold", walkable: true, finish: "paper", shape: "rug", colors: { top: "#f5c542", left: "#c9a227", right: "#fff0b0" } }),
+  F({ id: "floor_oak", name: "Oak Floor", desc: "Warm timber tiles.", category: "finish", price: 64, w: 1, d: 1, h: 0.01, walkable: true, finish: "floor", shape: "rug", colors: { top: "#c9a36e", left: "#b8925c", right: "#e2c9a0" } }),
+  F({ id: "floor_tile", name: "Stone Floor", desc: "Cool check tiles.", category: "finish", price: 72, w: 1, d: 1, h: 0.01, walkable: true, finish: "floor", shape: "rug", colors: { top: "#d1d5db", left: "#9ca3af", right: "#f3f4f6" } }),
+  F({ id: "floor_mint", name: "Mint Floor", desc: "Signature check.", category: "finish", price: 88, w: 1, d: 1, h: 0.01, walkable: true, finish: "floor", shape: "rug", colors: { top: "#14F195", left: "#0d9b6a", right: "#5ee0d4" } }),
+  F({ id: "floor_obsidian", name: "Obsidian Floor", desc: "Dark elite boards.", category: "finish", price: 360, w: 1, d: 1, h: 0.01, rarity: "elite", walkable: true, finish: "floor", shape: "rug", colors: { top: "#1f2937", left: "#111827", right: "#374151" } }),
 ];
 
 export const RARITY_TONE: Record<Rarity, string> = {
@@ -332,6 +343,7 @@ export const CATS = [
   "utility",
   "frames",
   "outdoor",
+  "finish",
 ] as const;
 
 export const RARITY_LABEL: Record<Rarity, string> = {

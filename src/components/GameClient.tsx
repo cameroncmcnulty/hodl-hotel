@@ -1,10 +1,11 @@
 "use client";
 
 import { FurnIcon } from "@/components/FurnIcon";
+import { HotelBackdrop } from "@/components/HotelBackdrop";
 import { LayoutPreview } from "@/components/LayoutPreview";
 import { AppIcon, PhoneApp, PhoneClock, PhoneShell } from "@/components/PhoneShell";
 import { CATALOG, CATS, furn, RARITY_LABEL, RARITY_TONE, type Rarity } from "@/lib/catalog";
-import { FREE_LAYOUT_IDS, layoutById, PREMIUM_LAYOUTS, USER_LAYOUTS, walkable } from "@/lib/layouts";
+import { FREE_LAYOUT_IDS, isDoor, layoutById, PREMIUM_LAYOUTS, USER_LAYOUTS, walkable } from "@/lib/layouts";
 import { COIN_PACKS } from "@/lib/constants";
 import { drawRoom, tileAt } from "@/lib/game/draw";
 import { astar, canPlaceFurn, furnAt } from "@/lib/game/path";
@@ -24,10 +25,12 @@ import {
   Handshake,
   LogOut,
   Map,
+  Minus,
   MessageCircle,
   MessagesSquare,
   Send,
   Settings,
+  Plus,
   ShoppingBag,
   Smartphone,
   Sparkles,
@@ -87,6 +90,9 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
   const [meState, setMe] = useState(me);
   const [roomId, setRoomId] = useState(homeRoomId);
   const [phone, setPhone] = useState<string | null>(null);
+  const [phoneMin, setPhoneMin] = useState(false);
+  const [lobby, setLobby] = useState(false);
+  const [myRooms, setMyRooms] = useState<{ id: string; name: string; layoutId: string }[]>([]);
   const [chat, setChat] = useState("");
   const [hover, setHover] = useState<{ x: number; y: number } | null>(null);
   const [menu, setMenu] = useState<{ x: number; y: number; tile?: { x: number; y: number }; furn?: Placed; user?: Occupant } | null>(null);
@@ -195,6 +201,12 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
       return retry.j;
     }
     if (j.error && body.type !== "ping") setStatus(j.error);
+    if (j.lobby) {
+      setSnap(null);
+      setPhone("home");
+      setPhoneMin(false);
+      return j;
+    }
     if (j.room) {
       if (body.type === "join") motions.current = {};
       setSnap(j);
@@ -222,6 +234,10 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
       const s = snapRef.current;
       if (!s?.room) {
         act({ type: "walk", x: tx, y: ty });
+        return;
+      }
+      if (isDoor(layoutById(s.room.layoutId), tx, ty) && s.room.ownerId) {
+        act({ type: "leave" });
         return;
       }
       const m = motions.current[meState.id] || motAt(tx, ty);
@@ -738,6 +754,15 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
 
   return (
     <div className="relative h-[100dvh] overflow-hidden bg-[#050508]" style={{ overscrollBehavior: "none" }}>
+      {snap?.room === undefined && (
+        <div className="absolute inset-0 z-10">
+          <HotelBackdrop>
+            <div className="relative z-20 flex h-full items-end justify-center pb-28 text-white">
+              <p className="rounded-full bg-black/40 px-4 py-2 text-sm">Hotel lobby — open your phone to pick a room.</p>
+            </div>
+          </HotelBackdrop>
+        </div>
+      )}
       <canvas
         ref={canvasRef}
         className="absolute inset-0 h-full w-full cursor-pointer touch-none select-none"
@@ -877,15 +902,29 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
         </div>
       )}
 
-      {phone && (
+      {phone && phoneMin && (
+        <button
+          type="button"
+          className="absolute bottom-24 right-4 z-40 flex items-center gap-2 rounded-full bg-black/70 px-4 py-2 text-sm text-white ring-1 ring-white/20"
+          onClick={() => setPhoneMin(false)}
+        >
+          Phone
+        </button>
+      )}
+      {phone && !phoneMin && (
         <PhoneShell onBackdrop={() => setPhone(null)} onHomeBar={() => (phone === "home" ? setPhone(null) : goHome())}>
           {phone === "home" && (
             <div className="flex min-h-0 flex-1 flex-col px-5 pt-1">
               <div className="mb-3 flex items-center justify-between text-[12px] font-semibold text-white/75">
                 <PhoneClock />
-                <button type="button" onClick={() => setPhone("coins")} className="rounded-full bg-white/10 px-2.5 py-0.5 text-mint">
-                  {meState.coins.toLocaleString()}c
-                </button>
+                <div className="flex items-center gap-2">
+                  <button type="button" onClick={() => setPhoneMin(true)} className="rounded-full bg-white/10 p-1" aria-label="Minimize phone">
+                    <Minus size={14} />
+                  </button>
+                  <button type="button" onClick={() => setPhone("coins")} className="rounded-full bg-white/10 px-2.5 py-0.5 text-mint">
+                    {meState.coins.toLocaleString()}c
+                  </button>
+                </div>
               </div>
               <div className="mb-5">
                 <p className="font-display text-[22px] leading-tight">Hi, {meState.username}</p>
@@ -901,8 +940,17 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
                 <AppIcon label="Wallet" tint="from-[#facc15] to-[#f97316]" onClick={() => setPhone("coins")}>
                   <Wallet size={26} />
                 </AppIcon>
-                <AppIcon label="Settings" tint="from-[#94a3b8] to-[#475569]" onClick={() => setPhone("settings")}>
-                  <Settings size={26} />
+                <AppIcon
+                  label="Rooms"
+                  tint="from-[#fb7185] to-[#be123c]"
+                  onClick={() => {
+                    setPhone("rooms");
+                    act({ type: "listRooms" }).then((j) => {
+                      if (j.rooms) setMyRooms(j.rooms);
+                    });
+                  }}
+                >
+                  <Plus size={26} />
                 </AppIcon>
               </div>
               <div className="mt-auto mb-1 grid grid-cols-4 justify-items-center gap-2 rounded-[22px] bg-white/12 p-2.5 backdrop-blur-md">
@@ -926,6 +974,42 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
             </div>
           )}
 
+          {phone === "rooms" && (
+            <PhoneApp title="Your rooms" onBack={goHome}>
+              <p className="mb-3 text-xs text-white/50">{myRooms.length}/50 private suites</p>
+              <button
+                type="button"
+                className="mb-3 w-full rounded-xl bg-[#14F195] py-2 text-sm font-bold text-black"
+                onClick={async () => {
+                  const j = await act({ type: "createRoom", name: `${meState.username}'s pad` });
+                  if (j.room) {
+                    setMyRooms((r) => [...r, j.room]);
+                    await act({ type: "join", roomId: j.room.id });
+                    setPhone(null);
+                  }
+                }}
+              >
+                + Add room
+              </button>
+              <div className="grid gap-2">
+                {myRooms.map((r) => (
+                  <button
+                    key={r.id}
+                    type="button"
+                    className="rounded-xl bg-white/10 px-3 py-2 text-left"
+                    onClick={async () => {
+                      await act({ type: "join", roomId: r.id });
+                      setPhone(null);
+                    }}
+                  >
+                    <div className="font-semibold">{r.name}</div>
+                    <div className="text-[11px] text-white/45">{r.layoutId}</div>
+                  </button>
+                ))}
+              </div>
+            </PhoneApp>
+          )}
+
           {phone === "pack" && (
             <PhoneApp title="Backpack" extra={<span className="pr-2 text-[11px] text-white/40">{meState.backpack.filter(Boolean).length}/30</span>} onBack={goHome}>
               <div className="grid grid-cols-4 gap-2">
@@ -934,6 +1018,15 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
                     key={i}
                     onClick={async () => {
                       if (!slot) return;
+                      const def = furn(slot.catalogId);
+                      if (def?.finish) {
+                        const j = await act({ type: "applyFinish", catalogId: slot.catalogId });
+                        if (!j.error) {
+                          setStatus(def.finish === "paper" ? "Wallpaper applied." : "Floor applied.");
+                          refreshMe();
+                        }
+                        return;
+                      }
                       if (snap?.room.ownerId !== meState.id) {
                         setStatus("You can only place furniture in your suite — heading there.");
                         const j = await joinRoom(homeRoomId);

@@ -35,6 +35,7 @@ export default function JoinPage() {
   const [roomPassword, setRoomPassword] = useState("");
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
+  const [tried, setTried] = useState(false);
   const pwNeeds = useMemo(() => passwordIssues(password), [password]);
   const years = birthday ? ageYears(birthday) : 0;
   const teen = years >= 13 && years < 18;
@@ -98,12 +99,20 @@ export default function JoinPage() {
 
       {step === 0 && (
         <div className="panel mt-6 grid gap-3 bg-[#24143d]/92 p-5 text-white">
-          <input className="field" type="email" autoComplete="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} />
+          <input
+            className={`field ${tried && !email ? "ring-2 ring-[#ff6b5a]" : ""}`}
+            type="email"
+            autoComplete="email"
+            placeholder="Email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
+          {tried && !email && <p className="text-sm text-coral">Enter your email.</p>}
           <label className="text-sm text-white/70">
             Password
             <div className="relative">
               <input
-                className="field mt-1 pr-16"
+                className={`field mt-1 pr-16 ${tried && pwNeeds.length ? "ring-2 ring-[#ff6b5a]" : ""}`}
                 type={showPw ? "text" : "password"}
                 autoComplete="new-password"
                 placeholder="10+ characters"
@@ -125,19 +134,22 @@ export default function JoinPage() {
               );
             })}
           </ul>
-          <BirthdayFields value={birthday} onChange={setBirthday} />
+          <div className={tried && (!birthday || years < 13) ? "rounded-xl ring-2 ring-[#ff6b5a] p-1" : ""}>
+            <BirthdayFields value={birthday} onChange={setBirthday} />
+          </div>
+          {tried && !birthday && <p className="text-sm text-coral">Enter your birthday.</p>}
           {birthday && years > 0 && years < 13 && <p className="text-sm text-coral">You must be 13 or older to create an account.</p>}
-          <label className="flex items-start gap-2 text-sm text-white/80">
+          <label className={`flex items-start gap-2 text-sm text-white/80 ${tried && !ageConfirm ? "rounded-xl ring-2 ring-[#ff6b5a] p-2" : ""}`}>
             <input type="checkbox" checked={ageConfirm} onChange={(e) => setAgeConfirm(e.target.checked)} className="mt-1" />
             <span>I confirm my birthday is accurate and I am at least 13 years old.</span>
           </label>
           {teen && (
-            <label className="flex items-start gap-2 text-sm text-white/80">
+            <label className={`flex items-start gap-2 text-sm text-white/80 ${tried && !guardian ? "rounded-xl ring-2 ring-[#ff6b5a] p-2" : ""}`}>
               <input type="checkbox" checked={guardian} onChange={(e) => setGuardian(e.target.checked)} className="mt-1" />
               <span>I have a parent or guardian’s permission to play. I understand I cannot buy coins with Solana until I am 18.</span>
             </label>
           )}
-          <label className="flex items-start gap-2 text-sm text-white/80">
+          <label className={`flex items-start gap-2 text-sm text-white/80 ${tried && !tos ? "rounded-xl ring-2 ring-[#ff6b5a] p-2" : ""}`}>
             <input type="checkbox" checked={tos} onChange={(e) => setTos(e.target.checked)} className="mt-1" />
             <span>
               I agree to the{" "}
@@ -147,7 +159,7 @@ export default function JoinPage() {
               .
             </span>
           </label>
-          <label className="flex items-start gap-2 text-sm text-white/80">
+          <label className={`flex items-start gap-2 text-sm text-white/80 ${tried && !privacy ? "rounded-xl ring-2 ring-[#ff6b5a] p-2" : ""}`}>
             <input type="checkbox" checked={privacy} onChange={(e) => setPrivacy(e.target.checked)} className="mt-1" />
             <span>
               I agree to the{" "}
@@ -157,7 +169,7 @@ export default function JoinPage() {
               (PIPEDA / similar privacy laws).
             </span>
           </label>
-          <label className="flex items-start gap-2 text-sm text-white/80">
+          <label className={`flex items-start gap-2 text-sm text-white/80 ${tried && !guidelines ? "rounded-xl ring-2 ring-[#ff6b5a] p-2" : ""}`}>
             <input type="checkbox" checked={guidelines} onChange={(e) => setGuidelines(e.target.checked)} className="mt-1" />
             <span>
               I will follow the{" "}
@@ -167,7 +179,7 @@ export default function JoinPage() {
               .
             </span>
           </label>
-          <label className="flex items-start gap-2 text-sm text-white/80">
+          <label className={`flex items-start gap-2 text-sm text-white/80 ${tried && !virtualGoods ? "rounded-xl ring-2 ring-[#ff6b5a] p-2" : ""}`}>
             <input type="checkbox" checked={virtualGoods} onChange={(e) => setVirtualGoods(e.target.checked)} className="mt-1" />
             <span>
               I understand coins and furniture are virtual goods with no cash value, as described in the{" "}
@@ -177,15 +189,32 @@ export default function JoinPage() {
               . Crypto purchases are 18+ and irreversible.
             </span>
           </label>
-          <button className="btn-sol" disabled={!canAccount} onClick={() => setStep(1)}>
+          <button
+            className="btn-sol"
+            onClick={() => {
+              if (!canAccount) {
+                setTried(true);
+                setErr("Fill the highlighted fields to continue.");
+                return;
+              }
+              setErr("");
+              setStep(1);
+            }}
+          >
             Next — username
           </button>
+          {tried && !canAccount && err && <p className="text-sm text-coral">{err}</p>}
         </div>
       )}
 
       {step === 1 && (
         <div className="panel mt-6 grid gap-3 bg-[#24143d]/92 p-5 text-white">
-          <input className="field" placeholder="Username (3–16)" value={username} onChange={(e) => { setUsername(e.target.value); setErr(""); }} />
+          <input
+            className={`field ${err ? "ring-2 ring-[#ff6b5a]" : ""}`}
+            placeholder="Username (3–16)"
+            value={username}
+            onChange={(e) => { setUsername(e.target.value); setErr(""); }}
+          />
           <p className="text-xs text-white/50">Letters, numbers, underscore. This is how people find you.</p>
           {err && <p className="text-sm text-coral">{err}</p>}
           <div className="flex gap-2">

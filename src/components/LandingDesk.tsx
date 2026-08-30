@@ -11,9 +11,21 @@ export function LandingDesk() {
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
   const [showPw, setShowPw] = useState(false);
+  const [miss, setMiss] = useState<"login" | "password" | "">("");
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
+    if (!login.trim()) {
+      setMiss("login");
+      setErr("Enter your email or username.");
+      return;
+    }
+    if (!password) {
+      setMiss("password");
+      setErr("Enter your password.");
+      return;
+    }
+    setMiss("");
     setBusy(true);
     setErr("");
     const res = await fetch("/api/auth/login", {
@@ -50,9 +62,9 @@ export function LandingDesk() {
           <label className="text-xs font-semibold">
             Email or username
             <input
-              className="mt-1 w-full rounded-lg border-2 border-[#c9bba8] bg-white px-3 py-2 text-sm outline-none ring-mint/40 focus:ring-2"
+              className={`mt-1 w-full rounded-lg border-2 bg-white px-3 py-2 text-sm outline-none ring-mint/40 focus:ring-2 ${miss === "login" || (err && !login) ? "border-[#ff6b5a]" : "border-[#c9bba8]"}`}
               value={login}
-              onChange={(e) => setLogin(e.target.value)}
+              onChange={(e) => { setLogin(e.target.value); setMiss(""); }}
               autoComplete="username"
             />
           </label>
@@ -60,10 +72,10 @@ export function LandingDesk() {
             Password
             <div className="relative">
               <input
-                className="mt-1 w-full rounded-lg border-2 border-[#c9bba8] bg-white px-3 py-2 pr-14 text-sm outline-none ring-mint/40 focus:ring-2"
+                className={`mt-1 w-full rounded-lg border-2 bg-white px-3 py-2 pr-14 text-sm outline-none ring-mint/40 focus:ring-2 ${miss === "password" ? "border-[#ff6b5a]" : "border-[#c9bba8]"}`}
                 type={showPw ? "text" : "password"}
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e) => { setPassword(e.target.value); setMiss(""); }}
                 autoComplete="current-password"
               />
               <button type="button" className="absolute right-2 top-1/2 -translate-y-1/2 text-[11px] font-bold text-[#5c6b8a]" onClick={() => setShowPw(!showPw)}>

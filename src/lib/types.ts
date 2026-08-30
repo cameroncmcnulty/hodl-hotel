@@ -83,6 +83,9 @@ export type Room = {
   createdAt: string;
   lastActiveAt: string;
   publicKey?: string;
+  paper?: string;
+  floorA?: string;
+  floorB?: string;
 };
 
 export type Occupant = {

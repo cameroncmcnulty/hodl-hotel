@@ -1,7 +1,7 @@
 import type { FurnDef } from "../catalog";
 import { furn, footprint } from "../catalog";
 import type { Ad, Occupant, Placed, Room } from "../types";
-import { layoutById, isDance, isOutdoor, isStair, isWater, tileH, walkable } from "../layouts";
+import { layoutById, isDance, isDoor, isOutdoor, isStair, isWater, tileH, walkable } from "../layouts";
 import { iso, TW, TH, ZH } from "./iso";
 import type { Layout } from "../layouts";
 import { AVATAR_NAME_LIFT, drawAvatarIso, shade } from "./avatar";
@@ -136,7 +136,7 @@ function wallTheme(layout: Layout): WallTheme {
 }
 
 function wallRunN(ctx: CanvasRenderingContext2D, x0: number, x1: number, y: number, z: number, theme: WallTheme) {
-  const top = z + theme.h;
+  const top = theme.h;
   poly(ctx, [iso(x0, y, top), iso(x1 + 1, y, top), iso(x1 + 1, y, z), iso(x0, y, z)], theme.paper, false);
   poly(ctx, [iso(x0, y, top), iso(x1 + 1, y, top), iso(x1 + 1, y, top - 0.35), iso(x0, y, top - 0.35)], theme.cap, false);
   poly(ctx, [iso(x0, y, z + 0.42), iso(x1 + 1, y, z + 0.42), iso(x1 + 1, y, z), iso(x0, y, z)], theme.base, false);
@@ -145,7 +145,7 @@ function wallRunN(ctx: CanvasRenderingContext2D, x0: number, x1: number, y: numb
 }
 
 function wallRunW(ctx: CanvasRenderingContext2D, x: number, y0: number, y1: number, z: number, theme: WallTheme) {
-  const top = z + theme.h;
+  const top = theme.h;
   const left = shade(theme.paper, -22);
   poly(ctx, [iso(x, y0, top), iso(x, y1 + 1, top), iso(x, y1 + 1, z), iso(x, y0, z)], left, false);
   poly(ctx, [iso(x, y0, top), iso(x, y1 + 1, top), iso(x, y1 + 1, top - 0.35), iso(x, y0, top - 0.35)], shade(theme.cap, -12), false);
@@ -383,8 +383,9 @@ export function drawRoom(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
   ctx.imageSmoothingEnabled = false;
 
   const theme = wallTheme(layout);
-  const floorA = layout.floorA || "#c9a36e";
-  const floorB = layout.floorB || "#b8925c";
+  if (room.paper) theme.paper = room.paper;
+  const floorA = room.floorA || layout.floorA || "#c9a36e";
+  const floorB = room.floorB || layout.floorB || "#b8925c";
 
   const tiles: { x: number; y: number; fill: string; z: number }[] = [];
   for (let y = 0; y < layout.h; y++) {
@@ -418,7 +419,7 @@ export function drawRoom(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
     }
   }
   for (const tile of tiles) {
-    diamond(ctx, tile.x, tile.y, tile.fill, "#2a1c10", tile.z);
+    diamond(ctx, tile.x, tile.y, tile.fill, "rgba(42,28,16,0.14)", tile.z);
   }
 
   let backY = Infinity;
@@ -465,6 +466,23 @@ export function drawRoom(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
         y1++;
       wallRunW(ctx, backX, y, y1, z, theme);
       y = y1 + 1;
+    }
+  }
+
+  for (let y = 0; y < layout.h; y++) {
+    for (let x = 0; x < layout.w; x++) {
+      if (!isDoor(layout, x, y)) continue;
+      const z = tileH(layout, x, y);
+      const jamb = shade(theme.cap, -20);
+      cube(ctx, x + 0.12, y + 0.55, z, 0.18, 0.18, 2.2, jamb, shade(jamb, -24), shade(jamb, -10));
+      cube(ctx, x + 0.7, y + 0.55, z, 0.18, 0.18, 2.2, jamb, shade(jamb, -24), shade(jamb, -10));
+      cube(ctx, x + 0.12, y + 0.55, z + 2.05, 0.76, 0.18, 0.18, theme.cap, shade(theme.cap, -20), shade(theme.cap, -8));
+      poly(
+        ctx,
+        [iso(x + 0.28, y + 0.72, z + 1.9), iso(x + 0.72, y + 0.72, z + 1.9), iso(x + 0.72, y + 0.72, z), iso(x + 0.28, y + 0.72, z)],
+        shade(theme.base, 18),
+        false
+      );
     }
   }
 
