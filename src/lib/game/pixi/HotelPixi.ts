@@ -1,15 +1,16 @@
 "use client";
 
 import type { FurnDef } from "../../catalog";
-import { furn, footprint } from "../../catalog";
+import { furn, footprint, visualFill } from "../../catalog";
 import { isDance, isDoor, isOutdoor, isStair, isWater, layoutById, tileH, walkable, type Layout } from "../../layouts";
 import type { Occupant, Room } from "../../types";
 import { seatZ } from "../furnDraw";
+import { FOOT_Y, LOOK_H } from "../lookDraw";
+import { getLookCanvas, shade } from "../avatar";
 import { iso, plantFurn, TW } from "../iso";
 import { furnAt } from "../path";
-import { shade } from "../avatar";
 import { Application, Container, Graphics, Sprite, Text, Texture, TextureStyle } from "pixi.js";
-import { guestContainer, isoBox, isoDiamond } from "./pixiArt";
+import { isoBox, isoDiamond } from "./pixiArt";
 
 export type PixiFrame = {
   room: Room;
@@ -230,11 +231,10 @@ export class HotelPixi {
       node.position.set(Math.round((a.sx + b.sx) / 2), Math.round((a.sy + b.sy) / 2));
       return;
     }
-    const planted = plantFurn(x, y, z, w, d, def.h, canvas.width, canvas.height);
+    const planted = plantFurn(x, y, z, w, d, def.h, canvas.width, canvas.height, visualFill(def));
     const s = planted.destW / Math.max(1, canvas.width);
-    const flip = rot === 1 || rot === 3;
     spr.anchor.set(0.5, 1);
-    spr.scale.set(flip ? -s : s, s);
+    spr.scale.set(s);
     node.position.set(planted.x + planted.destW / 2, planted.y + planted.destH);
   }
 
@@ -289,8 +289,13 @@ export class HotelPixi {
       const key = `${JSON.stringify(o.figure)}:${o.dir}:${sitting ? 1 : 0}:${laying ? 1 : 0}:${walk}`;
       let body = this.avG.get(o.userId);
       if (!body || this.avKey.get(o.userId) !== key) {
-        body?.destroy();
-        body = guestContainer(o.figure, { dir: o.dir, sit: sitting, lay: laying, walk });
+        body?.destroy({ children: true });
+        body = new Container();
+        const look = getLookCanvas(o.figure, { view: o.dir, sit: sitting, lay: laying, walk });
+        const spr = new Sprite(this.textureFor(`av:${key}`, look));
+        spr.anchor.set(0.5, FOOT_Y / LOOK_H);
+        spr.roundPixels = true;
+        body.addChild(spr);
         this.objects.addChild(body);
         this.avG.set(o.userId, body);
         this.avKey.set(o.userId, key);

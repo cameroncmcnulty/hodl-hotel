@@ -5,15 +5,20 @@ export const SPRITE_SRC: Record<string, string> = Object.fromEntries(
   CATALOG.filter((f) => f.id !== "ad_board").map((f) => [f.id, `/art/furn/${f.id}.png`])
 );
 
-function isMagenta(r: number, g: number, b: number) {
-  const dist = Math.hypot(r - 255, g - 0, b - 255);
-  if (dist < 170) return true;
-  if (r > 145 && b > 140 && g < 155 && Math.abs(r - b) < 110) return true;
-  if (r > 170 && b > 130 && g < 185 && r + b > g * 2) return true;
-  return false;
+/** Hot magenta/fuchsia backdrop only — does not eat purple sofas or pink loungers. */
+function isHotMagenta(r: number, g: number, b: number) {
+  if (g > 145) return false;
+  if (r < 190 || b < 155) return false;
+  if (Math.abs(r - b) > 95) return false;
+  if (g > Math.min(r, b) * 0.62) return false;
+  return true;
 }
 
-export function keyAndTrim(img: HTMLImageElement) {
+function isInk(r: number, g: number, b: number) {
+  return r < 45 && g < 45 && b < 50;
+}
+
+export function keyAndTrim(img: HTMLImageElement | HTMLCanvasElement) {
   const c = document.createElement("canvas");
   c.width = img.width;
   c.height = img.height;
@@ -25,7 +30,7 @@ export function keyAndTrim(img: HTMLImageElement) {
   const h = c.height;
   const keyed = new Uint8Array(w * h);
   const stack: number[] = [];
-  const tryKey = (x: number, y: number) => {
+  const tryKey = (x: number, y: number, test: (r: number, g: number, b: number) => boolean) => {
     if (x < 0 || y < 0 || x >= w || y >= h) return;
     const i = y * w + x;
     if (keyed[i]) return;
@@ -34,63 +39,77 @@ export function keyAndTrim(img: HTMLImageElement) {
       keyed[i] = 1;
       return;
     }
-    if (!isMagenta(d[o], d[o + 1], d[o + 2])) return;
+    if (!test(d[o], d[o + 1], d[o + 2])) return;
     keyed[i] = 1;
     d[o + 3] = 0;
     stack.push(i);
   };
-  for (let x = 0; x < w; x++) {
-    tryKey(x, 0);
-    tryKey(x, h - 1);
-  }
-  for (let y = 0; y < h; y++) {
-    tryKey(0, y);
-    tryKey(w - 1, y);
-  }
-  while (stack.length) {
-    const i = stack.pop()!;
-    const x = i % w;
-    const y = (i / w) | 0;
-    tryKey(x - 1, y);
-    tryKey(x + 1, y);
-    tryKey(x, y - 1);
-    tryKey(x, y + 1);
-  }
-  for (let i = 0; i < d.length; i += 4) {
-    if (d[i + 3] > 8 && isMagenta(d[i], d[i + 1], d[i + 2])) d[i + 3] = 0;
-  }
-  for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) {
-      const o = (y * w + x) * 4;
-      if (d[o + 3] < 8) continue;
-      const edge =
-        x === 0 ||
-        y === 0 ||
-        x === w - 1 ||
-        y === h - 1 ||
-        d[((y * w + x - 1) * 4) + 3] < 8 ||
-        d[((y * w + x + 1) * 4) + 3] < 8 ||
-        d[(((y - 1) * w + x) * 4) + 3] < 8 ||
-        d[(((y + 1) * w + x) * 4) + 3] < 8;
-      if (!edge) continue;
-      const r = d[o],
-        g = d[o + 1],
-        b = d[o + 2];
-      if (r > 150 && b > 130 && g < 190 && r + b > g * 1.7) d[o + 3] = 0;
+  const flood = (test: (r: number, g: number, b: number) => boolean, seeds: number[]) => {
+    stack.length = 0;
+    for (const i of seeds) {
+      tryKey(i % w, (i / w) | 0, test);
     }
+    while (stack.length) {
+      const i = stack.pop()!;
+      const x = i % w;
+      const y = (i / w) | 0;
+      tryKey(x - 1, y, test);
+      tryKey(x + 1, y, test);
+      tryKey(x, y - 1, test);
+      tryKey(x, y + 1, test);
+    }
+  };
+  const edgeSeeds: number[] = [];
+  for (let x = 0; x < w; x++) {
+    edgeSeeds.push(x, (h - 1) * w + x);
+  }
+  for (let y = 0; y < h; y++) {
+    edgeSeeds.push(y * w, y * w + (w - 1));
+  }
+  flood(isHotMagenta, edgeSeeds);
+  for (let i = 0; i < d.length; i += 4) {
+    if (d[i + 3] > 8 && isHotMagenta(d[i], d[i + 1], d[i + 2])) d[i + 3] = 0;
+  }
+  for (let pass = 0; pass < 5; pass++) {
+    const marks: number[] = [];
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const o = (y * w + x) * 4;
+        if (d[o + 3] < 12) continue;
+        if (!isInk(d[o], d[o + 1], d[o + 2])) continue;
+        let colorN = 0;
+        for (const [dx, dy] of [
+          [-1, 0],
+          [1, 0],
+          [0, -1],
+          [0, 1],
+          [-1, -1],
+          [1, -1],
+          [-1, 1],
+          [1, 1],
+        ] as const) {
+          const nx = x + dx;
+          const ny = y + dy;
+          if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue;
+          const p = (ny * w + nx) * 4;
+          if (d[p + 3] < 12) continue;
+          if (!isInk(d[p], d[p + 1], d[p + 2])) colorN++;
+        }
+        if (!colorN) marks.push(o);
+      }
+    }
+    if (!marks.length) break;
+    for (const o of marks) d[o + 3] = 0;
   }
   ctx.putImageData(data, 0, 0);
 
-  const trimmed = ctx.getImageData(0, 0, c.width, c.height);
-  const td = trimmed.data;
-  let minX = c.width,
-    minY = c.height,
+  let minX = w,
+    minY = h,
     maxX = 0,
     maxY = 0;
-  for (let y = 0; y < c.height; y++) {
-    for (let x = 0; x < c.width; x++) {
-      const i = (y * c.width + x) * 4;
-      if (td[i + 3] > 12) {
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      if (d[(y * w + x) * 4 + 3] > 12) {
         if (x < minX) minX = x;
         if (y < minY) minY = y;
         if (x > maxX) maxX = x;
@@ -99,58 +118,16 @@ export function keyAndTrim(img: HTMLImageElement) {
     }
   }
   if (maxX <= minX || maxY <= minY) return c;
-  const pad = 2;
+  const pad = 1;
   minX = Math.max(0, minX - pad);
   minY = Math.max(0, minY - pad);
-  maxX = Math.min(c.width - 1, maxX + pad);
-  maxY = Math.min(c.height - 1, maxY + pad);
+  maxX = Math.min(w - 1, maxX + pad);
+  maxY = Math.min(h - 1, maxY + pad);
   const out = document.createElement("canvas");
   out.width = maxX - minX + 1;
   out.height = maxY - minY + 1;
   out.getContext("2d")!.drawImage(c, minX, minY, out.width, out.height, 0, 0, out.width, out.height);
-  return inkOutline(out);
-}
-
-function inkOutline(src: HTMLCanvasElement) {
-  const w = src.width;
-  const h = src.height;
-  const c = document.createElement("canvas");
-  c.width = w + 2;
-  c.height = h + 2;
-  const ctx = c.getContext("2d")!;
-  ctx.drawImage(src, 1, 1);
-  const img = ctx.getImageData(0, 0, c.width, c.height);
-  const d = img.data;
-  const a = (x: number, y: number) => {
-    if (x < 0 || y < 0 || x >= c.width || y >= c.height) return 0;
-    return d[(y * c.width + x) * 4 + 3];
-  };
-  const marks: number[] = [];
-  for (let y = 0; y < c.height; y++) {
-    for (let x = 0; x < c.width; x++) {
-      if (a(x, y) > 12) continue;
-      if (
-        a(x - 1, y) > 12 ||
-        a(x + 1, y) > 12 ||
-        a(x, y - 1) > 12 ||
-        a(x, y + 1) > 12 ||
-        a(x - 1, y - 1) > 12 ||
-        a(x + 1, y - 1) > 12 ||
-        a(x - 1, y + 1) > 12 ||
-        a(x + 1, y + 1) > 12
-      )
-        marks.push(x, y);
-    }
-  }
-  for (let i = 0; i < marks.length; i += 2) {
-    const o = (marks[i + 1] * c.width + marks[i]) * 4;
-    d[o] = 12;
-    d[o + 1] = 8;
-    d[o + 2] = 14;
-    d[o + 3] = 255;
-  }
-  ctx.putImageData(img, 0, 0);
-  return c;
+  return out;
 }
 
 function loadImage(src: string) {
@@ -169,8 +146,8 @@ export function loadSprite(id: string) {
   if (cache[id]) return Promise.resolve(cache[id]);
   if (id in inflight) return inflight[id];
   inflight[id] = (async () => {
-    const png = await loadImage(`/art/furn/${id}.png?v=21`);
-    const img = png || (await loadImage(`/art/furn/${id}.jpg?v=21`));
+    const png = await loadImage(`/art/furn/${id}.png?v=22`);
+    const img = png || (await loadImage(`/art/furn/${id}.jpg?v=22`));
     if (!img) {
       const def = furn(id);
       if (!def) return null;

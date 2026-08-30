@@ -363,3 +363,30 @@ export function footprint(def: FurnDef, rot: 0 | 1 | 2 | 3) {
   const swap = rot === 1 || rot === 3;
   return { w: swap ? def.d : def.w, d: swap ? def.w : def.d };
 }
+
+/** How much of the occupancy diamond the sprite should fill. Small 1×1 pieces stay centered. */
+export function visualFill(def: FurnDef) {
+  const s = def.shape;
+  if (def.finish) return 1;
+  if (s === "rug") return 1;
+  if (s === "stool") return def.h > 1.2 ? 0.36 : 0.46;
+  if (s === "bean" || s === "pad") return 0.55;
+  if (s === "lamp" || s === "solamp" || s === "lava" || s === "chandelier") return 0.34;
+  if (s === "palm" || s === "cactus" || s === "flower" || s === "tree") return 0.46;
+  if (s === "hedge") return 0.72;
+  if (s === "clock" || s === "radio" || s === "orb" || s === "dice" || s === "umbrella") return 0.42;
+  if (s === "chair") return 0.62;
+  if (s === "armchair" || s === "throne") return 0.72;
+  if (s === "sofa" || s === "bench") return 0.9;
+  if (s === "bed" || s === "canopy" || s === "lounger") return 0.88;
+  if (s === "table" || s === "desk" || s === "chess") return 0.84;
+  if (s === "tv" || s === "bar" || s === "dj") return 0.9;
+  if (s === "fridge" || s === "wardrobe" || s === "divider" || s === "juke" || s === "arcade") return 0.74;
+  if (s === "pc" || s === "box") return 0.58;
+  if (s === "fountain") return 0.88;
+  if (s === "neon" || s === "frame" || s === "board") return 0.8;
+  const tiles = def.w * def.d;
+  if (tiles >= 4) return 0.92;
+  if (tiles >= 2) return 0.86;
+  return 0.6;
+}

@@ -8,6 +8,7 @@ import {
   clampFigure,
   drawLookThumb,
   DYE,
+  getLookCanvas,
   hairColors,
   hairsFor,
   ITEM_LABEL,
@@ -20,8 +21,7 @@ import {
   topsFor,
   type ThumbZone,
 } from "@/lib/game/avatar";
-import { guestContainer } from "@/lib/game/pixi/pixiArt";
-import { Application } from "pixi.js";
+import { FOOT_Y, LOOK_H, LOOK_W } from "@/lib/game/lookDraw";
 
 function SlotThumb({
   figure,
@@ -100,43 +100,26 @@ export function CharacterPreview({
 }) {
   const f = clampFigure(figure);
   const key = lookKey(f, { view: dir, sit, lay });
-  const ref = useRef<HTMLDivElement>(null);
+  const ref = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
-    const host = ref.current;
-    if (!host) return;
-    const app = new Application();
-    let dead = false;
-    app
-      .init({
-        width: 200,
-        height: 220,
-        background: 0x5c6b78,
-        antialias: false,
-        roundPixels: true,
-        resolution: 1,
-      })
-      .then(() => {
-        if (dead) {
-          app.destroy();
-          return;
-        }
-        const canvas = app.canvas as HTMLCanvasElement;
-        canvas.style.imageRendering = "pixelated";
-        canvas.style.width = "100%";
-        host.appendChild(canvas);
-        const body = guestContainer(f, { dir, sit, lay });
-        body.x = 100;
-        body.y = 190;
-        app.stage.addChild(body);
-      });
-    return () => {
-      dead = true;
-      app.destroy({ removeView: true });
-    };
+    const canvas = ref.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    ctx.imageSmoothingEnabled = false;
+    ctx.fillStyle = "#5c6b78";
+    ctx.fillRect(0, 0, 200, 220);
+    const look = getLookCanvas(f, { view: dir, sit, lay });
+    const s = 2;
+    const dw = LOOK_W * s;
+    const dh = LOOK_H * s;
+    ctx.drawImage(look, Math.round(100 - dw / 2), Math.round(190 - (FOOT_Y / LOOK_H) * dh), dw, dh);
   }, [key, dir, sit, lay]);
   return (
-    <div
+    <canvas
       ref={ref}
+      width={200}
+      height={220}
       className="mx-auto block h-[220px] w-full"
       style={{ imageRendering: "pixelated" }}
     />

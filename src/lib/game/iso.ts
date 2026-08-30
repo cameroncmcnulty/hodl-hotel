@@ -4,8 +4,9 @@ export const ZH = 16;
 
 /**
  * Plant a furniture sprite on a w×d occupancy.
- * Width matches the iso diamond ((w+d)×32). Height keeps the art's aspect —
- * no independent stretch. Feet sit on the near vertex of the tile rectangle.
+ * `fill` is how much of the occupancy diamond to cover (stool ~0.46, sofa ~0.9).
+ * Uniform scale (no stretch). Feet centered on the occupancy, not jammed to the
+ * near corner.
  */
 export function plantFurn(
   x: number,
@@ -15,18 +16,17 @@ export function plantFurn(
   d: number,
   _h: number,
   texW: number,
-  texH: number
+  texH: number,
+  fill = 1
 ) {
-  const left = iso(x, y + d, z);
-  const right = iso(x + w, y, z);
-  const front = iso(x + w, y + d, z);
-  const spanX = Math.max(8, (w + d) * (TW / 2));
+  const mid = iso(x + w / 2, y + d / 2, z);
+  const spanX = Math.max(8, (w + d) * (TW / 2) * Math.max(0.2, Math.min(1, fill)));
   const s = spanX / Math.max(1, texW);
   const destW = Math.max(8, Math.round(texW * s));
   const destH = Math.max(8, Math.round(texH * s));
   return {
-    x: Math.round((left.sx + right.sx) / 2 - destW / 2),
-    y: Math.round(front.sy - destH),
+    x: Math.round(mid.sx - destW / 2),
+    y: Math.round(mid.sy - destH),
     destW,
     destH,
   };

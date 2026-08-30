@@ -107,6 +107,10 @@ function lookCanvas(fig: Figure, opts: LookOpts = {}) {
   return lookCached(fig, opts).canvas;
 }
 
+export function getLookCanvas(fig: Figure, opts: LookOpts = {}) {
+  return lookCanvas(fig, opts);
+}
+
 export function clearLookCache() {
   canvasCache.clear();
 }
