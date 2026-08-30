@@ -167,17 +167,17 @@ const inflight: Record<string, Promise<HTMLCanvasElement | null>> = {};
 
 export function loadSprite(id: string) {
   if (cache[id]) return Promise.resolve(cache[id]);
-  const def = furn(id);
-  if (def) {
-    const canvas = paintFurn(def, 0);
-    if (canvas.width > 4) cache[id] = canvas;
-    return Promise.resolve(canvas.width > 4 ? canvas : null);
-  }
   if (id in inflight) return inflight[id];
   inflight[id] = (async () => {
-    const png = await loadImage(`/art/furn/${id}.png?v=19`);
-    const img = png || (await loadImage(`/art/furn/${id}.jpg?v=19`));
-    if (!img) return null;
+    const png = await loadImage(`/art/furn/${id}.png?v=20`);
+    const img = png || (await loadImage(`/art/furn/${id}.jpg?v=20`));
+    if (!img) {
+      const def = furn(id);
+      if (!def) return null;
+      const baked = paintFurn(def, 0);
+      if (baked.width > 4) cache[id] = baked;
+      return baked.width > 4 ? baked : null;
+    }
     const canvas = keyAndTrim(img);
     if (canvas.width > 4) cache[id] = canvas;
     return canvas.width > 4 ? canvas : null;

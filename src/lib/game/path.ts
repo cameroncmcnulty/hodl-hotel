@@ -13,6 +13,22 @@ export function furnAt(furniture: Placed[], x: number, y: number) {
   return undefined;
 }
 
+export function wallFace(layoutId: string, x: number, y: number): "n" | "w" | null {
+  const layout = layoutById(layoutId);
+  if (!walkable(layout, x, y)) return null;
+  const onBack = !walkable(layout, x, y - 1);
+  const onLeft = !walkable(layout, x - 1, y);
+  if (onLeft && !onBack) return "w";
+  if (onBack) return "n";
+  if (onLeft) return "w";
+  return null;
+}
+
+/** North wall keeps rot 0 (along X). West wall snaps to rot 1 (along Y). */
+export function wallAutoRot(layoutId: string, x: number, y: number): 0 | 1 | 2 | 3 {
+  return wallFace(layoutId, x, y) === "w" ? 1 : 0;
+}
+
 export function canPlaceFurn(
   room: { layoutId: string; furniture: Placed[] },
   defId: string,

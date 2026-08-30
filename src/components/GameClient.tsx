@@ -7,8 +7,8 @@ import { AppIcon, PhoneApp, PhoneClock, PhoneShell } from "@/components/PhoneShe
 import { CATALOG, CATS, furn, RARITY_LABEL, RARITY_TONE, type Rarity } from "@/lib/catalog";
 import { FREE_LAYOUT_IDS, isDoor, layoutById, PREMIUM_LAYOUTS, USER_LAYOUTS, walkable } from "@/lib/layouts";
 import { COIN_PACKS } from "@/lib/constants";
-import { drawRoom, tileAt } from "@/lib/game/draw";
-import { astar, canPlaceFurn, furnAt } from "@/lib/game/path";
+import { drawRoom, pointerWorld, tileAt, wallLiftAt } from "@/lib/game/draw";
+import { astar, canPlaceFurn, furnAt, wallAutoRot } from "@/lib/game/path";
 import { iso } from "@/lib/game/iso";
 import { face, motAt, setPath, tickMot, type Mot } from "@/lib/game/motion";
 import { loadAvatars, loadLookSprites } from "@/lib/game/avatar";
@@ -96,7 +96,7 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
   const [chat, setChat] = useState("");
   const [hover, setHover] = useState<{ x: number; y: number } | null>(null);
   const [menu, setMenu] = useState<{ x: number; y: number; tile?: { x: number; y: number }; furn?: Placed; user?: Occupant } | null>(null);
-  const [place, setPlace] = useState<{ uid: string; catalogId: string; rot: 0 | 1 | 2 | 3 } | null>(null);
+  const [place, setPlace] = useState<{ uid: string; catalogId: string; rot: 0 | 1 | 2 | 3; wallLift?: 0 | 1 | 2 | 3 } | null>(null);
   const [tickerEdit, setTickerEdit] = useState<{ uid: string; value: string } | null>(null);
   const [status, setStatus] = useState("");
   const [nav, setNav] = useState<{ popular: Room[]; publicAreas: Room[]; history: Room[]; events: { title: string; roomId: string; desc: string }[] } | null>(null);
@@ -438,6 +438,7 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
                     y: hover.y,
                     rot: place!.rot,
                     ok: canPlaceFurn(s.room, place!.catalogId, hover.x, hover.y, place!.rot),
+                    wallLift: place!.wallLift,
                   }
                 : undefined,
             sprites: spritesRef.current || spriteCache(),
@@ -767,7 +768,26 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
         ref={canvasRef}
         className="absolute inset-0 h-full w-full cursor-pointer touch-none select-none"
         style={{ imageRendering: "pixelated", touchAction: "none" }}
-        onMouseMove={(e) => setHover(localTile(e))}
+        onMouseMove={(e) => {
+          const t = localTile(e);
+          setHover(t);
+          const p = place;
+          if (!p) return;
+          const def = furn(p.catalogId);
+          if (def?.slot !== "wall") return;
+          const s = snapRef.current;
+          const canvas = canvasRef.current;
+          if (!s || !canvas) return;
+          const r = canvas.getBoundingClientRect();
+          const layout = layoutById(s.room.layoutId);
+          const world = pointerWorld({ ...cam.current, z: zoomRef.current }, e.clientX - r.left, e.clientY - r.top, {
+            w: r.width,
+            h: r.height,
+          });
+          const rot = wallAutoRot(s.room.layoutId, t.x, t.y);
+          const lift = wallLiftAt(layout, t.x, t.y, world.sy);
+          if (rot !== p.rot || lift !== p.wallLift) setPlace({ ...p, rot, wallLift: lift });
+        }}
         onContextMenu={(e) => {
           e.preventDefault();
           if (Date.now() - lastTouchAt.current < 2500) return;
@@ -790,7 +810,7 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
               setPlace(null);
               return;
             }
-            const j = await act({ type: "place", uid: place.uid, x: t.x, y: t.y, rot: place.rot });
+            const j = await act({ type: "place", uid: place.uid, x: t.x, y: t.y, rot: place.rot, wallLift: place.wallLift });
             if (!j.error) {
               setPlace(null);
               setStatus("Placed. Hold ~2s or right-click it to pick up, rotate, sit, or use.");

@@ -163,44 +163,44 @@ const CX = 48;
  */
 const R = {
   headX: 48,
-  headY: 108,
-  headRx: 16,
-  headRy: 17,
-  earLX: 32,
-  earLY: 110,
-  earRX: 64,
-  earRY: 108,
+  headY: 72,
+  headRx: 22,
+  headRy: 22,
+  earLX: 26,
+  earLY: 74,
+  earRX: 70,
+  earRY: 72,
   torsoX: 38,
-  torsoY: 126,
+  torsoY: 96,
   torsoW: 20,
-  torsoH: 16,
+  torsoH: 14,
   armW: 6,
-  armH: 16,
+  armH: 14,
   armLX: 30,
-  armLY: 128,
+  armLY: 98,
   armRX: 60,
-  armRY: 126,
-  handLX: 33,
-  handLY: 146,
-  handRX: 63,
-  handRY: 144,
-  legW: 8,
-  legH: 16,
+  armRY: 96,
+  handLX: 32,
+  handLY: 112,
+  handRX: 62,
+  handRY: 110,
+  legW: 7,
+  legH: 14,
   legLX: 38,
-  legLY: 140,
+  legLY: 108,
   legRX: 50,
-  legRY: 138,
-  shoeW: 12,
-  shoeH: 8,
+  legRY: 106,
+  shoeW: 11,
+  shoeH: 7,
   shoeLX: 36,
-  shoeLY: 154,
+  shoeLY: 120,
   shoeRX: 50,
-  shoeRY: 152,
+  shoeRY: 118,
 };
 
 function onFace(x: number, y: number) {
-  const dx = (x - CX) / 11;
-  const dy = (y - (R.headY + 3)) / 11;
+  const dx = (x - CX) / 16;
+  const dy = (y - (R.headY + 2)) / 16;
   return dx * dx + dy * dy < 1;
 }
 
@@ -268,7 +268,6 @@ function dye(src: Pix, hex: string) {
 }
 
 function finish(p: Pix) {
-  p.outline(INK);
   return p;
 }
 
@@ -393,30 +392,28 @@ function partBd(girl: boolean, walk: number, sit: boolean): Pix {
   return finish(p);
 }
 
-/** hd — big round skull + ears. Chin sits on the collar. */
+/** hd — giant round skull. Chin sits on the collar. */
 function partHd(): Pix {
   const p = blank();
-  ball(p, R.headX, R.headY, R.headRx, R.headRy, BASE);
-  ball(p, R.earLX, R.earLY, 2.6, 3.2, BASE);
-  ball(p, R.earRX, R.earRY, 2.6, 3.2, BASE);
+  p.discShade(R.headX, R.headY, R.headRx, R.headRy, BASE);
+  p.discShade(R.earLX, R.earLY, 3, 3.4, BASE);
+  p.discShade(R.earRX, R.earRY, 3, 3.4, BASE);
   return finish(p);
 }
 
-/** fc + ey — giant sparkle eyes, tiny smile. Never dyed. */
+/** fc — small hotel-guest eyes and a tiny smile. Never dyed. */
 function partFc(girl: boolean): Pix {
   const p = blank();
   const ey = R.headY + 2;
-  p.disc(42, ey, 3.6, 4.2, WHITE);
-  p.disc(54, ey - 1, 3.6, 4.2, WHITE);
-  p.disc(42, ey + 1, 1.7, 2, INK);
-  p.disc(54, ey, 1.7, 2, INK);
-  p.set(41, ey - 1, WHITE);
-  p.set(53, ey - 2, WHITE);
+  p.disc(42, ey, 2.2, 2.6, WHITE);
+  p.disc(54, ey, 2.2, 2.6, WHITE);
+  p.disc(42, ey + 0.4, 1.1, 1.3, INK);
+  p.disc(54, ey + 0.4, 1.1, 1.3, INK);
   const my = R.headY + 12;
   p.rect(45, my, 6, 1, [180, 90, 100]);
   if (girl) {
-    ball(p, 38, ey + 7, 2.2, 1.5, "#f4a7b0");
-    ball(p, 58, ey + 6, 2.2, 1.5, "#f4a7b0");
+    p.disc(36, ey + 7, 2, 1.4, rgb("#f4a7b0"));
+    p.disc(60, ey + 7, 2, 1.4, rgb("#f4a7b0"));
   }
   return p;
 }
@@ -738,10 +735,10 @@ export function paintLook(fig: Figure, opts: LookOpts = {}): Pix {
 
 export type ThumbZone = "head" | "chest" | "legs" | "full";
 export const THUMB_BOX: Record<ThumbZone, { x: number; y: number; w: number; h: number }> = {
-  head: { x: 24, y: 86, w: 48, h: 48 },
-  chest: { x: 24, y: 118, w: 48, h: 36 },
-  legs: { x: 24, y: 136, w: 48, h: 36 },
-  full: { x: 22, y: 90, w: 52, h: 76 },
+  head: { x: 22, y: 46, w: 52, h: 52 },
+  chest: { x: 24, y: 88, w: 48, h: 32 },
+  legs: { x: 24, y: 106, w: 48, h: 32 },
+  full: { x: 16, y: 46, w: 64, h: 86 },
 };
 
 export function paintThumb(fig: Figure, zone: ThumbZone = "full"): Pix {

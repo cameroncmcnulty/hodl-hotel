@@ -69,6 +69,8 @@ export type Placed = {
   nftUrl?: string;
   ticker?: string;
   adSlot?: string;
+  /** 0 floor-trim … 3 near the wall cap. Wall items only. */
+  wallLift?: 0 | 1 | 2 | 3;
 };
 
 export type Room = {

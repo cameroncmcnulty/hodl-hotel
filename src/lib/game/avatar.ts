@@ -60,10 +60,10 @@ export {
 
 export const AVATAR_TILE_W = 48;
 export const AVATAR_DRAW_H = 80;
-export const AVATAR_NAME_LIFT = 54;
+export const AVATAR_NAME_LIFT = 58;
 /** Shoe soles in look space. Plant this row on the tile center. */
-const FOOT_Y = 162;
-const AVATAR_SCALE = 0.5;
+const FOOT_Y = 128;
+const AVATAR_SCALE = 0.7;
 export const SPRITE_W = LOOK_W;
 export const SPRITE_H = LOOK_H;
 export const SPRITE_V = 40;

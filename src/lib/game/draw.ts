@@ -5,7 +5,6 @@ import { layoutById, isDance, isDoor, isOutdoor, isStair, isWater, tileH, walkab
 import { iso, TW, TH } from "./iso";
 import type { Layout } from "../layouts";
 import { AVATAR_NAME_LIFT, drawAvatarIso, shade } from "./avatar";
-import { FURN_PAD, paintFurn } from "./furnDraw";
 
 function snap(n: number) {
   return Math.round(n);
@@ -145,6 +144,28 @@ function wallRunW(ctx: CanvasRenderingContext2D, x: number, y0: number, y1: numb
   poly(ctx, [iso(x, y0, z + 0.38), iso(x, y1 + 1, z + 0.38), iso(x, y1 + 1, z), iso(x, y0, z)], shade(theme.base, -14), false);
 }
 
+export function pointerWorld(cam: Cam, mx: number, my: number, view?: { w: number; h: number }) {
+  const z = cam.z && cam.z > 0 ? cam.z : 1;
+  const cx = view?.w ? view.w / 2 : 0;
+  const cy = view?.h ? view.h / 2 : 0;
+  return {
+    sx: (mx - cx) / z + cx - cam.x,
+    sy: (my - cy) / z + cy - cam.y,
+  };
+}
+
+/** Map cursor height on a wall to one of four hang rows. */
+export function wallLiftAt(layout: Layout, x: number, y: number, sy: number): 0 | 1 | 2 | 3 {
+  const z0 = tileH(layout, x, y);
+  const floor = iso(x + 0.5, y, z0);
+  const cap = iso(x + 0.5, y, 7.2);
+  const span = floor.sy - cap.sy;
+  if (span < 8) return 1;
+  const t = (floor.sy - sy) / span;
+  const n = Math.floor(t * 4);
+  return Math.max(0, Math.min(3, n)) as 0 | 1 | 2 | 3;
+}
+
 function drawSprite(
   ctx: CanvasRenderingContext2D,
   spr: HTMLCanvasElement,
@@ -154,24 +175,31 @@ function drawSprite(
   d: number,
   z = 0,
   h = 1,
-  wall = false
+  wall = false,
+  rot: 0 | 1 | 2 | 3 = 0,
+  wallLift: 0 | 1 | 2 | 3 = 1
 ) {
   ctx.imageSmoothingEnabled = false;
   if (wall) {
-    const a = iso(x, y, z + 2.1);
-    const b = iso(x + w, y, z + 2.1);
+    const lift = 1.05 + wallLift * 1.55;
+    const west = rot === 1 || rot === 3;
+    const a = west ? iso(x, y, z + lift) : iso(x, y, z + lift);
+    const b = west ? iso(x, y + Math.max(w, d), z + lift) : iso(x + Math.max(w, d), y, z + lift);
     const cx = snap((a.sx + b.sx) / 2);
     const cy = snap((a.sy + b.sy) / 2);
-    const wallW = Math.max(16, snap(Math.abs(b.sx - a.sx)) || w * (TW / 2));
+    const wallW = Math.max(16, snap(Math.abs(b.sx - a.sx)) || Math.max(w, d) * (TW / 2));
     const wallH = snap(wallW * (spr.height / Math.max(1, spr.width)));
-    ctx.drawImage(spr, cx - Math.round(wallW / 2), cy - wallH + 6, wallW, wallH);
+    ctx.drawImage(spr, cx - Math.round(wallW / 2), cy - Math.round(wallH * 0.55), wallW, wallH);
     return;
   }
   const left = iso(x, y + d, z);
   const right = iso(x + w, y, z);
   const front = iso(x + w, y + d, z);
-  const destW = spr.width;
-  const destH = spr.height;
+  const destW = Math.max(8, snap(right.sx - left.sx));
+  const destH =
+    h < 0.2
+      ? Math.max(8, snap((w + d) * (TH / 2)))
+      : Math.max(8, snap(destW * (spr.height / Math.max(1, spr.width))));
   const cx = snap((left.sx + right.sx) / 2);
   const foot = snap(front.sy);
   if (h >= 0.15) {
@@ -179,12 +207,12 @@ function drawSprite(
     ctx.globalAlpha = 0.14;
     ctx.fillStyle = "#1a1020";
     ctx.beginPath();
-    ctx.ellipse(cx, foot - 2, Math.max(6, (w + d) * (TW / 2) * 0.18), TH * 0.12, 0, 0, Math.PI * 2);
+    ctx.ellipse(cx, foot - 2, destW * 0.22, TH * 0.12, 0, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
   }
-  const dx = snap(left.sx) - FURN_PAD;
-  const dy = foot - destH + FURN_PAD;
+  const dx = cx - Math.round(destW / 2);
+  const dy = foot - destH;
   ctx.drawImage(spr, dx, dy, destW, destH);
 }
 
@@ -235,17 +263,16 @@ export function drawFurniture(
   z = 0
 ) {
   const { w, d } = footprint(def, p.rot);
-  const baked = paintFurn(def, p.rot);
-  if (baked && baked.width > 4) {
+  const spr = sprites?.[def.id];
+  if (spr && spr.width > 4) {
     const wall = def.slot === "wall";
     if (def.use === "ticker" && wall) {
-      drawShillboard(ctx, baked, def, p, z);
+      drawShillboard(ctx, spr, def, p, z);
       return;
     }
-    drawSprite(ctx, baked, p.x, p.y, w, d, z, def.h, wall);
+    drawSprite(ctx, spr, p.x, p.y, w, d, z, def.h, wall, p.rot, p.wallLift ?? 1);
     return;
   }
-  void sprites;
   const c = def.colors;
   const x = p.x;
   const y = p.y;
@@ -356,7 +383,7 @@ type DrawOpts = {
   cam: Cam;
   t: number;
   hover?: { x: number; y: number };
-  ghost?: { def: FurnDef; x: number; y: number; rot: 0 | 1 | 2 | 3; ok: boolean };
+  ghost?: { def: FurnDef; x: number; y: number; rot: 0 | 1 | 2 | 3; ok: boolean; wallLift?: 0 | 1 | 2 | 3 };
   images?: Record<string, HTMLImageElement>;
   sprites?: Record<string, HTMLCanvasElement>;
 };
@@ -581,7 +608,7 @@ export function drawRoom(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
     drawFurniture(
       ctx,
       opts.ghost.def,
-      { uid: "g", catalogId: opts.ghost.def.id, x: opts.ghost.x, y: opts.ghost.y, rot: opts.ghost.rot, ownerId: "" },
+      { uid: "g", catalogId: opts.ghost.def.id, x: opts.ghost.x, y: opts.ghost.y, rot: opts.ghost.rot, ownerId: "", wallLift: opts.ghost.wallLift },
       t,
       opts.sprites,
       tileH(layout, opts.ghost.x, opts.ghost.y)

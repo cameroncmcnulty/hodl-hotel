@@ -13,7 +13,7 @@ export type Action =
   | { type: "walk"; x: number; y: number }
   | { type: "chat"; text: string }
   | { type: "ping"; x?: number; y?: number; dir?: Occupant["dir"]; dance?: boolean }
-  | { type: "place"; uid: string; x: number; y: number; rot: 0 | 1 | 2 | 3 }
+  | { type: "place"; uid: string; x: number; y: number; rot: 0 | 1 | 2 | 3; wallLift?: 0 | 1 | 2 | 3 }
   | { type: "pickup"; uid: string }
   | { type: "rotate"; uid: string }
   | { type: "use"; uid: string }
@@ -311,6 +311,7 @@ export function applyAction(userId: string, action: Action) {
       nftMint: item.nftMint,
       nftUrl: item.nftUrl,
       ticker: item.ticker,
+      wallLift: def.slot === "wall" ? action.wallLift ?? 1 : undefined,
     });
     u.backpack[slot] = null;
     bumpQuest(u, "decorator", 1);
