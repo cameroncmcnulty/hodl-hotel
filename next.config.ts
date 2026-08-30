@@ -9,7 +9,15 @@ const nextConfig: NextConfig = {
     return [
       {
         source: "/art/:path*",
-        headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }],
+        headers: [{ key: "Cache-Control", value: "public, max-age=60, must-revalidate" }],
+      },
+      {
+        source: "/join",
+        headers: [{ key: "Cache-Control", value: "no-store, must-revalidate" }],
+      },
+      {
+        source: "/",
+        headers: [{ key: "Cache-Control", value: "no-store, must-revalidate" }],
       },
     ];
   },

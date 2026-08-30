@@ -154,9 +154,9 @@ export function FigureEditor({ figure, onChange }: { figure: Figure; onChange: (
             scale={1}
             label={label}
             ready={ready}
-            figure={{ ...f, gender: i, hair: 0, topCut: 0, botCut: 0, shoeCut: 0 }}
+            figure={{ ...f, gender: i, hair: 0, hairColor: 0, top: 0, bottom: 0, shoes: 0, topCut: 0, botCut: 0, shoeCut: 0 }}
             on={g === i}
-            onClick={() => push({ gender: i, hair: 0, topCut: 0, botCut: 0, shoeCut: 0 })}
+            onClick={() => push({ gender: i, hair: 0, hairColor: 0, top: 0, bottom: 0, shoes: 0, topCut: 0, botCut: 0, shoeCut: 0 })}
           />
         ))}
       </div>
@@ -210,7 +210,13 @@ export function FigureEditor({ figure, onChange }: { figure: Figure; onChange: (
             <div className="grid gap-4">
               <div className="flex flex-wrap justify-center gap-2">
                 {tops.map((name, i) => (
-                  <LookThumb key={`ts-${name}`} ready={ready} figure={{ ...f, topCut: i }} on={(f.topCut ?? 0) === i} onClick={() => push({ topCut: i })} />
+                  <LookThumb
+                    key={`ts-${name}`}
+                    ready={ready}
+                    figure={{ ...f, topCut: i, top: 0 }}
+                    on={(f.topCut ?? 0) === i}
+                    onClick={() => push({ topCut: i, top: 0 })}
+                  />
                 ))}
               </div>
               <div className="flex flex-wrap justify-center gap-2">
@@ -225,7 +231,13 @@ export function FigureEditor({ figure, onChange }: { figure: Figure; onChange: (
             <div className="grid gap-4">
               <div className="flex flex-wrap justify-center gap-2">
                 {bots.map((name, i) => (
-                  <LookThumb key={`bs-${name}`} ready={ready} figure={{ ...f, botCut: i }} on={(f.botCut ?? 0) === i} onClick={() => push({ botCut: i })} />
+                  <LookThumb
+                    key={`bs-${name}`}
+                    ready={ready}
+                    figure={{ ...f, botCut: i, bottom: 0 }}
+                    on={(f.botCut ?? 0) === i}
+                    onClick={() => push({ botCut: i, bottom: 0 })}
+                  />
                 ))}
               </div>
               <div className="flex flex-wrap justify-center gap-2">
@@ -240,7 +252,13 @@ export function FigureEditor({ figure, onChange }: { figure: Figure; onChange: (
             <div className="grid gap-4">
               <div className="flex flex-wrap justify-center gap-2">
                 {shoes.map((name, i) => (
-                  <LookThumb key={`ss-${name}`} ready={ready} figure={{ ...f, shoeCut: i }} on={(f.shoeCut ?? 0) === i} onClick={() => push({ shoeCut: i })} />
+                  <LookThumb
+                    key={`ss-${name}`}
+                    ready={ready}
+                    figure={{ ...f, shoeCut: i, shoes: 0 }}
+                    on={(f.shoeCut ?? 0) === i}
+                    onClick={() => push({ shoeCut: i, shoes: 0 })}
+                  />
                 ))}
               </div>
               <div className="flex flex-wrap justify-center gap-2">
