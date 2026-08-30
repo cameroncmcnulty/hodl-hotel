@@ -6,9 +6,7 @@ import {
   botColors,
   botsFor,
   clampFigure,
-  drawLookThumb,
   DYE,
-  getLookCanvas,
   hairColors,
   hairsFor,
   ITEM_LABEL,
@@ -21,7 +19,7 @@ import {
   topsFor,
   type ThumbZone,
 } from "@/lib/game/avatar";
-import { FOOT_Y, LOOK_H, LOOK_W } from "@/lib/game/lookDraw";
+import { getOgCanvas, loadOgPack, ogScale } from "@/lib/game/ogLook";
 
 function SlotThumb({
   figure,
@@ -46,12 +44,27 @@ function SlotThumb({
   useEffect(() => {
     const c = ref.current;
     if (!c) return;
-    const ctx = c.getContext("2d");
-    if (!ctx) return;
-    ctx.imageSmoothingEnabled = false;
-    ctx.fillStyle = "#24303c";
-    ctx.fillRect(0, 0, w, h);
-    drawLookThumb(ctx, f, zone, 0, 0, scale);
+    let dead = false;
+    const paint = () => {
+      if (dead) return;
+      const ctx = c.getContext("2d");
+      if (!ctx) return;
+      ctx.imageSmoothingEnabled = false;
+      ctx.fillStyle = "#24303c";
+      ctx.fillRect(0, 0, w, h);
+      const look = getOgCanvas(f, {});
+      if (!look) return;
+      const zx = zone === "head" ? 0 : zone === "chest" ? 0.12 : 0.08;
+      const zy = zone === "head" ? 0 : zone === "chest" ? 0.38 : zone === "legs" ? 0.58 : 0;
+      const zw = 1 - zx * 2;
+      const zh = zone === "head" ? 0.48 : zone === "chest" ? 0.32 : zone === "legs" ? 0.42 : 1;
+      ctx.drawImage(look, look.width * zx, look.height * zy, look.width * zw, look.height * zh, 0, 0, w, h);
+    };
+    loadOgPack().then(paint);
+    paint();
+    return () => {
+      dead = true;
+    };
   }, [key, zone, w, h]);
   return (
     <button
@@ -104,16 +117,26 @@ export function CharacterPreview({
   useEffect(() => {
     const canvas = ref.current;
     if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-    ctx.imageSmoothingEnabled = false;
-    ctx.fillStyle = "#5c6b78";
-    ctx.fillRect(0, 0, 200, 220);
-    const look = getLookCanvas(f, { view: dir, sit, lay });
-    const s = 2;
-    const dw = LOOK_W * s;
-    const dh = LOOK_H * s;
-    ctx.drawImage(look, Math.round(100 - dw / 2), Math.round(190 - (FOOT_Y / LOOK_H) * dh), dw, dh);
+    let dead = false;
+    const paint = () => {
+      if (dead) return;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+      ctx.imageSmoothingEnabled = false;
+      ctx.fillStyle = "#5c6b78";
+      ctx.fillRect(0, 0, 200, 220);
+      const look = getOgCanvas(f, { dir, sit, lay });
+      if (!look) return;
+      const s = ogScale(look, lay) * 2.4;
+      const dw = look.width * s;
+      const dh = look.height * s;
+      ctx.drawImage(look, Math.round(100 - dw / 2), Math.round(200 - dh), dw, dh);
+    };
+    loadOgPack().then(paint);
+    paint();
+    return () => {
+      dead = true;
+    };
   }, [key, dir, sit, lay]);
   return (
     <canvas
