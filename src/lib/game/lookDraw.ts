@@ -214,36 +214,37 @@ function isInk(r: number, g: number, b: number) {
   return r + g + b < 36;
 }
 
-function isSkinPx(r: number, g: number, b: number) {
-  if (r < 130) return false;
+function isFlesh(r: number, g: number, b: number) {
+  if (r < 140 || g < 90 || b < 70) return false;
   const rg = r - g;
   const rb = r - b;
-  if (rg < 8 || rg > 95) return false;
-  if (rb < 40 || rb > 150) return false;
+  if (rg < 8 || rg > 80) return false;
+  if (rb < 35 || rb > 145) return false;
   if (b > g + 8) return false;
   return true;
 }
 
 function inEyes(x: number, y: number) {
-  return y >= 48 && y <= 80 && x >= 24 && x <= 72;
+  return y >= 56 && y <= 76 && x >= 34 && x <= 62;
 }
 
 function isHairPx(r: number, g: number, b: number, x: number, y: number, w: number) {
-  if (isSkinPx(r, g, b)) return false;
+  if (isFlesh(r, g, b)) return false;
   if (r > 228 && g > 228 && b > 220) return false;
   if (inEyes(x, y) && r + g + b < 90) return false;
-  if (y > 78 && x > 20 && x < w - 20) return false;
   const brown = r > g - 5 && g >= b - 15 && r - b > 12 && r > 40 && r < 220 && g < 180;
   const dark = r + g + b < 110 && y < 86;
-  return brown || dark;
+  if (y <= 78) return brown || dark;
+  if ((x < 22 || x > w - 22) && y <= 130 && brown) return true;
+  return false;
 }
 
-function clearBand(p: Pix, y0: number, y1: number) {
-  const yA = Math.max(0, y0);
-  const yB = Math.min(p.h, y1);
-  for (let y = yA; y < yB; y++) {
-    for (let x = 0; x < p.w; x++) p.set(x, y, [0, 0, 0], 0);
-  }
+function isHand(x: number, y: number, w: number) {
+  return y >= 116 && y <= 148 && (x < 22 || x > w - 22);
+}
+
+function isSilhouette(p: Pix, x: number, y: number) {
+  return p.a(x - 1, y) < 16 || p.a(x + 1, y) < 16 || p.a(x, y - 1) < 16 || p.a(x, y + 1) < 16;
 }
 
 function stampBand(dst: Pix, src: Pix, y0: number, y1: number) {
@@ -252,28 +253,55 @@ function stampBand(dst: Pix, src: Pix, y0: number, y1: number) {
   for (let y = yA; y < yB; y++) {
     for (let x = 0; x < dst.w; x++) {
       if (src.a(x, y) < 16) continue;
+      if (isHand(x, y, dst.w) && dst.a(x, y) >= 16) continue;
       const i = (y * src.w + x) * 4;
       dst.set(x, y, [src.d[i], src.d[i + 1], src.d[i + 2]], src.d[i + 3]);
     }
   }
 }
 
-function stampTorso(dst: Pix, top: Pix) {
-  for (let y = 90; y < BOT_Y; y++) {
-    for (let x = 0; x < dst.w; x++) {
-      if (top.a(x, y) < 16) continue;
-      if (y < 90 && (x < 18 || x > dst.w - 18) && dst.a(x, y) >= 16) {
-        const i = (y * dst.w + x) * 4;
-        if (isHairPx(dst.d[i], dst.d[i + 1], dst.d[i + 2], x, y, dst.w)) continue;
-      }
-      const i = (y * top.w + x) * 4;
-      dst.set(x, y, [top.d[i], top.d[i + 1], top.d[i + 2]], top.d[i + 3]);
+function eraseHair(p: Pix) {
+  for (let y = 0; y < 90; y++) {
+    for (let x = 0; x < p.w; x++) {
+      if (p.a(x, y) < 16) continue;
+      const i = (y * p.w + x) * 4;
+      const r = p.d[i],
+        g = p.d[i + 1],
+        b = p.d[i + 2];
+      if (isFlesh(r, g, b) || inEyes(x, y)) continue;
+      if (!isHairPx(r, g, b, x, y, p.w)) continue;
+      p.set(x, y, [0, 0, 0], 0);
     }
   }
 }
 
-function isSilhouette(p: Pix, x: number, y: number) {
-  return p.a(x - 1, y) < 16 || p.a(x + 1, y) < 16 || p.a(x, y - 1) < 16 || p.a(x, y + 1) < 16;
+function stampHair(dst: Pix, src: Pix) {
+  for (let y = 0; y < 90; y++) {
+    for (let x = 0; x < src.w; x++) {
+      if (src.a(x, y) < 16) continue;
+      const i = (y * src.w + x) * 4;
+      const r = src.d[i],
+        g = src.d[i + 1],
+        b = src.d[i + 2];
+      if (!isHairPx(r, g, b, x, y, src.w)) continue;
+      if (dst.a(x, y) >= 16) {
+        const di = (y * dst.w + x) * 4;
+        if (isFlesh(dst.d[di], dst.d[di + 1], dst.d[di + 2]) && y > 58 && y < 86) continue;
+      }
+      dst.set(x, y, [r, g, b], src.d[i + 3]);
+    }
+  }
+}
+
+function restoreHands(dst: Pix, src: Pix) {
+  for (let y = 116; y < 148; y++) {
+    for (let x = 0; x < dst.w; x++) {
+      if (!isHand(x, y, dst.w)) continue;
+      if (src.a(x, y) < 16) continue;
+      const i = (y * src.w + x) * 4;
+      dst.set(x, y, [src.d[i], src.d[i + 1], src.d[i + 2]], src.d[i + 3]);
+    }
+  }
 }
 
 function tintPixels(p: Pix, hex: string, keep: (x: number, y: number) => boolean, contrast = 0.34) {
@@ -310,6 +338,13 @@ function tintPixels(p: Pix, hex: string, keep: (x: number, y: number) => boolean
   }
 }
 
+function isCloth(r: number, g: number, b: number, x: number, y: number, w: number) {
+  if (isFlesh(r, g, b)) return false;
+  if (isHairPx(r, g, b, x, y, w)) return false;
+  if (inEyes(x, y)) return false;
+  return true;
+}
+
 function paintChibi(f: Figure): Pix {
   const ids = chibiIds(f);
   const hair = CHIBI.get(ids[0])!;
@@ -320,54 +355,51 @@ function paintChibi(f: Figure): Pix {
   const shoeName = shoesFor(g)[f.shoeCut ?? 0] || "sneakers";
   const shoeTop = SHOE_TOP[shoeName] ?? 156;
   const p = new Pix(LOOK_W, LOOK_H);
-  p.blit(hair);
-  stampTorso(p, top);
-  clearBand(p, BOT_Y, LOOK_H);
-  stampBand(p, bot, BOT_Y, LOOK_H);
-  stampBand(p, shoe, shoeTop, LOOK_H);
+  p.blit(top);
+  if (f.hair !== 0) {
+    eraseHair(p);
+    stampHair(p, hair);
+  }
+  if ((f.botCut ?? 0) !== 0 || (f.shoeCut ?? 0) !== 0) {
+    for (let y = BOT_Y; y < LOOK_H; y++) {
+      for (let x = 0; x < p.w; x++) {
+        if (isHand(x, y, p.w) && p.a(x, y) >= 16) continue;
+        p.set(x, y, [0, 0, 0], 0);
+      }
+    }
+    stampBand(p, bot, BOT_Y, shoeTop);
+    stampBand(p, shoe, shoeTop, LOOK_H);
+    restoreHands(p, top);
+  }
   const pal = palOf(f);
   if (f.skin !== 1) {
-    tintPixels(
-      p,
-      pal.skin,
-      (x, y) => {
-        if (p.a(x, y) < 16) return false;
-        const i = (y * p.w + x) * 4;
-        return isSkinPx(p.d[i], p.d[i + 1], p.d[i + 2]);
-      },
-      0.28,
-    );
+    tintPixels(p, pal.skin, (x, y) => {
+      if (p.a(x, y) < 16) return false;
+      const i = (y * p.w + x) * 4;
+      return isFlesh(p.d[i], p.d[i + 1], p.d[i + 2]);
+    }, 0.28);
   }
   if (f.hairColor !== 0) {
-    tintPixels(
-      p,
-      pal.hair,
-      (x, y) => {
-        if (p.a(x, y) < 16) return false;
-        const i = (y * p.w + x) * 4;
-        return isHairPx(p.d[i], p.d[i + 1], p.d[i + 2], x, y, p.w);
-      },
-      0.4,
-    );
+    tintPixels(p, pal.hair, (x, y) => {
+      if (p.a(x, y) < 16) return false;
+      const i = (y * p.w + x) * 4;
+      return isHairPx(p.d[i], p.d[i + 1], p.d[i + 2], x, y, p.w);
+    }, 0.4);
   }
   if (f.top !== 0) {
-    tintPixels(
-      p,
-      pal.top,
-      (x, y) => {
-        if (y < 90 || y >= BOT_Y || inEyes(x, y) || p.a(x, y) < 16) return false;
-        const i = (y * p.w + x) * 4;
-        return !isSkinPx(p.d[i], p.d[i + 1], p.d[i + 2]) && !isHairPx(p.d[i], p.d[i + 1], p.d[i + 2], x, y, p.w);
-      },
-      0.32,
-    );
+    tintPixels(p, pal.top, (x, y) => {
+      if (y < 88 || y >= BOT_Y || p.a(x, y) < 16) return false;
+      if (isHand(x, y, p.w)) return false;
+      const i = (y * p.w + x) * 4;
+      return isCloth(p.d[i], p.d[i + 1], p.d[i + 2], x, y, p.w);
+    }, 0.32);
   }
   if (f.bottom !== 0) {
     tintPixels(p, pal.bot, (x, y) => {
-      if (y < BOT_Y || y >= shoeTop) return false;
-      if (p.a(x, y) < 16) return false;
+      if (y < BOT_Y || y >= shoeTop || p.a(x, y) < 16) return false;
+      if (isHand(x, y, p.w)) return false;
       const i = (y * p.w + x) * 4;
-      if (isSkinPx(p.d[i], p.d[i + 1], p.d[i + 2])) return false;
+      if (isFlesh(p.d[i], p.d[i + 1], p.d[i + 2])) return false;
       if (y > 142 && p.d[i] > 200 && p.d[i + 1] > 200 && p.d[i + 2] > 200) return false;
       return true;
     });
@@ -376,7 +408,7 @@ function paintChibi(f: Figure): Pix {
     tintPixels(p, pal.shoe, (x, y) => {
       if (y < shoeTop || p.a(x, y) < 16) return false;
       const i = (y * p.w + x) * 4;
-      return !isSkinPx(p.d[i], p.d[i + 1], p.d[i + 2]);
+      return !isFlesh(p.d[i], p.d[i + 1], p.d[i + 2]);
     });
   }
   return p;
