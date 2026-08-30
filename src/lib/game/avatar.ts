@@ -122,20 +122,16 @@ export async function loadLookSprites(fig: Figure, _dir: 0 | 1 | 2 | 3 = 1) {
 }
 
 export function loadAvatars() {
-  if (allLoaded) return Promise.resolve();
-  if (allLoading) return allLoading;
-  allLoading = Promise.all(allChibiIds().map(loadSpriteId)).then(() => {
-    allLoaded = true;
-  });
-  return allLoading;
+  allLoaded = true;
+  return Promise.resolve();
 }
 
 export function lookReady(_fig?: Figure, _dir: 0 | 1 | 2 | 3 = 1) {
-  return allLoaded;
+  return true;
 }
 
 export function avatarsReady() {
-  return allLoaded;
+  return true;
 }
 
 function blit(
