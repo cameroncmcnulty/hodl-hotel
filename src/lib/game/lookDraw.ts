@@ -33,7 +33,7 @@ const TOP_PAL: Record<string, string[]> = {
   "0-jacket": ["#1a1a1e", "#6d4c2f", "#c41e3a", "#1e3a5f", "#6b7280"],
   "0-tank": ["#1a1a1e", "#f4f4f6", "#c41e3a", "#6b7280", "#1e3a8a"],
   "0-sweater": ["#c4a574", "#1e3a5f", "#7f1d1d", "#6b7280", "#166534"],
-  "1-hoodie": ["#1a1a1e", "#ff8fab", "#7c3aed", "#f4f4f6", "#3b82f6"],
+  "1-hoodie": ["#ff8fab", "#7c3aed", "#f4f4f6", "#9a9a9a", "#3b82f6"],
   "1-tee": ["#f4f4f6", "#ff8fab", "#e8b931", "#c41e3a", "#1a1a1e"],
   "1-jacket": ["#1a1a1e", "#ff8fab", "#7c3aed", "#f4f4f6", "#c41e3a"],
   "1-tank": ["#1a1a1e", "#ff8fab", "#f4f4f6", "#7c3aed", "#c41e3a"],
@@ -216,13 +216,19 @@ function isInk(r: number, g: number, b: number) {
   return r + g + b < 40;
 }
 
+function isSclera(r: number, g: number, b: number) {
+  return r > 215 && g > 210 && b > 200 && Math.abs(r - g) < 28;
+}
+
 function isSkinPx(r: number, g: number, b: number) {
-  if (r < 165) return false;
+  if (isInk(r, g, b) || isSclera(r, g, b)) return false;
+  if (r < 90) return false;
+  if (r + g + b < 290) return false;
   const rg = r - g;
   const rb = r - b;
-  if (rg < 18 || rg > 90) return false;
-  if (rb < 70 || rb > 140) return false;
-  if (b > g + 5) return false;
+  if (rg < 4 || rg > 105) return false;
+  if (rb < 24 || rb > 160) return false;
+  if (b > g + 12) return false;
   return true;
 }
 
@@ -236,13 +242,12 @@ function isSide(x: number, w: number) {
 }
 
 function isHairPx(r: number, g: number, b: number, x: number, y: number, w: number) {
-  if (isSkinPx(r, g, b)) return false;
+  if (isSkinPx(r, g, b) || isSclera(r, g, b)) return false;
   if (isPupil(r, g, b, x, y)) return false;
-  if (r > 228 && g > 228 && b > 220) return false;
   const brown = r > g - 5 && g >= b - 15 && r - b > 12 && r > 40 && r < 220 && g < 180;
   const dark = r + g + b < 110;
-  if (y <= 78) return brown || dark;
-  if (isSide(x, w) && y <= 132 && (brown || (dark && y <= 96))) return true;
+  if (y <= 70) return brown || dark;
+  if (isSide(x, w) && y <= 132 && brown) return true;
   return false;
 }
 
@@ -411,11 +416,41 @@ function sealOutline(p: Pix, outside: Uint8Array) {
   for (let k = 0; k < ring.length; k += 2) p.set(ring[k], ring[k + 1], INK, 255);
 }
 
+function growMask(p: Pix, mask: Uint8Array, allow: (r: number, g: number, b: number, x: number, y: number) => boolean) {
+  const w = p.w;
+  const h = p.h;
+  for (let pass = 0; pass < 10; pass++) {
+    const add: number[] = [];
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const idx = y * w + x;
+        if (mask[idx] || p.a(x, y) < 16) continue;
+        const i = idx * 4;
+        const r = p.d[i],
+          g = p.d[i + 1],
+          b = p.d[i + 2];
+        if (isInk(r, g, b)) continue;
+        if (!allow(r, g, b, x, y)) continue;
+        if (
+          (x > 0 && mask[idx - 1]) ||
+          (x < w - 1 && mask[idx + 1]) ||
+          (y > 0 && mask[idx - w]) ||
+          (y < h - 1 && mask[idx + w])
+        ) {
+          add.push(idx);
+        }
+      }
+    }
+    if (!add.length) break;
+    for (const idx of add) mask[idx] = 1;
+  }
+}
+
 function tintPixels(
   p: Pix,
   hex: string,
   keep: (x: number, y: number) => boolean,
-  contrast = 0.28,
+  contrast = 0.22,
   outside?: Uint8Array,
 ) {
   const t = rgb(hex);
@@ -430,19 +465,18 @@ function tintPixels(
       const r = p.d[i],
         g = p.d[i + 1],
         b = p.d[i + 2];
-      if (outside && isInk(r, g, b) && touchesOutside(outside, p.w, p.h, x, y)) continue;
       const lum = r * 0.32 + g * 0.5 + b * 0.18;
       if (lum < minL) minL = lum;
       if (lum > maxL) maxL = lum;
       hits.push(x, y, lum);
     }
   }
-  if (hits.length < 12) return;
+  if (hits.length < 8) return;
   const span = maxL - minL;
-  const lo = 0.5;
-  const hi = Math.min(1, lo + contrast);
+  const lo = 0.84;
+  const hi = Math.min(1, lo + Math.min(contrast, 0.14));
   for (let h = 0; h < hits.length; h += 3) {
-    const u = span < 8 ? 0.55 : (hits[h + 2] - minL) / span;
+    const u = span < 8 ? 0.6 : (hits[h + 2] - minL) / span;
     const s = lo + (hi - lo) * u;
     p.set(hits[h], hits[h + 1], [
       Math.max(0, Math.min(255, Math.round(t[0] * s))),
@@ -483,62 +517,65 @@ function paintChibi(f: Figure): Pix {
         g = p.d[i + 1],
         b = p.d[i + 2];
       const idx = y * p.w + x;
+      if (isInk(r, g, b) && touchesOutside(outside, p.w, p.h, x, y)) continue;
       if (isSkinPx(r, g, b)) skinM[idx] = 1;
       else if (isHairPx(r, g, b, x, y, p.w)) hairM[idx] = 1;
     }
   }
+  growMask(p, skinM, (r, g, b, x, y) => {
+    if (hairM[y * p.w + x]) return false;
+    if (isPupil(r, g, b, x, y) || isSclera(r, g, b)) return false;
+    return isSkinPx(r, g, b);
+  });
+  growMask(p, hairM, (r, g, b, x, y) => {
+    if (skinM[y * p.w + x]) return false;
+    return isHairPx(r, g, b, x, y, p.w);
+  });
   const pal = palOf(f);
-  if (f.skin !== 1) {
-    tintPixels(p, pal.skin, (x, y) => !!skinM[y * p.w + x], 0.36, outside);
-  }
-  if (f.hairColor !== 0) {
-    tintPixels(p, pal.hair, (x, y) => !!hairM[y * p.w + x], 0.42, outside);
-  }
-  if (f.top !== 0) {
-    tintPixels(
-      p,
-      pal.top,
-      (x, y) => {
-        if (y < 78 || y >= BOT_Y + 2 || p.a(x, y) < 16) return false;
-        if (isHandZone(x, y, p.w) && y > 132) return false;
-        const idx = y * p.w + x;
-        if (skinM[idx] || hairM[idx]) return false;
-        return true;
-      },
-      0.32,
-      outside,
-    );
-  }
-  if (f.bottom !== 0) {
-    tintPixels(
-      p,
-      pal.bot,
-      (x, y) => {
-        if (y < BOT_Y - 2 || y >= shoeTop || p.a(x, y) < 16) return false;
-        if (isHandZone(x, y, p.w)) return false;
-        if (skinM[y * p.w + x]) return false;
-        const i = (y * p.w + x) * 4;
-        if (y > 142 && p.d[i] > 200 && p.d[i + 1] > 200 && p.d[i + 2] > 200) return false;
-        return true;
-      },
-      0.32,
-      outside,
-    );
-  }
-  if (f.shoes !== 0) {
-    tintPixels(
-      p,
-      pal.shoe,
-      (x, y) => {
-        if (y < shoeTop || p.a(x, y) < 16) return false;
-        return !skinM[y * p.w + x];
-      },
-      0.32,
-      outside,
-    );
-  }
+  if (f.skin !== 1) tintPixels(p, pal.skin, (x, y) => !!skinM[y * p.w + x], 0.16, outside);
+  if (f.hairColor !== 0) tintPixels(p, pal.hair, (x, y) => !!hairM[y * p.w + x], 0.24, outside);
+  tintPixels(
+    p,
+    pal.top,
+    (x, y) => {
+      if (y < 74 || y >= BOT_Y + 2 || p.a(x, y) < 16) return false;
+      const idx = y * p.w + x;
+      if (skinM[idx] || hairM[idx]) return false;
+      const i = idx * 4;
+      if (isPupil(p.d[i], p.d[i + 1], p.d[i + 2], x, y)) return false;
+      if (isSclera(p.d[i], p.d[i + 1], p.d[i + 2])) return false;
+      return true;
+    },
+    0.2,
+    outside,
+  );
+  tintPixels(
+    p,
+    pal.bot,
+    (x, y) => {
+      if (y < BOT_Y - 2 || y >= shoeTop || p.a(x, y) < 16) return false;
+      if (isHandZone(x, y, p.w)) return false;
+      if (skinM[y * p.w + x] || hairM[y * p.w + x]) return false;
+      const i = (y * p.w + x) * 4;
+      if (y > 142 && p.d[i] > 200 && p.d[i + 1] > 200 && p.d[i + 2] > 200) return false;
+      return true;
+    },
+    0.2,
+    outside,
+  );
+  tintPixels(
+    p,
+    pal.shoe,
+    (x, y) => {
+      if (y < shoeTop || p.a(x, y) < 16) return false;
+      if (skinM[y * p.w + x]) return false;
+      return true;
+    },
+    0.2,
+    outside,
+  );
   closeHoles(p);
-  sealOutline(p, outside);
+  sealOutline(p, outsideMask(p));
   return p;
 }
 

@@ -281,16 +281,11 @@ function savePng(file, img, dir = OUT) {
 }
 
 const packed = {};
-const boyRefImg = pack(decode(MAP["m-top-hoodie"]));
-const girlRefImg = pack(decode(MAP["f-top-hoodie"]));
-const boyRef = packedFace(boyRefImg);
-const girlRef = packedFace(girlRefImg);
-console.log("boy face ref", boyRef);
-console.log("girl face ref", girlRef);
+const FACE_REF = { x: 48, y: 71 };
+console.log("face ref", FACE_REF);
 
 for (const [name, file] of Object.entries(MAP)) {
-  const ref = name.startsWith("f-") ? girlRef : boyRef;
-  packed[name] = snapTo(pack(decode(file), ref), ref);
+  packed[name] = snapTo(pack(decode(file), FACE_REF), FACE_REF);
   savePng(name + ".png", packed[name]);
   const face = packedFace(packed[name]);
   console.log("packed", name, file, "face", Math.round(face.x), Math.round(face.y));
