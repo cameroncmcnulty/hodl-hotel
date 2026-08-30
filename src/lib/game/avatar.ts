@@ -58,25 +58,53 @@ export {
   type ThumbZone,
 } from "./lookDraw";
 
-export const AVATAR_DRAW_H = LOOK_H * LOOK_SCALE;
-export const AVATAR_NAME_LIFT = AVATAR_DRAW_H - 8;
+export const AVATAR_TILE_W = 40;
+export const AVATAR_DRAW_H = 64;
+export const AVATAR_NAME_LIFT = 60;
 export const SPRITE_W = LOOK_W;
 export const SPRITE_H = LOOK_H;
 export const SPRITE_V = 40;
 
-const canvasCache = new Map<string, HTMLCanvasElement>();
+type LookCache = { canvas: HTMLCanvasElement; x: number; y: number; w: number; h: number };
+const canvasCache = new Map<string, LookCache>();
 
-function lookCanvas(fig: Figure, opts: LookOpts = {}) {
+function contentBox(c: HTMLCanvasElement) {
+  const ctx = c.getContext("2d")!;
+  const { data, width, height } = ctx.getImageData(0, 0, c.width, c.height);
+  let minX = width;
+  let minY = height;
+  let maxX = 0;
+  let maxY = 0;
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      if (data[(y * width + x) * 4 + 3] < 10) continue;
+      if (x < minX) minX = x;
+      if (y < minY) minY = y;
+      if (x > maxX) maxX = x;
+      if (y > maxY) maxY = y;
+    }
+  }
+  if (maxX < minX) return { x: 0, y: 0, w: c.width, h: c.height };
+  return { x: minX, y: minY, w: maxX - minX + 1, h: maxY - minY + 1 };
+}
+
+function lookCached(fig: Figure, opts: LookOpts = {}): LookCache {
   const key = lookKey(fig, opts);
   const hit = canvasCache.get(key);
   if (hit) return hit;
-  const c = paintLook(fig, opts).canvas();
-  canvasCache.set(key, c);
+  const canvas = paintLook(fig, opts).canvas();
+  const box = contentBox(canvas);
+  const rec = { canvas, ...box };
+  canvasCache.set(key, rec);
   if (canvasCache.size > 220) {
     const first = canvasCache.keys().next().value;
     if (first) canvasCache.delete(first);
   }
-  return c;
+  return rec;
+}
+
+function lookCanvas(fig: Figure, opts: LookOpts = {}) {
+  return lookCached(fig, opts).canvas;
 }
 
 export function clearLookCache() {
@@ -174,13 +202,14 @@ export function drawAvatarIso(
   const sit = !!opts.sit && !walking;
   const frame = dance ? Math.floor(t * 8) % 4 : walking ? Math.floor((opts.dist || 0) * 2) % 2 : 0;
   const walk: 0 | 1 = walking && frame % 2 === 1 ? 1 : 0;
-  const src = lookCanvas(fig, { view: dir, walk, sit });
-  const s = LOOK_SCALE;
-  const bob = dance ? (frame % 2 === 0 ? -3 : 0) : walking ? (frame % 2 === 0 ? 0 : -3) : 0;
-  const dw = src.width * s;
-  const dh = src.height * s;
-  const dy = Math.round(sy - dh + 8 + bob + (sit ? 12 : 0));
-  blit(ctx, src, Math.round(sx - dw / 2), dy, s, false);
+  const rec = lookCached(fig, { view: dir, walk, sit });
+  const bob = dance ? (frame % 2 === 0 ? -2 : 0) : walking ? (frame % 2 === 0 ? 0 : -2) : 0;
+  const dw = AVATAR_TILE_W;
+  const dh = Math.max(24, Math.round((dw * rec.h) / Math.max(1, rec.w)));
+  const dx = Math.round(sx - dw / 2);
+  const dy = Math.round(sy - dh + bob + (sit ? Math.round(dh * 0.16) : 0));
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(rec.canvas, rec.x, rec.y, rec.w, rec.h, dx, dy, dw, dh);
 }
 
 export function shade(hex: string, amt: number) {

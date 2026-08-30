@@ -107,7 +107,39 @@ function keyAndTrim(img: HTMLImageElement) {
   out.width = maxX - minX + 1;
   out.height = maxY - minY + 1;
   out.getContext("2d")!.drawImage(c, minX, minY, out.width, out.height, 0, 0, out.width, out.height);
-  return out;
+  return inkOutline(out);
+}
+
+function inkOutline(src: HTMLCanvasElement) {
+  const w = src.width;
+  const h = src.height;
+  const c = document.createElement("canvas");
+  c.width = w + 2;
+  c.height = h + 2;
+  const ctx = c.getContext("2d")!;
+  ctx.drawImage(src, 1, 1);
+  const img = ctx.getImageData(0, 0, c.width, c.height);
+  const d = img.data;
+  const a = (x: number, y: number) => {
+    if (x < 0 || y < 0 || x >= c.width || y >= c.height) return 0;
+    return d[(y * c.width + x) * 4 + 3];
+  };
+  const marks: number[] = [];
+  for (let y = 0; y < c.height; y++) {
+    for (let x = 0; x < c.width; x++) {
+      if (a(x, y) > 12) continue;
+      if (a(x - 1, y) > 12 || a(x + 1, y) > 12 || a(x, y - 1) > 12 || a(x, y + 1) > 12) marks.push(x, y);
+    }
+  }
+  for (let i = 0; i < marks.length; i += 2) {
+    const o = (marks[i + 1] * c.width + marks[i]) * 4;
+    d[o] = 12;
+    d[o + 1] = 8;
+    d[o + 2] = 14;
+    d[o + 3] = 255;
+  }
+  ctx.putImageData(img, 0, 0);
+  return c;
 }
 
 function loadImage(src: string) {
@@ -126,8 +158,8 @@ export function loadSprite(id: string) {
   if (cache[id]) return Promise.resolve(cache[id]);
   if (id in inflight) return inflight[id];
   inflight[id] = (async () => {
-    const png = await loadImage(`/art/furn/${id}.png?v=16`);
-    const img = png || (await loadImage(`/art/furn/${id}.jpg?v=16`));
+    const png = await loadImage(`/art/furn/${id}.png?v=17`);
+    const img = png || (await loadImage(`/art/furn/${id}.jpg?v=17`));
     if (!img) return null;
     const canvas = keyAndTrim(img);
     if (canvas.width > 4) cache[id] = canvas;

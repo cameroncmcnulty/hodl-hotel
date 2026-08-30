@@ -53,19 +53,11 @@ function diamond(ctx: CanvasRenderingContext2D, x: number, y: number, fill: stri
   ctx.closePath();
   ctx.fillStyle = fill;
   ctx.fill();
-  ctx.strokeStyle = stroke;
-  ctx.lineWidth = 1;
-  ctx.stroke();
-  ctx.beginPath();
-  ctx.moveTo(t.x, t.y + 1);
-  ctx.lineTo(l.x + 1, l.y);
-  ctx.strokeStyle = "rgba(255,255,255,0.22)";
-  ctx.stroke();
-  ctx.beginPath();
-  ctx.moveTo(t.x, t.y + 1);
-  ctx.lineTo(r.x - 1, r.y);
-  ctx.strokeStyle = "rgba(0,0,0,0.12)";
-  ctx.stroke();
+  if (stroke && stroke !== "none") {
+    ctx.strokeStyle = stroke;
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  }
 }
 
 const EDGE = 12;
@@ -138,20 +130,16 @@ function wallTheme(layout: Layout): WallTheme {
 function wallRunN(ctx: CanvasRenderingContext2D, x0: number, x1: number, y: number, z: number, theme: WallTheme) {
   const top = theme.h;
   poly(ctx, [iso(x0, y, top), iso(x1 + 1, y, top), iso(x1 + 1, y, z), iso(x0, y, z)], theme.paper, false);
-  poly(ctx, [iso(x0, y, top), iso(x1 + 1, y, top), iso(x1 + 1, y, top - 0.35), iso(x0, y, top - 0.35)], theme.cap, false);
-  poly(ctx, [iso(x0, y, z + 0.42), iso(x1 + 1, y, z + 0.42), iso(x1 + 1, y, z), iso(x0, y, z)], theme.base, false);
-  const mid = z + theme.h * 0.55;
-  poly(ctx, [iso(x0, y, mid), iso(x1 + 1, y, mid), iso(x1 + 1, y, mid - 0.08), iso(x0, y, mid - 0.08)], theme.rail, false);
+  poly(ctx, [iso(x0, y, top), iso(x1 + 1, y, top), iso(x1 + 1, y, top - 0.28), iso(x0, y, top - 0.28)], theme.cap, false);
+  poly(ctx, [iso(x0, y, z + 0.38), iso(x1 + 1, y, z + 0.38), iso(x1 + 1, y, z), iso(x0, y, z)], theme.base, false);
 }
 
 function wallRunW(ctx: CanvasRenderingContext2D, x: number, y0: number, y1: number, z: number, theme: WallTheme) {
   const top = theme.h;
   const left = shade(theme.paper, -22);
   poly(ctx, [iso(x, y0, top), iso(x, y1 + 1, top), iso(x, y1 + 1, z), iso(x, y0, z)], left, false);
-  poly(ctx, [iso(x, y0, top), iso(x, y1 + 1, top), iso(x, y1 + 1, top - 0.35), iso(x, y0, top - 0.35)], shade(theme.cap, -12), false);
-  poly(ctx, [iso(x, y0, z + 0.42), iso(x, y1 + 1, z + 0.42), iso(x, y1 + 1, z), iso(x, y0, z)], shade(theme.base, -14), false);
-  const mid = z + theme.h * 0.55;
-  poly(ctx, [iso(x, y0, mid), iso(x, y1 + 1, mid), iso(x, y1 + 1, mid - 0.08), iso(x, y0, mid - 0.08)], shade(theme.rail, -18), false);
+  poly(ctx, [iso(x, y0, top), iso(x, y1 + 1, top), iso(x, y1 + 1, top - 0.28), iso(x, y0, top - 0.28)], shade(theme.cap, -12), false);
+  poly(ctx, [iso(x, y0, z + 0.38), iso(x, y1 + 1, z + 0.38), iso(x, y1 + 1, z), iso(x, y0, z)], shade(theme.base, -14), false);
 }
 
 function drawSprite(
@@ -167,35 +155,42 @@ function drawSprite(
   flip = false
 ) {
   ctx.imageSmoothingEnabled = false;
-  const destW = Math.max(8, (w + d) * (TW / 2));
-  const aspectH = destW * (spr.height / Math.max(1, spr.width));
-  const destH = Math.max(12, h < 0.2 ? aspectH : Math.max(aspectH, h * ZH * 1.8));
   if (wall) {
-    const hang = iso(x + w * 0.5, y + 0.08, z + 2.15);
-    const wallW = Math.max(18, w * TW * 0.42);
-    const wallH = Math.max(22, h * ZH * 0.95);
-    ctx.drawImage(spr, snap(hang.sx - wallW / 2), snap(hang.sy - wallH), wallW, wallH);
+    const a = iso(x, y, z + 2.1);
+    const b = iso(x + w, y, z + 2.1);
+    const cx = snap((a.sx + b.sx) / 2);
+    const cy = snap((a.sy + b.sy) / 2);
+    const wallW = Math.max(16, snap(Math.abs(b.sx - a.sx) * 0.92) || w * (TW / 2));
+    const wallH = snap(wallW * (spr.height / Math.max(1, spr.width)));
+    ctx.drawImage(spr, cx - Math.round(wallW / 2), cy - wallH, wallW, wallH);
     return;
   }
-  const near = iso(x + w, y + d, z);
-  const cx = snap(near.sx);
-  const foot = snap(near.sy);
-  if (h >= 0.2) {
+  const left = iso(x, y + d, z);
+  const right = iso(x + w, y, z);
+  const front = iso(x + w, y + d, z);
+  const destW = Math.max(8, snap(right.sx - left.sx));
+  const destH =
+    h < 0.2
+      ? Math.max(8, snap((w + d) * (TH / 2)))
+      : Math.max(8, snap(destW * (spr.height / Math.max(1, spr.width))));
+  const cx = snap((left.sx + right.sx) / 2);
+  const foot = snap(front.sy);
+  if (h >= 0.15) {
     ctx.save();
-    ctx.globalAlpha = 0.16;
+    ctx.globalAlpha = 0.14;
     ctx.fillStyle = "#1a1020";
     ctx.beginPath();
-    ctx.ellipse(cx, foot - 3, destW * 0.26, TH * 0.16, 0, 0, Math.PI * 2);
+    ctx.ellipse(cx, foot - 2, destW * 0.22, TH * 0.12, 0, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
   }
-  const dx = snap(cx - destW / 2);
-  const dy = snap(foot - destH);
+  const dx = cx - Math.round(destW / 2);
+  const dy = foot - destH;
   if (flip) {
     ctx.save();
     ctx.translate(cx, 0);
     ctx.scale(-1, 1);
-    ctx.drawImage(spr, snap(-destW / 2), dy, destW, destH);
+    ctx.drawImage(spr, -Math.round(destW / 2), dy, destW, destH);
     ctx.restore();
   } else {
     ctx.drawImage(spr, dx, dy, destW, destH);
