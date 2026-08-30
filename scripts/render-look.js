@@ -41,9 +41,9 @@ const look = loadTs(path.join("src", "lib", "game", "lookDraw.ts"));
 const pix = loadTs(path.join("src", "lib", "game", "pix.ts"));
 const { paintLook, clampFigure, LOOK_W, LOOK_H, Pix, setChibi, pixFromRgba, allChibiIds } = { ...look, ...pix };
 
-const LOOK_DIR = path.join(ROOT, "public", "art", "look");
+const PRE_DIR = path.join(ROOT, "public", "art", "premade");
 for (const id of allChibiIds()) {
-  const file = path.join(LOOK_DIR, id + ".png");
+  const file = path.join(PRE_DIR, id + ".png");
   if (!fs.existsSync(file)) continue;
   const png = PNG.sync.read(fs.readFileSync(file));
   setChibi(id, pixFromRgba(png.width, png.height, png.data));
@@ -85,10 +85,11 @@ function sheet(name, figs, cols = 5, bg = [92, 107, 120]) {
   savePix(name, p, 4);
 }
 
-const boyHairs = [0, 1, 2, 3, 4, 5].map((hair) => fig({ gender: 0, hair, topCut: 1, botCut: 0, top: 3, bottom: 1, shoes: 0 }));
-const girlHairs = [0, 1, 2, 3, 4, 5].map((hair) => fig({ gender: 1, hair, topCut: 1, botCut: 0, top: 0, bottom: 1, shoes: 1, hairColor: 5 }));
-sheet("boy-hairs", boyHairs, 6);
-sheet("girl-hairs", girlHairs, 6);
+const LOOK_N = look.LOOK_N || 21;
+const boyLooks = Array.from({ length: LOOK_N }, (_, lookId) => fig({ gender: 0, look: lookId }));
+const girlLooks = Array.from({ length: LOOK_N }, (_, lookId) => fig({ gender: 1, look: lookId }));
+sheet("boy-hairs", boyLooks, 7);
+sheet("girl-hairs", girlLooks, 7);
 
 const boySkins = [0, 1, 2, 3, 4, 5, 6, 7].map((skin) => fig({ gender: 0, skin, hair: 4, topCut: 0, botCut: 1, top: 2, bottom: 0, shoes: 2 }));
 const girlSkins = [0, 1, 2, 3, 4, 5, 6, 7].map((skin) => fig({ gender: 1, skin, hair: 2, topCut: 0, botCut: 0, top: 1, bottom: 0, shoes: 0 }));
@@ -148,26 +149,14 @@ function hashPix(p) {
 let combos = 0;
 const seen = new Set();
 for (const gender of [0, 1]) {
-  const hairs = 6;
-  const tops = 5;
-  const bots = 5;
-  const shoes = 5;
-  for (let hair = 0; hair < hairs; hair++) {
-    for (let topCut = 0; topCut < tops; topCut++) {
-      for (let botCut = 0; botCut < bots; botCut++) {
-        for (let shoeCut = 0; shoeCut < shoes; shoeCut++) {
-          for (const skin of [0, 4, 7]) {
-            const p = paintLook(fig({ gender, hair, topCut, botCut, shoeCut, skin, top: 1, bottom: 2, shoes: 3, hairColor: 2 }));
-            if (p.w !== LOOK_W || p.h !== LOOK_H) throw new Error("size " + p.w + "x" + p.h);
-            let opaque = 0;
-            for (let i = 3; i < p.d.length; i += 4) if (p.d[i] > 8) opaque++;
-            if (opaque < 800) throw new Error("empty sprite " + [gender, hair, topCut, botCut, shoeCut, skin].join(","));
-            seen.add(hashPix(p));
-            combos++;
-          }
-        }
-      }
-    }
+  for (let lookId = 0; lookId < LOOK_N; lookId++) {
+    const p = paintLook(fig({ gender, look: lookId }));
+    if (p.w !== LOOK_W || p.h !== LOOK_H) throw new Error("size " + p.w + "x" + p.h);
+    let opaque = 0;
+    for (let i = 3; i < p.d.length; i += 4) if (p.d[i] > 8) opaque++;
+    if (opaque < 400) throw new Error("empty sprite " + gender + "." + lookId);
+    seen.add(hashPix(p));
+    combos++;
   }
 }
 if (seen.size < combos * 0.7) throw new Error("too many identical looks " + seen.size + "/" + combos);

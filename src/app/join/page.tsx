@@ -204,7 +204,7 @@ export default function JoinPage() {
                 setStep(2);
               }}
             >
-              Next — look
+              Next — character
             </button>
           </div>
         </div>

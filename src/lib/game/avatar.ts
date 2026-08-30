@@ -31,6 +31,8 @@ export {
   HAIR_GIRL,
   HAIR_STYLES,
   hasChibi,
+  LOOK_N,
+  premadeId,
   SHOE_BOY,
   SHOE_GIRL,
   SHOES,
@@ -94,7 +96,7 @@ export function loadSpriteId(id: string) {
   const p = (async () => {
     try {
       const img = new Image();
-      img.src = `/art/look/${id}.png?v=22`;
+      img.src = `/art/premade/${id}.png?v=30`;
       await img.decode();
       const c = document.createElement("canvas");
       c.width = img.width;
@@ -122,16 +124,20 @@ export async function loadLookSprites(fig: Figure, _dir: 0 | 1 | 2 | 3 = 1) {
 }
 
 export function loadAvatars() {
-  allLoaded = true;
-  return Promise.resolve();
+  if (allLoaded) return Promise.resolve();
+  if (allLoading) return allLoading;
+  allLoading = Promise.all(allChibiIds().map(loadSpriteId)).then(() => {
+    allLoaded = true;
+  });
+  return allLoading;
 }
 
 export function lookReady(_fig?: Figure, _dir: 0 | 1 | 2 | 3 = 1) {
-  return true;
+  return allLoaded;
 }
 
 export function avatarsReady() {
-  return true;
+  return allLoaded;
 }
 
 function blit(

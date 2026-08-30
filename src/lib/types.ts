@@ -1,5 +1,6 @@
 export type Figure = {
   gender?: number;
+  look?: number;
   skin: number;
   hair: number;
   hairColor: number;

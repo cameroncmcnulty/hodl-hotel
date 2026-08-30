@@ -134,7 +134,7 @@ function bootstrap(db: DB) {
       createdAt: new Date().toISOString(),
       role: "admin",
       coins: 50000,
-      figure: { skin: 2, hair: 1, hairColor: 3, top: 4, bottom: 2, shoes: 1, acc: 0 },
+      figure: { gender: 0, look: 0, skin: 2, hair: 1, hairColor: 3, top: 4, bottom: 2, shoes: 1, acc: 0 },
       friends: [],
       friendIn: [],
       friendOut: [],

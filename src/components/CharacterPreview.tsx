@@ -4,31 +4,14 @@ import { useEffect, useRef, useState } from "react";
 import type { Figure } from "@/lib/types";
 import {
   avatarsReady,
-  botColors,
-  botsFor,
   clampFigure,
   drawAvatarFront,
-  hairColors,
-  hairsFor,
   loadAvatars,
   LOOK_H,
+  LOOK_N,
   LOOK_W,
   lookKey,
-  shoeColors,
-  shoesFor,
-  topColors,
-  topsFor,
 } from "@/lib/game/avatar";
-
-const TABS = [
-  { id: "skin", label: "Skin" },
-  { id: "hair", label: "Hair" },
-  { id: "top", label: "Top" },
-  { id: "bot", label: "Bottom" },
-  { id: "shoe", label: "Shoes" },
-] as const;
-
-type TabId = (typeof TABS)[number]["id"];
 
 function LookThumb({
   figure,
@@ -75,17 +58,6 @@ function LookThumb({
   );
 }
 
-function Dot({ color, on, onClick }: { color: string; on: boolean; onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`h-9 w-9 rounded-full sm:h-10 sm:w-10 ${on ? "ring-2 ring-[#14F195] ring-offset-2 ring-offset-[#1a1428]" : "ring-1 ring-white/20"}`}
-      style={{ background: color }}
-    />
-  );
-}
-
 export function CharacterPreview({
   figure,
   scale = 2,
@@ -128,23 +100,19 @@ export function CharacterPreview({
 }
 
 export function FigureEditor({ figure, onChange }: { figure: Figure; onChange: (f: Figure) => void }) {
-  const f = clampFigure({ ...figure, face: 0 });
-  const [tab, setTab] = useState<TabId>("skin");
+  const f = clampFigure(figure);
   const [dir, setDir] = useState<0 | 1 | 2 | 3>(1);
   const [ready, setReady] = useState(avatarsReady());
   useEffect(() => {
     loadAvatars().then(() => setReady(true));
   }, []);
   const g = f.gender ?? 0;
-  const hairs = hairsFor(g);
-  const tops = topsFor(g);
-  const bots = botsFor(g);
-  const shoes = shoesFor(g);
-  const push = (patch: Partial<Figure>) => onChange(clampFigure({ ...f, face: 0, ...patch }));
-  const heading = TABS.find((t) => t.id === tab)?.label || "";
+  const look = f.look ?? 0;
+  const push = (patch: Partial<Figure>) => onChange(clampFigure({ ...f, ...patch }));
 
   return (
     <div className="rounded-3xl border border-white/10 bg-[#1a1428] p-4 text-white shadow-2xl">
+      <h2 className="mb-4 text-center text-sm font-bold uppercase tracking-[0.25em] text-white/80">Select your character</h2>
       <div className="mb-4 flex justify-center gap-4">
         {[
           { i: 0, label: "Boy" },
@@ -155,9 +123,9 @@ export function FigureEditor({ figure, onChange }: { figure: Figure; onChange: (
             scale={1}
             label={label}
             ready={ready}
-            figure={{ ...f, gender: i, hair: 0, hairColor: 0, top: 0, bottom: 0, shoes: 0, topCut: 0, botCut: 0, shoeCut: 0 }}
+            figure={{ ...f, gender: i, look: 0 }}
             on={g === i}
-            onClick={() => push({ gender: i, hair: 0, hairColor: 0, top: 0, bottom: 0, shoes: 0, topCut: 0, botCut: 0, shoeCut: 0 })}
+            onClick={() => push({ gender: i, look: 0 })}
           />
         ))}
       </div>
@@ -186,108 +154,19 @@ export function FigureEditor({ figure, onChange }: { figure: Figure; onChange: (
           </div>
         </div>
         <div>
-          <div className="mb-3 flex flex-wrap justify-center gap-2">
-            {TABS.map((t) => (
-              <button
-                key={t.id}
-                type="button"
-                onClick={() => setTab(t.id)}
-                className={`rounded-full px-3 py-2 text-xs font-bold uppercase tracking-wider sm:px-4 sm:text-sm ${
-                  tab === t.id ? "bg-[#14F195] text-[#12121c]" : "bg-white/10 text-white/80 hover:bg-white/15"
-                }`}
-              >
-                {t.label}
-              </button>
+          <p className="mb-3 text-center text-xs font-semibold uppercase tracking-[0.2em] text-white/50">Pick a character</p>
+          <div className="grid max-h-[32rem] grid-cols-3 gap-2 overflow-y-auto sm:grid-cols-4">
+            {Array.from({ length: LOOK_N }, (_, i) => (
+              <LookThumb
+                key={`look-${g}-${i}`}
+                scale={1}
+                ready={ready}
+                figure={{ ...f, gender: g, look: i }}
+                on={look === i}
+                onClick={() => push({ look: i })}
+              />
             ))}
           </div>
-
-          <p className="mb-3 text-center text-xs font-semibold uppercase tracking-[0.2em] text-white/50">{heading}</p>
-
-          {tab === "skin" && (
-            <div className="flex flex-wrap justify-center gap-2">
-              {Array.from({ length: 8 }, (_, i) => (
-                <LookThumb key={`skin-${i}`} ready={ready} figure={{ ...f, skin: i }} on={f.skin === i} onClick={() => push({ skin: i })} />
-              ))}
-            </div>
-          )}
-
-          {tab === "hair" && (
-            <div className="grid gap-4">
-              <div className="flex flex-wrap justify-center gap-2">
-                {hairs.map((name, i) => (
-                  <LookThumb key={`hs-${name}`} ready={ready} figure={{ ...f, hair: i }} on={f.hair === i} onClick={() => push({ hair: i })} />
-                ))}
-              </div>
-              <div className="flex flex-wrap justify-center gap-2">
-                {hairColors(g).map((color, i) => (
-                  <Dot key={`hc-${i}`} color={color} on={f.hairColor === i} onClick={() => push({ hairColor: i })} />
-                ))}
-              </div>
-            </div>
-          )}
-
-          {tab === "top" && (
-            <div className="grid gap-4">
-              <div className="flex flex-wrap justify-center gap-2">
-                {tops.map((name, i) => (
-                  <LookThumb
-                    key={`ts-${name}`}
-                    ready={ready}
-                    figure={{ ...f, topCut: i, top: 0 }}
-                    on={(f.topCut ?? 0) === i}
-                    onClick={() => push({ topCut: i, top: 0 })}
-                  />
-                ))}
-              </div>
-              <div className="flex flex-wrap justify-center gap-2">
-                {topColors(g, f.topCut ?? 0).map((color, i) => (
-                  <Dot key={`tc-${i}`} color={color} on={f.top === i} onClick={() => push({ top: i })} />
-                ))}
-              </div>
-            </div>
-          )}
-
-          {tab === "bot" && (
-            <div className="grid gap-4">
-              <div className="flex flex-wrap justify-center gap-2">
-                {bots.map((name, i) => (
-                  <LookThumb
-                    key={`bs-${name}`}
-                    ready={ready}
-                    figure={{ ...f, botCut: i, bottom: 0 }}
-                    on={(f.botCut ?? 0) === i}
-                    onClick={() => push({ botCut: i, bottom: 0 })}
-                  />
-                ))}
-              </div>
-              <div className="flex flex-wrap justify-center gap-2">
-                {botColors(g, f.botCut ?? 0).map((color, i) => (
-                  <Dot key={`bc-${i}`} color={color} on={f.bottom === i} onClick={() => push({ bottom: i })} />
-                ))}
-              </div>
-            </div>
-          )}
-
-          {tab === "shoe" && (
-            <div className="grid gap-4">
-              <div className="flex flex-wrap justify-center gap-2">
-                {shoes.map((name, i) => (
-                  <LookThumb
-                    key={`ss-${name}`}
-                    ready={ready}
-                    figure={{ ...f, shoeCut: i, shoes: 0 }}
-                    on={(f.shoeCut ?? 0) === i}
-                    onClick={() => push({ shoeCut: i, shoes: 0 })}
-                  />
-                ))}
-              </div>
-              <div className="flex flex-wrap justify-center gap-2">
-                {shoeColors(g, f.shoeCut ?? 0).map((color, i) => (
-                  <Dot key={`sc-${i}`} color={color} on={f.shoes === i} onClick={() => push({ shoes: i })} />
-                ))}
-              </div>
-            </div>
-          )}
         </div>
       </div>
     </div>
