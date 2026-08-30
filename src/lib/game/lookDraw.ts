@@ -154,52 +154,57 @@ export function clampFigure(f: Partial<Figure> | undefined): Figure {
 export type LookOpts = { back?: boolean; walk?: 0 | 1; sit?: boolean; view?: 0 | 1 | 2 | 3 };
 
 type RGB = [number, number, number];
-const INK: RGB = [10, 8, 10];
+const INK: RGB = [12, 8, 14];
 const WHITE: RGB = [255, 255, 255];
 const BASE = "#8c8c8c";
 const CX = 48;
 
-/** Locked rig. Every part uses these pivots so a new hoodie still hits the same armholes. */
+/**
+ * Style lock: hotel-sticker chibi.
+ * Same 2:1 dimetric lighting as the furniture (light NW, dark SE, one highlight),
+ * 2-heads-tall bobble, giant sparkle eyes, stubby isometric body, 1px ink.
+ * Feet stay near the canvas bottom so the sprite plants on a tile.
+ */
 const R = {
   headX: 48,
-  headY: 48,
-  headRx: 20,
-  headRy: 21,
-  neckX: 44,
-  neckY: 66,
-  neckW: 8,
-  neckH: 6,
+  headY: 86,
+  headRx: 27,
+  headRy: 26,
+  earLX: 24,
+  earLY: 92,
+  earRX: 72,
+  earRY: 88,
   torsoX: 35,
-  torsoY: 70,
+  torsoY: 110,
   torsoW: 26,
-  torsoH: 32,
-  armW: 10,
-  armH: 34,
-  armLX: 24,
-  armLY: 74,
+  torsoH: 22,
+  armW: 8,
+  armH: 22,
+  armLX: 26,
+  armLY: 114,
   armRX: 62,
-  armRY: 72,
-  handLX: 29,
-  handLY: 112,
-  handRX: 67,
-  handRY: 110,
-  legW: 12,
-  legH: 50,
-  legLX: 35,
-  legLY: 100,
-  legRX: 49,
-  legRY: 98,
-  shoeW: 15,
-  shoeH: 10,
-  shoeLX: 33,
-  shoeLY: 144,
-  shoeRX: 49,
-  shoeRY: 142,
+  armRY: 112,
+  handLX: 30,
+  handLY: 138,
+  handRX: 66,
+  handRY: 136,
+  legW: 10,
+  legH: 24,
+  legLX: 36,
+  legLY: 130,
+  legRX: 50,
+  legRY: 128,
+  shoeW: 14,
+  shoeH: 9,
+  shoeLX: 34,
+  shoeLY: 154,
+  shoeRX: 50,
+  shoeRY: 152,
 };
 
 function onFace(x: number, y: number) {
-  const dx = (x - CX) / 14;
-  const dy = (y - 52) / 13;
+  const dx = (x - CX) / 19;
+  const dy = (y - (R.headY + 4)) / 18;
   return dx * dx + dy * dy < 1;
 }
 
@@ -286,27 +291,83 @@ function flipH(src: Pix) {
 }
 
 function pose(walk: number, sit: boolean) {
-  const drop = sit ? 20 : 0;
-  const a = sit ? 0 : walk ? 4 : 0;
-  const b = sit ? 0 : walk ? -4 : 0;
+  const drop = sit ? 16 : 0;
+  const a = sit ? 0 : walk ? 3 : 0;
+  const b = sit ? 0 : walk ? -3 : 0;
   return { drop, a, b, sit };
 }
 
-/** bd — torso, neck, arms, legs. No head. Clothes cover this. */
+/** Soft sticker ball: mostly mid, thin NW light / SE shade, one highlight. */
+function ball(p: Pix, cx: number, cy: number, rx: number, ry: number, hex: string) {
+  const lit = mix(hex, 28);
+  const mid = rgb(hex);
+  const dim = mix(hex, -30);
+  const hi = mix(hex, 52);
+  const rx2 = rx * rx || 1;
+  const ry2 = ry * ry || 1;
+  for (let y = Math.floor(cy - ry); y <= Math.ceil(cy + ry); y++) {
+    for (let x = Math.floor(cx - rx); x <= Math.ceil(cx + rx); x++) {
+      const dx = x - cx;
+      const dy = y - cy;
+      const n = (dx * dx) / rx2 + (dy * dy) / ry2;
+      if (n > 1.02) continue;
+      const t = dx / (rx * 2) + dy / (ry * 2);
+      p.set(x, y, t < -0.52 ? lit : t > 0.5 ? dim : mid);
+    }
+  }
+  p.disc(cx - rx * 0.4, cy - ry * 0.44, Math.max(2, rx * 0.14), Math.max(1.5, ry * 0.1), hi);
+}
+
+function blob(p: Pix, cx: number, cy: number, rx: number, ry: number, hex: string) {
+  p.disc(cx, cy, rx, ry, rgb(hex));
+}
+
+/** One rim pass over a merged silhouette — furniture lighting, no inner rings. */
+function rimShade(p: Pix, hex: string) {
+  const lit = mix(hex, 24);
+  const dim = mix(hex, -28);
+  const mid = rgb(hex);
+  for (let y = 0; y < p.h; y++) {
+    for (let x = 0; x < p.w; x++) {
+      if (p.a(x, y) < 8) continue;
+      const nw = p.a(x - 1, y) < 8 || p.a(x, y - 1) < 8;
+      const se = p.a(x + 1, y) < 8 || p.a(x, y + 1) < 8;
+      p.set(x, y, nw ? lit : se ? dim : mid);
+    }
+  }
+}
+
+function chunk(p: Pix, x: number, y: number, w: number, h: number, hex: string) {
+  p.roundBlock(x, y, w, h, Math.min(4, Math.floor(w / 3)), hex);
+}
+
+function maskFace(src: Pix) {
+  const p = blank();
+  for (let y = 0; y < src.h; y++) {
+    for (let x = 0; x < src.w; x++) {
+      if (src.a(x, y) < 8) continue;
+      if (onFace(x, y)) continue;
+      const i = (y * src.w + x) * 4;
+      p.set(x, y, [src.d[i], src.d[i + 1], src.d[i + 2]], src.d[i + 3]);
+    }
+  }
+  return p;
+}
+
+/** bd — stubby torso, arms, legs. No head. Clothes cover this. */
 function partBd(girl: boolean, walk: number, sit: boolean): Pix {
   const p = blank();
   const { drop, a, b } = pose(walk, sit);
-  const tw = girl ? 26 : 28;
+  const tw = girl ? 24 : 26;
   const tx = CX - Math.floor(tw / 2);
-  p.capsule(R.armLX, R.armLY + drop, R.armW, sit ? 28 : R.armH, BASE);
-  p.capsule(R.armRX, R.armRY + drop, R.armW, sit ? 28 : R.armH, BASE);
-  p.roundBlock(tx, R.torsoY + drop, tw, sit ? 30 : R.torsoH, 5, BASE);
-  p.block(R.neckX, R.neckY + drop, R.neckW, R.neckH, BASE);
+  p.capsule(R.armLX, R.armLY + drop, R.armW, sit ? 16 : R.armH, BASE);
+  p.capsule(R.armRX, R.armRY + drop, R.armW, sit ? 16 : R.armH, BASE);
+  p.trap(tx + 2, tx + tw - 2, R.torsoY + drop, tx - 1, tx + tw + 1, R.torsoY + drop + (sit ? 16 : R.torsoH), BASE);
   if (sit) {
-    p.roundBlock(R.legLX - 2, R.legLY + drop - 6, 18, 14, 4, BASE);
-    p.roundBlock(R.legRX - 2, R.legRY + drop - 4, 18, 14, 4, BASE);
-    p.capsule(R.legLX + 2, R.legLY + drop + 4, 11, 22, BASE);
-    p.capsule(R.legRX + 2, R.legRY + drop + 6, 11, 22, BASE);
+    chunk(p, R.legLX - 2, R.legLY + drop - 8, 16, 12, BASE);
+    chunk(p, R.legRX - 2, R.legRY + drop - 6, 16, 12, BASE);
+    p.capsule(R.legLX + 1, R.legLY + drop + 2, 9, 16, BASE);
+    p.capsule(R.legRX + 1, R.legRY + drop + 4, 9, 16, BASE);
   } else {
     p.capsule(R.legLX, R.legLY + drop + a, R.legW, R.legH, BASE);
     p.capsule(R.legRX, R.legRY + drop + b, R.legW, R.legH, BASE);
@@ -314,28 +375,38 @@ function partBd(girl: boolean, walk: number, sit: boolean): Pix {
   return finish(p);
 }
 
-/** hd — skull + ears only. Drawn after clothes so the chin sits on the collar. */
+/** hd — big round skull + ears. Chin sits on the collar. */
 function partHd(): Pix {
   const p = blank();
-  p.discShade(R.headX, R.headY, R.headRx, R.headRy, BASE);
-  p.discShade(29, 52, 3.4, 4.2, BASE);
-  p.discShade(67, 50, 3.4, 4.2, BASE);
+  ball(p, R.headX, R.headY, R.headRx, R.headRy, BASE);
+  ball(p, R.headX, R.headY + 12, 18, 14, BASE);
+  ball(p, R.earLX, R.earLY, 3.2, 3.6, BASE);
+  ball(p, R.earRX, R.earRY, 3.2, 3.6, BASE);
   return finish(p);
 }
 
-/** fc + ey — face features, never dyed. */
+/** fc + ey — giant sparkle eyes, tiny smile. Never dyed. */
 function partFc(girl: boolean): Pix {
   const p = blank();
-  p.disc(40, 50, 4.2, 5, WHITE);
-  p.disc(56, 49, 4.2, 5, WHITE);
-  p.disc(40, 51, 2.1, 2.6, INK);
-  p.disc(56, 50, 2.1, 2.6, INK);
-  p.set(41, 49, WHITE);
-  p.set(57, 48, WHITE);
-  p.rect(45, 60, 7, 2, [92, 50, 54]);
+  const ey = R.headY + 4;
+  p.disc(37, ey, 5.8, 6.6, WHITE);
+  p.disc(59, ey - 1, 5.8, 6.6, WHITE);
+  p.disc(37, ey + 1, 2.8, 3.2, INK);
+  p.disc(59, ey, 2.8, 3.2, INK);
+  p.set(35, ey - 1, WHITE);
+  p.set(57, ey - 2, WHITE);
+  p.rect(34, ey - 6, 7, 1, INK);
+  p.rect(56, ey - 7, 7, 1, INK);
+  const my = R.headY + 20;
+  p.set(45, my, [210, 110, 120]);
+  p.set(46, my + 1, [210, 110, 120]);
+  p.set(47, my + 1, [210, 110, 120]);
+  p.set(48, my + 1, [210, 110, 120]);
+  p.set(49, my + 1, [210, 110, 120]);
+  p.set(50, my, [210, 110, 120]);
   if (girl) {
-    p.discShade(33, 58, 2.4, 1.6, "#e0909a");
-    p.discShade(62, 57, 2.4, 1.6, "#e0909a");
+    ball(p, 30, ey + 10, 3.2, 2.2, "#f4a7b0");
+    ball(p, 66, ey + 9, 3.2, 2.2, "#f4a7b0");
   }
   return p;
 }
@@ -344,86 +415,73 @@ function partFc(girl: boolean): Pix {
 function partHrb(style: string): Pix {
   const p = blank();
   if (style === "pony") {
-    p.discShade(24, 44, 7, 8, BASE);
-    p.capsule(18, 46, 10, 28, BASE);
-    p.discShade(23, 76, 7, 7, BASE);
+    blob(p, 22, R.headY - 4, 8, 9, BASE);
+    p.rect(18, R.headY, 8, 30, rgb(BASE));
+    blob(p, 21, R.headY + 34, 8, 8, BASE);
   } else if (style === "pigtails") {
-    p.discShade(20, 46, 6.5, 7, BASE);
-    p.discShade(76, 44, 6.5, 7, BASE);
-    p.capsule(16, 50, 8, 18, BASE);
-    p.capsule(74, 48, 8, 18, BASE);
-    p.discShade(20, 70, 6, 6, BASE);
-    p.discShade(78, 68, 6, 6, BASE);
+    blob(p, 18, R.headY, 7, 8, BASE);
+    blob(p, 78, R.headY - 2, 7, 8, BASE);
+    p.rect(16, R.headY + 4, 6, 16, rgb(BASE));
+    p.rect(76, R.headY + 2, 6, 16, rgb(BASE));
+    blob(p, 18, R.headY + 24, 6.5, 6.5, BASE);
+    blob(p, 80, R.headY + 22, 6.5, 6.5, BASE);
   } else if (style === "long" || style === "waves") {
-    p.capsule(20, 52, 12, 44, BASE);
-    p.capsule(64, 52, 12, 44, BASE);
+    p.rect(20, R.headY + 4, 10, 38, rgb(BASE));
+    p.rect(66, R.headY + 4, 10, 38, rgb(BASE));
+    blob(p, 24, R.headY + 42, 8, 8, BASE);
+    blob(p, 72, R.headY + 42, 8, 8, BASE);
     if (style === "waves") {
-      p.discShade(24, 92, 8, 8, BASE);
-      p.discShade(72, 92, 8, 8, BASE);
-    } else {
-      p.discShade(26, 96, 7, 7, BASE);
-      p.discShade(70, 96, 7, 7, BASE);
+      blob(p, 22, R.headY + 28, 7, 6, BASE);
+      blob(p, 74, R.headY + 28, 7, 6, BASE);
     }
   }
+  rimShade(p, BASE);
   return finish(p);
 }
 
-/** hr — hair on the skull. Face pixels stay empty so bangs never cover the eyes. */
+/** hr — hair cap on the skull. Face stays open so eyes always read. */
 function partHr(style: string, back: boolean): Pix {
   const raw = blank();
   if (back) {
-    raw.discShade(CX, 46, 20, 22, BASE);
-    raw.discShade(30, 44, 9, 11, BASE);
-    raw.discShade(66, 44, 9, 11, BASE);
-    raw.discShade(CX, 30, 11, 9, BASE);
+    blob(raw, CX, R.headY - 2, 24, 26, BASE);
+    blob(raw, 28, R.headY - 8, 10, 12, BASE);
+    blob(raw, 68, R.headY - 8, 10, 12, BASE);
+    blob(raw, CX, R.headY - 20, 12, 10, BASE);
   }
   if (style === "afro") {
-    raw.discShade(CX, 42, 24, 23, BASE);
-    raw.discShade(26, 46, 10, 11, BASE);
-    raw.discShade(70, 44, 10, 11, BASE);
-    raw.discShade(CX, 24, 12, 10, BASE);
+    blob(raw, CX, R.headY - 10, 28, 26, BASE);
+    blob(raw, 24, R.headY - 8, 10, 11, BASE);
+    blob(raw, 72, R.headY - 10, 10, 11, BASE);
   } else if (style === "mohawk") {
-    raw.block(44, 20, 8, 28, BASE);
-    raw.spike(CX, 16, 44, 5, BASE);
+    raw.rect(44, R.headY - 32, 8, 28, rgb(BASE));
+    raw.spike(CX, R.headY - 36, R.headY - 4, 6, BASE);
   } else if (style === "spikes") {
-    raw.discShade(CX, 38, 14, 10, BASE);
-    raw.spike(34, 22, 46, 4, BASE);
-    raw.spike(48, 18, 44, 5, BASE);
-    raw.spike(62, 22, 46, 4, BASE);
+    blob(raw, CX, R.headY - 16, 14, 10, BASE);
+    raw.spike(32, R.headY - 30, R.headY - 2, 5, BASE);
+    raw.spike(48, R.headY - 34, R.headY - 4, 6, BASE);
+    raw.spike(64, R.headY - 30, R.headY - 2, 5, BASE);
   } else {
-    raw.discShade(CX, 34, 18, 14, BASE);
-    raw.discShade(30, 46, 9, 11, BASE);
-    raw.discShade(66, 44, 9, 11, BASE);
-    raw.discShade(CX, 26, 12, 8, BASE);
+    blob(raw, CX, R.headY - 14, 23, 18, BASE);
+    blob(raw, 28, R.headY - 8, 11, 12, BASE);
+    blob(raw, 68, R.headY - 10, 11, 12, BASE);
     if (style === "side") {
-      raw.discShade(32, 38, 12, 12, BASE);
-      raw.discShade(64, 48, 7, 7, BASE);
+      blob(raw, 26, R.headY - 10, 14, 13, BASE);
+      blob(raw, 68, R.headY - 4, 7, 7, BASE);
     }
-    if (style === "undercut") raw.block(30, 50, 36, 3, hexMix(BASE, -40));
+    if (style === "undercut") raw.block(26, R.headY - 2, 44, 3, hexMix(BASE, -40));
     if (style === "bob") {
-      raw.discShade(28, 58, 9, 11, BASE);
-      raw.discShade(68, 56, 9, 11, BASE);
+      blob(raw, 26, R.headY + 6, 10, 11, BASE);
+      blob(raw, 70, R.headY + 4, 10, 11, BASE);
     }
-    if (style === "bun") raw.discShade(CX, 20, 8, 7, BASE);
+    if (style === "bun") blob(raw, CX, R.headY - 30, 9, 8, BASE);
     if (style === "messy") {
-      raw.discShade(38, 24, 6, 5, BASE);
-      raw.discShade(54, 22, 6, 5, BASE);
-      raw.discShade(46, 20, 5, 4, BASE);
+      blob(raw, 36, R.headY - 26, 8, 7, BASE);
+      blob(raw, 54, R.headY - 28, 8, 7, BASE);
+      blob(raw, 46, R.headY - 30, 7, 6, BASE);
     }
   }
-  if (!back) {
-    const p = blank();
-    for (let y = 0; y < raw.h; y++) {
-      for (let x = 0; x < raw.w; x++) {
-        if (raw.a(x, y) < 8) continue;
-        if (onFace(x, y)) continue;
-        const i = (y * raw.w + x) * 4;
-        p.set(x, y, [raw.d[i], raw.d[i + 1], raw.d[i + 2]], raw.d[i + 3]);
-      }
-    }
-    return finish(p);
-  }
-  return finish(raw);
+  rimShade(raw, BASE);
+  return finish(back ? raw : maskFace(raw));
 }
 
 /** lg — trousers / skirt. Same leg pivots as bd. */
@@ -432,43 +490,39 @@ function partLg(name: string, girl: boolean, walk: number, sit: boolean): Pix {
   const { drop, a, b } = pose(walk, sit);
   const skirt = girl && (name === "skirt" || name === "pleat");
   const short = name === "shorts";
-  const h = sit ? 18 : short ? 24 : 46;
+  const h = sit ? 14 : short ? 14 : 26;
   if (skirt) {
-    const y0 = R.legLY + drop - 4;
-    for (let y = y0; y <= y0 + 28; y++) {
-      const t = (y - y0) / 28;
-      const w = Math.round(12 + t * 12);
-      p.block(CX - w, y, w * 2, 1, BASE);
-    }
-    p.roundBlock(CX - 14, y0, 28, 6, 2, hexMix(BASE, -18));
+    const y0 = R.torsoY + drop + 16;
+    p.trap(CX - 11, CX + 11, y0, CX - 20, CX + 20, y0 + 22, BASE);
+    chunk(p, CX - 12, y0, 24, 5, hexMix(BASE, -16));
     if (name === "pleat") {
-      p.rect(40, y0 + 8, 1, 16, mix(BASE, -50));
-      p.rect(48, y0 + 8, 1, 18, mix(BASE, -50));
-      p.rect(56, y0 + 8, 1, 16, mix(BASE, -50));
+      p.rect(40, y0 + 6, 1, 14, mix(BASE, -50));
+      p.rect(48, y0 + 6, 1, 16, mix(BASE, -50));
+      p.rect(56, y0 + 6, 1, 14, mix(BASE, -50));
     }
     return finish(p);
   }
   if (sit) {
-    p.roundBlock(R.legLX - 2, R.legLY + drop - 8, 18, 16, 4, BASE);
-    p.roundBlock(R.legRX - 2, R.legRY + drop - 6, 18, 16, 4, BASE);
-    p.capsule(R.legLX + 1, R.legLY + drop + 4, 12, 18, BASE);
-    p.capsule(R.legRX + 1, R.legRY + drop + 6, 12, 18, BASE);
+    chunk(p, R.legLX - 2, R.legLY + drop - 10, 16, 14, BASE);
+    chunk(p, R.legRX - 2, R.legRY + drop - 8, 16, 14, BASE);
+    p.capsule(R.legLX, R.legLY + drop + 2, 10, 14, BASE);
+    p.capsule(R.legRX, R.legRY + drop + 4, 10, 14, BASE);
     return finish(p);
   }
   p.capsule(R.legLX - 1, R.legLY + drop + a, R.legW + 2, h, BASE);
   p.capsule(R.legRX - 1, R.legRY + drop + b, R.legW + 2, h, BASE);
-  p.roundBlock(R.legLX - 1, R.legLY + drop - 4, 30, 12, 3, BASE);
+  chunk(p, R.legLX - 1, R.legLY + drop - 4, 28, 10, BASE);
   if (name === "jeans") {
-    p.rect(40, R.legLY + drop + 8, 1, 22, mix(BASE, 50));
-    p.rect(56, R.legLY + drop + 6, 1, 22, mix(BASE, 50));
+    p.rect(40, R.legLY + drop + 4, 1, 16, mix(BASE, 50));
+    p.rect(56, R.legLY + drop + 2, 1, 16, mix(BASE, 50));
   }
   if (name === "cargo") {
-    p.roundBlock(R.legLX - 4, R.legLY + drop + 16, 8, 10, 2, hexMix(BASE, -16));
-    p.roundBlock(R.legRX + 8, R.legRY + drop + 16, 8, 10, 2, hexMix(BASE, -16));
+    chunk(p, R.legLX - 4, R.legLY + drop + 8, 7, 8, hexMix(BASE, -16));
+    chunk(p, R.legRX + 7, R.legRY + drop + 8, 7, 8, hexMix(BASE, -16));
   }
   if (name === "joggers") {
-    p.roundBlock(R.legLX - 1, R.legLY + drop + h - 8, R.legW + 2, 7, 2, hexMix(BASE, -20));
-    p.roundBlock(R.legRX - 1, R.legRY + drop + h - 8, R.legW + 2, 7, 2, hexMix(BASE, -20));
+    chunk(p, R.legLX - 1, R.legLY + drop + h - 6, R.legW + 2, 6, hexMix(BASE, -20));
+    chunk(p, R.legRX - 1, R.legRY + drop + h - 6, R.legW + 2, 6, hexMix(BASE, -20));
   }
   return finish(p);
 }
@@ -476,60 +530,59 @@ function partLg(name: string, girl: boolean, walk: number, sit: boolean): Pix {
 /** ch — chest + sleeves. Sleeves share the arm pivots so every shirt fits the same holes. */
 function partCh(name: string, back: boolean, sit: boolean): Pix {
   const p = blank();
-  const drop = sit ? 20 : 0;
-  const sleeveH = sit ? 22 : name === "tee" ? 16 : 32;
-  p.roundBlock(R.torsoX, R.torsoY + drop, R.torsoW, sit ? 28 : R.torsoH + 2, 5, BASE);
-  p.discShade(CX, R.torsoY + drop + 4, 11, 5, BASE);
+  const drop = sit ? 16 : 0;
+  const sleeveH = sit ? 14 : name === "tee" ? 12 : 20;
+  p.trap(R.torsoX + 2, R.torsoX + R.torsoW - 2, R.torsoY + drop, R.torsoX - 1, R.torsoX + R.torsoW + 1, R.torsoY + drop + (sit ? 18 : R.torsoH + 2), BASE);
+  ball(p, CX, R.torsoY + drop + 3, 10, 5, BASE);
   if (name !== "tank") {
     p.capsule(R.armLX, R.armLY + drop, R.armW, sleeveH, BASE);
     p.capsule(R.armRX, R.armRY + drop, R.armW, sleeveH, BASE);
   }
   if (name === "hoodie") {
-    p.roundBlock(38, R.neckY + drop - 4, 20, 12, 5, hexMix(BASE, -10));
-    p.roundBlock(38, R.torsoY + drop + 18, 20, 10, 3, hexMix(BASE, -18));
+    chunk(p, 34, R.torsoY + drop - 14, 28, 16, hexMix(BASE, -8));
     if (!back) {
-      p.rect(44, R.neckY + drop + 6, 1, 10, WHITE);
-      p.rect(51, R.neckY + drop + 6, 1, 10, WHITE);
+      p.rect(45, R.torsoY + drop - 4, 1, 6, WHITE);
+      p.rect(50, R.torsoY + drop - 4, 1, 6, WHITE);
     }
-    if (back) p.discShade(CX, R.neckY + drop - 4, 12, 8, hexMix(BASE, -12));
+    if (back) blob(p, CX, R.torsoY + drop - 8, 12, 8, hexMix(BASE, -12));
   } else if (name === "sweater") {
-    p.roundBlock(38, R.neckY + drop - 2, 20, 8, 3, hexMix(BASE, -18));
+    chunk(p, 38, R.torsoY + drop - 6, 20, 8, hexMix(BASE, -16));
   } else if (name === "jacket") {
-    p.roundBlock(45, R.torsoY + drop, 6, 32, 1, "#d8d0c4");
-    p.rect(47, R.torsoY + drop + 2, 1, 28, INK);
+    chunk(p, 45, R.torsoY + drop, 6, 22, "#d8d0c4");
+    p.rect(47, R.torsoY + drop + 2, 1, 18, INK);
   } else if (name === "tank") {
-    p.roundBlock(37, R.torsoY + drop, 5, 8, 1, hexMix(BASE, -16));
-    p.roundBlock(54, R.torsoY + drop, 5, 8, 1, hexMix(BASE, -16));
+    chunk(p, 38, R.torsoY + drop, 5, 7, hexMix(BASE, -16));
+    chunk(p, 53, R.torsoY + drop, 5, 7, hexMix(BASE, -16));
   }
   return finish(p);
 }
 
-/** rh — hands over cuffs, always the last body layer so sleeves never swallow them. */
+/** rh — hands over cuffs so sleeves never swallow them. */
 function partRh(walk: number, sit: boolean): Pix {
   const p = blank();
   const { drop, a, b } = pose(walk, sit);
-  const hy = sit ? -8 : 0;
-  p.discShade(R.handLX, R.handLY + drop + a + hy, 5.2, 4.6, BASE);
-  p.discShade(R.handRX, R.handRY + drop + b + hy, 5.2, 4.6, BASE);
+  const hy = sit ? -6 : 0;
+  ball(p, R.handLX, R.handLY + drop + a + hy, 5, 4.4, BASE);
+  ball(p, R.handRX, R.handRY + drop + b + hy, 5, 4.4, BASE);
   return finish(p);
 }
 
-/** sh — two shoes on the locked foot pivots. */
+/** sh — two chunky isometric sneakers, like mini ottomans. */
 function partSh(name: string, walk: number, sit: boolean): Pix {
   const p = blank();
   const { drop, a, b } = pose(walk, sit);
-  const yL = R.shoeLY + drop + (sit ? -8 : 0);
-  const yR = R.shoeRY + drop + (sit ? -8 : 0);
+  const yL = R.shoeLY + drop + (sit ? -6 : 0);
+  const yR = R.shoeRY + drop + (sit ? -6 : 0);
   if (name === "slides" || name === "flats") {
-    p.discShade(40, yL + a + 6, 8, 4.5, BASE);
-    p.discShade(56, yR + b + 6, 8, 4.5, BASE);
+    ball(p, 40, yL + a + 4, 8, 4.5, BASE);
+    ball(p, 56, yR + b + 4, 8, 4.5, BASE);
     return finish(p);
   }
-  const lift = name === "boots" ? 10 : name === "hightops" ? 6 : 0;
-  p.roundBlock(R.shoeLX, yL + a - lift, R.shoeW, R.shoeH + lift, 3, BASE);
-  p.roundBlock(R.shoeRX, yR + b - lift, R.shoeW, R.shoeH + lift, 3, BASE);
-  p.discShade(R.shoeLX + 10, yL + a + 6, 7, 4, BASE);
-  p.discShade(R.shoeRX + 10, yR + b + 6, 7, 4, BASE);
+  const lift = name === "boots" ? 8 : name === "hightops" ? 5 : 0;
+  chunk(p, R.shoeLX, yL + a - lift, R.shoeW, R.shoeH + lift, BASE);
+  chunk(p, R.shoeRX, yR + b - lift, R.shoeW, R.shoeH + lift, BASE);
+  ball(p, R.shoeLX + 10, yL + a + 4, 6, 3.5, BASE);
+  ball(p, R.shoeRX + 10, yR + b + 4, 6, 3.5, BASE);
   if (name !== "boots") {
     p.roundBlock(R.shoeLX, yL + a + R.shoeH - 3, R.shoeW, 3, 1, "#f2f2f4");
     p.roundBlock(R.shoeRX, yR + b + R.shoeH - 3, R.shoeW, 3, 1, "#f2f2f4");
