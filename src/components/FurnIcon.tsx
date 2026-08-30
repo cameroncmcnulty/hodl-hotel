@@ -1,43 +1,54 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { furn } from "@/lib/catalog";
-import { paintFurn } from "@/lib/game/furnDraw";
+import { furn, footprint } from "@/lib/catalog";
+import { iso } from "@/lib/game/iso";
+import { drawFurni } from "@/lib/game/pixi/pixiArt";
+import { Application, Graphics } from "pixi.js";
 
 export function FurnIcon({ id, className }: { id: string; className?: string }) {
-  const ref = useRef<HTMLCanvasElement>(null);
+  const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const c = ref.current;
-    if (!c) return;
+    const host = ref.current;
     const def = furn(id);
-    if (!def) return;
-    const ctx = c.getContext("2d");
-    if (!ctx) return;
-    const W = 160;
-    const H = 140;
-    c.width = W;
-    c.height = H;
-    ctx.imageSmoothingEnabled = false;
-    ctx.fillStyle = "#7ec8ea";
-    ctx.fillRect(0, 0, W, H);
-    const spr = paintFurn(def, 0);
-    if (!spr || spr.width < 4) return;
-    const pad = 10;
-    const scale = Math.min((W - pad * 2) / spr.width, (H - pad * 2) / spr.height);
-    const dw = Math.max(8, Math.round(spr.width * scale));
-    const dh = Math.max(8, Math.round(spr.height * scale));
-    ctx.drawImage(spr, Math.round((W - dw) / 2), Math.round((H - dh) / 2), dw, dh);
+    if (!host || !def) return;
+    const app = new Application();
+    let dead = false;
+    app
+      .init({
+        width: 160,
+        height: 140,
+        background: 0x7ec8ea,
+        antialias: false,
+        roundPixels: true,
+        resolution: 1,
+      })
+      .then(() => {
+        if (dead) {
+          app.destroy();
+          return;
+        }
+        const canvas = app.canvas as HTMLCanvasElement;
+        canvas.style.imageRendering = "pixelated";
+        canvas.style.width = "100%";
+        canvas.style.height = "100%";
+        host.appendChild(canvas);
+        const g = new Graphics();
+        drawFurni(g, def, 0, 0, 0, 0);
+        const { w, d } = footprint(def, 0);
+        const foot = iso(w, d);
+        const scale = Math.min(0.85, 120 / Math.max(40, (w + d) * 32 + def.h * 16));
+        g.scale.set(scale);
+        g.position.set(80 - foot.sx * scale, 122 - foot.sy * scale);
+        g.roundPixels = true;
+        app.stage.addChild(g);
+      });
+    return () => {
+      dead = true;
+      app.destroy({ removeView: true });
+    };
   }, [id]);
 
-  return (
-    <canvas
-      ref={ref}
-      width={160}
-      height={140}
-      className={className}
-      style={{ imageRendering: "pixelated" }}
-      aria-hidden
-    />
-  );
+  return <div ref={ref} className={className} style={{ width: 160, height: 140, imageRendering: "pixelated" }} aria-hidden />;
 }

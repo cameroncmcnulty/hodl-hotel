@@ -6,15 +6,11 @@ import {
   botColors,
   botsFor,
   clampFigure,
-  drawAvatarFront,
   drawLookThumb,
   DYE,
   hairColors,
   hairsFor,
   ITEM_LABEL,
-  loadAvatars,
-  LOOK_H,
-  LOOK_W,
   lookKey,
   shoeColors,
   shoesFor,
@@ -24,6 +20,8 @@ import {
   topsFor,
   type ThumbZone,
 } from "@/lib/game/avatar";
+import { guestContainer } from "@/lib/game/pixi/pixiArt";
+import { Application } from "pixi.js";
 
 function SlotThumb({
   figure,
@@ -101,31 +99,46 @@ export function CharacterPreview({
   lay?: boolean;
 }) {
   const f = clampFigure(figure);
-  const s = Math.max(1, Math.round(scale));
-  const w = LOOK_W * s;
-  const h = LOOK_H * s;
-  const ref = useRef<HTMLCanvasElement>(null);
   const key = lookKey(f, { view: dir, sit, lay });
+  const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    loadAvatars();
-  }, []);
-  useEffect(() => {
-    const c = ref.current;
-    if (!c) return;
-    const ctx = c.getContext("2d");
-    if (!ctx) return;
-    ctx.imageSmoothingEnabled = false;
-    ctx.fillStyle = "#5c6b78";
-    ctx.fillRect(0, 0, w, h);
-    drawAvatarFront(ctx, f, w / 2, h - 8, s, dir, { sit, lay });
-  }, [key, s, w, h, dir, sit, lay]);
+    const host = ref.current;
+    if (!host) return;
+    const app = new Application();
+    let dead = false;
+    app
+      .init({
+        width: 200,
+        height: 220,
+        background: 0x5c6b78,
+        antialias: false,
+        roundPixels: true,
+        resolution: 1,
+      })
+      .then(() => {
+        if (dead) {
+          app.destroy();
+          return;
+        }
+        const canvas = app.canvas as HTMLCanvasElement;
+        canvas.style.imageRendering = "pixelated";
+        canvas.style.width = "100%";
+        host.appendChild(canvas);
+        const body = guestContainer(f, { dir, sit, lay });
+        body.x = 100;
+        body.y = 190;
+        app.stage.addChild(body);
+      });
+    return () => {
+      dead = true;
+      app.destroy({ removeView: true });
+    };
+  }, [key, dir, sit, lay]);
   return (
-    <canvas
+    <div
       ref={ref}
-      width={w}
-      height={h}
-      className="mx-auto block"
-      style={{ imageRendering: "pixelated", width: "100%", height: "auto" }}
+      className="mx-auto block h-[220px] w-full"
+      style={{ imageRendering: "pixelated" }}
     />
   );
 }
@@ -164,9 +177,6 @@ export function FigureEditor({ figure, onChange }: { figure: Figure; onChange: (
   const [dir, setDir] = useState<0 | 1 | 2 | 3>(1);
   const [pose, setPose] = useState<"stand" | "sit" | "lay">("stand");
   const [tab, setTab] = useState<(typeof TABS)[number]["id"]>("hair");
-  useEffect(() => {
-    loadAvatars();
-  }, []);
   const g = f.gender ?? 0;
   const push = (patch: Partial<Figure>) => onChange(clampFigure({ ...f, ...patch }));
 

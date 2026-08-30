@@ -124,7 +124,7 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
   const [buying, setBuying] = useState(false);
   const tRef = useRef(0);
   const cam = useRef({ x: 400, y: 200 });
-  const zoomRef = useRef(1);
+  const zoomRef = useRef(1.35);
   const pinchRef = useRef<{ dist: number; z: number } | null>(null);
   const holdRef = useRef<{ t: number; x: number; y: number } | null>(null);
   const skipClickRef = useRef(false);
