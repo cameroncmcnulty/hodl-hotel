@@ -33,10 +33,10 @@ export const BOT_CUTS = BOT_GIRL;
 export const ACC = ["none"];
 export const GENDERS = ["boy", "girl"];
 export const SKIN_N = 8;
-export const COLOR_N = 8;
 export const HAIR_COLOR_N = 6;
 
-export const DYE = ["#f4f4f6", "#8a8f98", "#2a2a32", "#c41e3a", "#2563eb", "#166534", "#7c3aed", "#fb7185"];
+export const DYE = ["#f4f4f6", "#8a8f98", "#2a2a32", "#c41e3a", "#2563eb", "#166534", "#7c3aed", "#fb7185", "#f5c542"];
+export const COLOR_N = DYE.length;
 export const TOPS = DYE;
 export const BOTTOMS = DYE;
 export const SHOES = DYE;
@@ -108,9 +108,9 @@ export const DEFAULT_FIGURE: Figure = {
   skin: 1,
   hair: 0,
   hairColor: 0,
-  top: 1,
+  top: 8,
   bottom: 2,
-  shoes: 3,
+  shoes: 1,
   acc: 0,
   topCut: 0,
   botCut: 0,
@@ -336,14 +336,12 @@ function partHd(): Pix {
 function partFc(girl: boolean): Pix {
   const p = blank();
   const ey = R.headY + 1;
-  p.disc(27, ey, 2, 2.3, WHITE);
-  p.disc(37, ey, 2, 2.3, WHITE);
-  p.disc(27, ey + 0.4, 1, 1.2, INK);
-  p.disc(37, ey + 0.4, 1, 1.2, INK);
-  p.rect(29, R.headY + 9, 6, 1, [180, 90, 100]);
+  p.disc(27, ey, 1.6, 2.1, INK);
+  p.disc(37, ey, 1.6, 2.1, INK);
+  p.rect(29, R.headY + 9, 5, 1, [160, 80, 90]);
   if (girl) {
-    p.disc(23, ey + 6, 1.8, 1.2, rgb("#f4a7b0"));
-    p.disc(41, ey + 6, 1.8, 1.2, rgb("#f4a7b0"));
+    p.disc(23, ey + 6, 1.6, 1.1, rgb("#f4a7b0"));
+    p.disc(41, ey + 6, 1.6, 1.1, rgb("#f4a7b0"));
   }
   return p;
 }
