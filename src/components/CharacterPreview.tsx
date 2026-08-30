@@ -174,7 +174,7 @@ export function FigureEditor({ figure, onChange }: { figure: Figure; onChange: (
               ◀
             </button>
             <span className="min-w-14 text-center text-[11px] font-bold uppercase tracking-widest text-white/80">
-              {["Left", "Front", "Back", "Right"][dir]}
+              {["SW", "SE", "NE", "NW"][dir]}
             </span>
             <button
               type="button"
