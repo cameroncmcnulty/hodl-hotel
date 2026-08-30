@@ -108,6 +108,16 @@ export class Pix {
     }
   }
 
+  roundBlock(x: number, y: number, w: number, h: number, r: number, hex: string) {
+    const rr = Math.max(1, Math.min(r, w / 2, h / 2));
+    this.block(x + rr, y, w - rr * 2, h, hex);
+    this.block(x, y + rr, w, h - rr * 2, hex);
+    this.discShade(x + rr, y + rr, rr, rr, hex);
+    this.discShade(x + w - rr, y + rr, rr, rr, hex);
+    this.discShade(x + rr, y + h - rr, rr, rr, hex);
+    this.discShade(x + w - rr, y + h - rr, rr, rr, hex);
+  }
+
   /** Vertical capsule — rounded limbs like the sheet bodies. */
   capsule(x: number, y: number, w: number, h: number, hex: string) {
     const r = Math.max(1.2, w / 2);
