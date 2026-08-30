@@ -90,18 +90,22 @@ export function CharacterPreview({
   figure,
   scale = 2,
   dir = 1,
+  sit = false,
+  lay = false,
 }: {
   figure: Figure;
   size?: number;
   scale?: number;
   dir?: 0 | 1 | 2 | 3;
+  sit?: boolean;
+  lay?: boolean;
 }) {
   const f = clampFigure(figure);
   const s = Math.max(1, Math.round(scale));
   const w = LOOK_W * s;
   const h = LOOK_H * s;
   const ref = useRef<HTMLCanvasElement>(null);
-  const key = lookKey(f, { view: dir });
+  const key = lookKey(f, { view: dir, sit, lay });
   useEffect(() => {
     loadAvatars();
   }, []);
@@ -113,8 +117,8 @@ export function CharacterPreview({
     ctx.imageSmoothingEnabled = false;
     ctx.fillStyle = "#5c6b78";
     ctx.fillRect(0, 0, w, h);
-    drawAvatarFront(ctx, f, w / 2, h - 8, s, dir);
-  }, [key, s, w, h, dir]);
+    drawAvatarFront(ctx, f, w / 2, h - 8, s, dir, { sit, lay });
+  }, [key, s, w, h, dir, sit, lay]);
   return (
     <canvas
       ref={ref}
@@ -158,6 +162,7 @@ function shuffleFigure(f: Figure): Figure {
 export function FigureEditor({ figure, onChange }: { figure: Figure; onChange: (f: Figure) => void }) {
   const f = clampFigure(figure);
   const [dir, setDir] = useState<0 | 1 | 2 | 3>(1);
+  const [pose, setPose] = useState<"stand" | "sit" | "lay">("stand");
   const [tab, setTab] = useState<(typeof TABS)[number]["id"]>("hair");
   useEffect(() => {
     loadAvatars();
@@ -198,7 +203,7 @@ export function FigureEditor({ figure, onChange }: { figure: Figure; onChange: (
 
       <div className="grid gap-4 lg:grid-cols-[minmax(180px,220px)_minmax(0,1fr)] lg:items-start">
         <div className="rounded-2xl bg-[#5c6b78]">
-          <CharacterPreview figure={f} scale={2} dir={dir} />
+          <CharacterPreview figure={f} scale={2} dir={dir} sit={pose === "sit"} lay={pose === "lay"} />
           <div className="flex items-center justify-center gap-3 pb-3">
             <button
               type="button"
@@ -215,6 +220,20 @@ export function FigureEditor({ figure, onChange }: { figure: Figure; onChange: (
             >
               ▶
             </button>
+          </div>
+          <div className="flex items-center justify-center gap-1 pb-3">
+            {(["stand", "sit", "lay"] as const).map((p) => (
+              <button
+                key={p}
+                type="button"
+                onClick={() => setPose(p)}
+                className={`rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-wider ${
+                  pose === p ? "bg-[#14F195] text-black" : "bg-black/30 text-white/80 hover:bg-black/50"
+                }`}
+              >
+                {p}
+              </button>
+            ))}
           </div>
         </div>
 

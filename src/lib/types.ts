@@ -100,6 +100,7 @@ export type Occupant = {
   dir: 0 | 1 | 2 | 3;
   path: { x: number; y: number }[];
   sitUid?: string;
+  lay?: boolean;
   dance?: boolean;
   moving?: boolean;
   dist?: number;

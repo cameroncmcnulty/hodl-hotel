@@ -448,6 +448,7 @@ export function clearFurnCache() {
 
 /** Cushion / perch height in tile-Z so a guest plants ON the seat, not the floor. */
 export function seatZ(def: FurnDef) {
+  if (def.layable) return 0.4;
   if (!def.sittable) return 0;
   if (def.shape === "stool") return Math.min(1.05, Math.max(0.7, def.h * 0.7));
   if (def.shape === "bean") return 0.42;

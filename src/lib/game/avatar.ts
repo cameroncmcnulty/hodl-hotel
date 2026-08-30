@@ -177,16 +177,17 @@ export function drawAvatarFront(
   cx: number,
   cy: number,
   scale = 4,
-  dir: 0 | 1 | 2 | 3 = 1
+  dir: 0 | 1 | 2 | 3 = 1,
+  pose: { sit?: boolean; lay?: boolean } = {}
 ) {
   const s = Math.max(1, Math.round(scale));
-  const src = lookCanvas(fig, { view: dir });
+  const src = lookCanvas(fig, { view: dir, sit: pose.sit, lay: pose.lay });
   const dw = src.width * s;
   const dh = src.height * s;
   blit(ctx, src, Math.round(cx - dw / 2), Math.round(cy - dh), s, false);
 }
 
-export type AvatarDrawOpts = { dance?: boolean; walking?: boolean; sit?: boolean; dist?: number };
+export type AvatarDrawOpts = { dance?: boolean; walking?: boolean; sit?: boolean; lay?: boolean; dist?: number };
 
 export function drawAvatarIso(
   ctx: CanvasRenderingContext2D,
@@ -199,10 +200,11 @@ export function drawAvatarIso(
 ) {
   const walking = !!opts.walking;
   const dance = !!opts.dance;
-  const sit = !!opts.sit && !walking;
+  const sit = !!opts.sit && !walking && !opts.lay;
+  const lay = !!opts.lay && !walking;
   const frame = dance ? Math.floor(t * 8) % 4 : walking ? Math.floor((opts.dist || 0) * 2) % 2 : 0;
   const walk: 0 | 1 = walking && frame % 2 === 1 ? 1 : 0;
-  const src = lookCanvas(fig, { view: dir, walk, sit });
+  const src = lookCanvas(fig, { view: dir, walk, sit, lay });
   const bob = dance ? (frame % 2 === 0 ? -2 : 0) : walking ? (frame % 2 === 0 ? 0 : -2) : 0;
   const dx = Math.round(sx - LOOK_W / 2);
   const dy = Math.round(sy - FOOT_Y + bob);

@@ -5,8 +5,10 @@ import { furn, footprint } from "../../catalog";
 import { isDance, isDoor, isOutdoor, isStair, isWater, layoutById, tileH, walkable, type Layout } from "../../layouts";
 import type { Occupant, Room } from "../../types";
 import { FOOT_Y, LOOK_W, paintLook } from "../lookDraw";
-import { FURN_PAD, paintFurn, seatZ } from "../furnDraw";
-import { iso } from "../iso";
+import { paintFurn, seatZ } from "../furnDraw";
+import { iso, plantFurn } from "../iso";
+import { keyAndTrim } from "../sprites";
+import { CATALOG } from "../../catalog";
 import { furnAt } from "../path";
 import { shade } from "../avatar";
 import { Application, Container, Graphics, Sprite, Text, Texture } from "pixi.js";
@@ -37,8 +39,22 @@ function wallPaper(layout: Layout, paper?: string) {
 
 const furnTex = new Map<string, Texture>();
 const lookTex = new Map<string, Texture>();
+const pngFurn = new Map<string, Texture>();
+
+function loadFurnPng(id: string) {
+  if (pngFurn.has(id)) return;
+  const img = new Image();
+  img.onload = () => {
+    const keyed = keyAndTrim(img);
+    pngFurn.set(id, Texture.from(keyed));
+  };
+  img.onerror = () => pngFurn.set(id, Texture.EMPTY);
+  img.src = `/art/furn/${id}.png?v=30`;
+}
 
 function furnTexture(def: FurnDef, rot: 0 | 1 | 2 | 3) {
+  const png = pngFurn.get(def.id);
+  if (png && png !== Texture.EMPTY) return png;
   const key = `${def.id}:${rot}`;
   const hit = furnTex.get(key);
   if (hit) return hit;
@@ -48,11 +64,11 @@ function furnTexture(def: FurnDef, rot: 0 | 1 | 2 | 3) {
   return t;
 }
 
-function lookTexture(fig: Occupant["figure"], dir: 0 | 1 | 2 | 3, sit: boolean, walk: 0 | 1) {
-  const key = `${JSON.stringify(fig)}:${dir}:${sit ? 1 : 0}:${walk}`;
+function lookTexture(fig: Occupant["figure"], dir: 0 | 1 | 2 | 3, sit: boolean, lay: boolean, walk: 0 | 1) {
+  const key = `${JSON.stringify(fig)}:${dir}:${sit ? 1 : 0}:${lay ? 1 : 0}:${walk}`;
   const hit = lookTex.get(key);
   if (hit) return hit;
-  const c = paintLook(fig, { view: dir, sit, walk }).canvas();
+  const c = paintLook(fig, { view: dir, sit, lay, walk }).canvas();
   const t = Texture.from(c);
   lookTex.set(key, t);
   if (lookTex.size > 240) {
@@ -101,6 +117,7 @@ export class HotelPixi {
     app.stage.addChild(this.world);
     this.app = app;
     this.ready = true;
+    for (const item of CATALOG) loadFurnPng(item.id);
   }
 
   get canvas() {
@@ -255,10 +272,11 @@ export class HotelPixi {
       } else if (spr.texture !== tex) spr.texture = tex;
       spr.roundPixels = true;
       const z = tileH(layout, p.x, p.y);
-      const left = iso(p.x, p.y + d, z);
-      const front = iso(p.x + w, p.y + d, z);
-      spr.x = Math.round(left.sx) - FURN_PAD;
-      spr.y = Math.round(front.sy) - spr.texture.height + FURN_PAD;
+      const planted = plantFurn(p.x, p.y, z, w, d, def.h, tex.width, tex.height);
+      spr.x = planted.x;
+      spr.y = planted.y;
+      spr.width = planted.destW;
+      spr.height = planted.destH;
       spr.zIndex = (p.x + w / 2 + p.y + d / 2) * 1000 + def.h;
       seen.add(p.uid);
     }
@@ -272,11 +290,12 @@ export class HotelPixi {
   private paintAvatars(room: Room, occupants: Occupant[], layout: Layout) {
     const seen = new Set<string>();
     for (const o of occupants) {
-      const sitting = !!o.sitUid && !o.moving;
-      const seat = sitting ? furnAt(room.furniture, Math.round(o.x), Math.round(o.y)) : undefined;
+      const sitting = !!o.sitUid && !o.moving && !o.lay;
+      const laying = !!o.sitUid && !o.moving && !!o.lay;
+      const seat = (sitting || laying) ? furnAt(room.furniture, Math.round(o.x), Math.round(o.y)) : undefined;
       const seatDef = seat ? furn(seat.catalogId) : undefined;
       const walk: 0 | 1 = o.moving ? 1 : 0;
-      const tex = lookTexture(o.figure, o.dir, sitting, walk);
+      const tex = lookTexture(o.figure, o.dir, sitting, laying, walk);
       let spr = this.avSpr.get(o.userId);
       if (!spr) {
         spr = new Sprite(tex);
@@ -284,13 +303,20 @@ export class HotelPixi {
         this.avSpr.set(o.userId, spr);
       } else if (spr.texture !== tex) spr.texture = tex;
       spr.roundPixels = true;
-      const sitH = sitting && seatDef ? seatZ(seatDef) : 0;
-      const p = iso(o.x + 0.5, o.y + 0.5, tileH(layout, Math.round(o.x), Math.round(o.y)) + sitH);
-      spr.x = Math.round(p.sx - LOOK_W / 2);
-      spr.y = Math.round(p.sy - FOOT_Y);
+      const restH = (sitting || laying) && seatDef ? seatZ(seatDef) : 0;
+      const p = iso(o.x + 0.5, o.y + 0.5, tileH(layout, Math.round(o.x), Math.round(o.y)) + restH);
+      if (laying) {
+        spr.anchor.set(0.5, 0.7);
+        spr.x = Math.round(p.sx);
+        spr.y = Math.round(p.sy);
+      } else {
+        spr.anchor.set(0, 0);
+        spr.x = Math.round(p.sx - LOOK_W / 2);
+        spr.y = Math.round(p.sy - FOOT_Y);
+      }
       const fp = seatDef && seat ? footprint(seatDef, seat.rot) : { w: 1, d: 1 };
       spr.zIndex =
-        sitting && seatDef && seat
+        (sitting || laying) && seatDef && seat
           ? (seat.x + fp.w / 2 + seat.y + fp.d / 2) * 1000 + seatDef.h + 80
           : (o.x + o.y) * 1000 + 8;
       seen.add(o.userId);

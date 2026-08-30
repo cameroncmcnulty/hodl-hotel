@@ -2,6 +2,33 @@ export const TW = 64;
 export const TH = 32;
 export const ZH = 16;
 
+/** Fit a sprite into the iso box of a w×d×h footprint and plant the feet on the near corner. */
+export function plantFurn(
+  x: number,
+  y: number,
+  z: number,
+  w: number,
+  d: number,
+  h: number,
+  texW: number,
+  texH: number
+) {
+  const left = iso(x, y + d, z);
+  const right = iso(x + w, y, z);
+  const front = iso(x + w, y + d, z);
+  const spanX = Math.max(8, (w + d) * (TW / 2));
+  const spanY = Math.max(8, (w + d) * (TH / 2) + Math.max(h, 0.05) * ZH);
+  const s = Math.min(spanX / Math.max(1, texW), spanY / Math.max(1, texH));
+  const destW = Math.max(8, Math.round(texW * s));
+  const destH = Math.max(8, Math.round(texH * s));
+  return {
+    x: Math.round((left.sx + right.sx) / 2 - destW / 2),
+    y: Math.round(front.sy - destH),
+    destW,
+    destH,
+  };
+}
+
 export function iso(x: number, y: number, z = 0) {
   return {
     sx: (x - y) * (TW / 2),

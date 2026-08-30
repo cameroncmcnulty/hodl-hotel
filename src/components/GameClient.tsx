@@ -411,15 +411,17 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
             const tx = Math.round(m.x);
             const ty = Math.round(m.y);
             const seat = !m.moving ? furnAt(s.room.furniture, tx, ty) : undefined;
-            const sitting = !!(seat && furn(seat.catalogId)?.sittable);
+            const seatDef = seat ? furn(seat.catalogId) : undefined;
+            const resting = !!(seatDef && (seatDef.sittable || seatDef.layable));
             return {
               ...o,
               x: m.x,
               y: m.y,
-              dir: sitting ? seat!.rot : m.dir,
+              dir: resting ? seat!.rot : m.dir,
               moving: m.moving,
               dist: m.dist,
-              sitUid: sitting ? seat!.uid : undefined,
+              sitUid: resting ? seat!.uid : undefined,
+              lay: !!(resting && seatDef?.layable),
             };
           });
           const you = vis.find((o) => o.userId === meState.id);

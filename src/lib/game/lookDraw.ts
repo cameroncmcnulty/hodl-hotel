@@ -144,7 +144,7 @@ export function clampFigure(f: Partial<Figure> | undefined): Figure {
   };
 }
 
-export type LookOpts = { back?: boolean; walk?: 0 | 1; sit?: boolean; view?: 0 | 1 | 2 | 3 };
+export type LookOpts = { back?: boolean; walk?: 0 | 1; sit?: boolean; lay?: boolean; view?: 0 | 1 | 2 | 3 };
 
 type RGB = [number, number, number];
 const INK: RGB = [12, 8, 14];
@@ -503,6 +503,26 @@ function cached(key: string, make: () => Pix) {
   return p;
 }
 
+function paintLay(fig: Figure, back: boolean): Pix {
+  const f = clampFigure(fig);
+  const pal = palOf(f);
+  const girl = (f.gender ?? 0) === 1;
+  const p = blank();
+  p.discShade(16, 36, 11, 9, pal.hair);
+  if (!back) p.discShade(20, 40, 11, 11, pal.skin);
+  else p.discShade(20, 40, 11, 11, pal.hair);
+  p.trap(30, 34, 36, 52, 56, 48, pal.top);
+  p.capsule(50, 38, 6, 16, pal.bot);
+  p.roundBlock(52, 50, 10, 5, 1, pal.shoe);
+  if (!back) {
+    p.disc(16, 38, 1.4, 1.8, INK);
+    p.rect(18, 44, 4, 1, [160, 80, 90]);
+    if (girl) p.disc(14, 44, 1.5, 1, rgb("#f4a7b0"));
+  }
+  p.outline(INK);
+  return p;
+}
+
 export function paintLook(fig: Figure, opts: LookOpts = {}): Pix {
   const f = clampFigure(fig);
   const pal = palOf(f);
@@ -511,7 +531,12 @@ export function paintLook(fig: Figure, opts: LookOpts = {}): Pix {
   const view = opts.view ?? (opts.back ? 2 : 1);
   const back = view === 2 || view === 3;
   const walk = opts.walk ?? 0;
-  const sit = !!opts.sit;
+  const sit = !!opts.sit && !opts.lay;
+  if (opts.lay) {
+    const laid = paintLay(f, back);
+    if (view === 0 || view === 3) return flipH(laid);
+    return laid;
+  }
   const hairName = hairsFor(g)[f.hair] || defaultHairName(g);
   const topName = topsFor(g)[f.topCut ?? 0] || "hoodie";
   const botName = botsFor(g)[f.botCut ?? 0] || (girl ? "skirt" : "pants");
@@ -567,7 +592,7 @@ export function paintThumb(fig: Figure, zone: ThumbZone = "full"): Pix {
 export function lookKey(fig: Figure, opts: LookOpts = {}) {
   const f = clampFigure(fig);
   const view = opts.view ?? (opts.back ? 2 : 1);
-  return [figureString(f), view, opts.walk ?? 0, opts.sit ? 1 : 0].join(".");
+  return [figureString(f), view, opts.walk ?? 0, opts.sit ? 1 : 0, opts.lay ? 1 : 0].join(".");
 }
 
 export function premadeId(fig: Figure) {

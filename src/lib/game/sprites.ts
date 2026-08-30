@@ -13,7 +13,7 @@ function isMagenta(r: number, g: number, b: number) {
   return false;
 }
 
-function keyAndTrim(img: HTMLImageElement) {
+export function keyAndTrim(img: HTMLImageElement) {
   const c = document.createElement("canvas");
   c.width = img.width;
   c.height = img.height;

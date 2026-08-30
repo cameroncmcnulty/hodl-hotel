@@ -226,10 +226,18 @@ export function applyAction(userId: string, action: Action) {
       if (Math.hypot(occ.x - last.x, occ.y - last.y) < 0.2) occ.path = [];
     }
     occ.sitUid = undefined;
-    const sit = furnAt(room.furniture, rx, ry);
-    if (sit && furn(sit.catalogId)?.sittable && !occ.path.length) {
-      occ.sitUid = sit.uid;
-      occ.dir = sit.rot;
+    occ.lay = false;
+    const rest = furnAt(room.furniture, rx, ry);
+    const restDef = rest ? furn(rest.catalogId) : undefined;
+    if (rest && restDef && !occ.path.length) {
+      if (restDef.layable) {
+        occ.sitUid = rest.uid;
+        occ.lay = true;
+        occ.dir = rest.rot;
+      } else if (restDef.sittable) {
+        occ.sitUid = rest.uid;
+        occ.dir = rest.rot;
+      }
     }
     const stepped = furnAt(room.furniture, rx, ry);
     if (stepped && furn(stepped.catalogId)?.use === "teleport" && stepped.pairId) {
@@ -252,7 +260,8 @@ export function applyAction(userId: string, action: Action) {
   if (action.type === "walk") {
     const layout = layoutById(room.layoutId);
     const seat = furnAt(room.furniture, action.x, action.y);
-    const sittingThere = !!(seat && furn(seat.catalogId)?.sittable);
+    const seatDef = seat ? furn(seat.catalogId) : undefined;
+    const sittingThere = !!(seatDef && (seatDef.sittable || seatDef.layable));
     if (isDoor(layout, action.x, action.y) && room.ownerId) {
       live.occupants = live.occupants.filter((o) => o.userId !== userId);
       saveDB(db);
@@ -262,11 +271,13 @@ export function applyAction(userId: string, action: Action) {
     const path = astar(room.layoutId, room.furniture, Math.round(occ.x), Math.round(occ.y), action.x, action.y);
     occ.path = path;
     occ.sitUid = undefined;
+    occ.lay = false;
     if (path.length) occ.dir = dirTowards(occ.x, occ.y, path[0].x, path[0].y);
     else occ.dir = dirTowards(occ.x, occ.y, action.x, action.y);
     if (sittingThere && !path.length && Math.round(occ.x) === action.x && Math.round(occ.y) === action.y) {
       occ.sitUid = seat!.uid;
       occ.dir = seat!.rot;
+      occ.lay = !!seatDef?.layable;
     }
     return snapshot(here.roomId, userId);
   }
@@ -369,10 +380,11 @@ export function applyAction(userId: string, action: Action) {
       saveDB(db);
       return snapshot(here.roomId, userId);
     }
-    if (def?.sittable) {
+    if (def?.sittable || def?.layable) {
       occ.x = p.x;
       occ.y = p.y;
       occ.sitUid = p.uid;
+      occ.lay = !!def.layable;
       occ.path = [];
       return snapshot(here.roomId, userId);
     }

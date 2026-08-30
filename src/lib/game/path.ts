@@ -96,7 +96,8 @@ export function astar(
   const start = key(sx, sy);
   const goal = key(tx, ty);
   const goalSeat = furnAt(furniture, tx, ty);
-  const sitGoal = !!(goalSeat && furn(goalSeat.catalogId)?.sittable);
+  const goalDef = goalSeat ? furn(goalSeat.catalogId) : undefined;
+  const sitGoal = !!(goalDef && (goalDef.sittable || goalDef.layable));
   if (blocked.has(goal) && goal !== start && !sitGoal) return [] as { x: number; y: number }[];
   const open = new Set([start]);
   const came = new Map<string, string>();
