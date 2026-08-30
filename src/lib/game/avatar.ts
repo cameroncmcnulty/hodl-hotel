@@ -152,13 +152,6 @@ function blit(
   }
 }
 
-function isBack(dir: 0 | 1 | 2 | 3) {
-  return dir === 2 || dir === 3;
-}
-function isFlip(dir: 0 | 1 | 2 | 3) {
-  return dir === 0 || dir === 3;
-}
-
 export function drawAvatarFront(
   ctx: CanvasRenderingContext2D,
   fig: Figure,
@@ -168,10 +161,10 @@ export function drawAvatarFront(
   dir: 0 | 1 | 2 | 3 = 1
 ) {
   const s = Math.max(1, Math.round(scale));
-  const src = lookCanvas(fig, { back: isBack(dir) });
+  const src = lookCanvas(fig, { view: dir });
   const dw = src.width * s;
   const dh = src.height * s;
-  blit(ctx, src, Math.round(cx - dw / 2), Math.round(cy - dh), s, isFlip(dir));
+  blit(ctx, src, Math.round(cx - dw / 2), Math.round(cy - dh), s, false);
 }
 
 export type AvatarDrawOpts = { dance?: boolean; walking?: boolean; sit?: boolean; dist?: number };
@@ -190,13 +183,13 @@ export function drawAvatarIso(
   const sit = !!opts.sit && !walking;
   const frame = dance ? Math.floor(t * 8) % 4 : walking ? Math.floor((opts.dist || 0) * 2) % 2 : 0;
   const walk: 0 | 1 = walking && frame % 2 === 1 ? 1 : 0;
-  const src = lookCanvas(fig, { back: isBack(dir), walk, sit });
+  const src = lookCanvas(fig, { view: dir, walk, sit });
   const s = LOOK_SCALE;
   const bob = dance ? (frame % 2 === 0 ? -3 : 0) : walking ? (frame % 2 === 0 ? 0 : -3) : 0;
   const dw = src.width * s;
   const dh = src.height * s;
   const dy = Math.round(sy - dh + 8 + bob + (sit ? 12 : 0));
-  blit(ctx, src, Math.round(sx - dw / 2), dy, s, isFlip(dir));
+  blit(ctx, src, Math.round(sx - dw / 2), dy, s, false);
 }
 
 export function shade(hex: string, amt: number) {

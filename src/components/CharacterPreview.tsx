@@ -101,7 +101,7 @@ export function CharacterPreview({
   const w = LOOK_W * s;
   const h = LOOK_H * s;
   const ref = useRef<HTMLCanvasElement>(null);
-  const key = lookKey(f, { back: dir === 2 || dir === 3 });
+  const key = lookKey(f, { view: dir });
   const [ready, setReady] = useState(avatarsReady());
   useEffect(() => {
     loadAvatars().then(() => setReady(true));
@@ -130,6 +130,7 @@ export function CharacterPreview({
 export function FigureEditor({ figure, onChange }: { figure: Figure; onChange: (f: Figure) => void }) {
   const f = clampFigure({ ...figure, face: 0 });
   const [tab, setTab] = useState<TabId>("skin");
+  const [dir, setDir] = useState<0 | 1 | 2 | 3>(1);
   const [ready, setReady] = useState(avatarsReady());
   useEffect(() => {
     loadAvatars().then(() => setReady(true));
@@ -163,7 +164,26 @@ export function FigureEditor({ figure, onChange }: { figure: Figure; onChange: (
 
       <div className="grid gap-4 lg:grid-cols-[minmax(192px,220px)_minmax(0,1fr)] lg:items-start">
         <div className="rounded-2xl bg-[#5c6b78]">
-          <CharacterPreview figure={f} scale={2} dir={1} />
+          <CharacterPreview figure={f} scale={2} dir={dir} />
+          <div className="flex items-center justify-center gap-3 pb-3">
+            <button
+              type="button"
+              onClick={() => setDir((((dir + 3) % 4) as 0 | 1 | 2 | 3))}
+              className="rounded-full bg-black/30 px-3 py-1 text-sm font-bold text-white hover:bg-black/50"
+            >
+              ◀
+            </button>
+            <span className="min-w-14 text-center text-[11px] font-bold uppercase tracking-widest text-white/80">
+              {["Left", "Front", "Back", "Right"][dir]}
+            </span>
+            <button
+              type="button"
+              onClick={() => setDir((((dir + 1) % 4) as 0 | 1 | 2 | 3))}
+              className="rounded-full bg-black/30 px-3 py-1 text-sm font-bold text-white hover:bg-black/50"
+            >
+              ▶
+            </button>
+          </div>
         </div>
         <div>
           <div className="mb-3 flex flex-wrap justify-center gap-2">

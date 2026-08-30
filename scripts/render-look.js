@@ -121,6 +121,20 @@ sheet("heroes", looks, 6);
 savePix("boy-default", paintLook(fig({})), 4);
 savePix("girl-default", paintLook(fig({ gender: 1, hair: 0, topCut: 0, botCut: 0, hairColor: 0, top: 0, bottom: 0, shoes: 0 })), 4);
 
+function turn(name, f) {
+  const pad = 10;
+  const p = new Pix(pad + 4 * (LOOK_W + pad), pad + LOOK_H + pad);
+  p.rect(0, 0, p.w, p.h, [92, 107, 120]);
+  [0, 1, 2, 3].forEach((view, i) => {
+    p.blit(paintLook(f, { view }), pad + i * (LOOK_W + pad), pad);
+  });
+  savePix(name, p, 4);
+}
+turn("boy-turn", fig({}));
+turn("girl-turn", fig({ gender: 1, hair: 0, topCut: 0, botCut: 0, hairColor: 0, top: 0, bottom: 0, shoes: 0 }));
+turn("boy-spike-turn", fig({ gender: 0, hair: 4, topCut: 1, botCut: 1, top: 0, bottom: 3, shoes: 0 }));
+turn("girl-pig-turn", fig({ gender: 1, hair: 4, hairColor: 5, topCut: 1, botCut: 0, top: 1, bottom: 1, shoes: 0 }));
+
 function hashPix(p) {
   let h = 0;
   for (let i = 0; i < p.d.length; i += 4) {
