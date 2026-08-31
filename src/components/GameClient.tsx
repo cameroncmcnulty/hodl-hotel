@@ -8,9 +8,9 @@ import { CATALOG, CATS, furn, RARITY_LABEL, RARITY_TONE, type Rarity } from "@/l
 import { FREE_LAYOUT_IDS, isDoor, layoutById, PREMIUM_LAYOUTS, USER_LAYOUTS, walkable } from "@/lib/layouts";
 import { COIN_PACKS } from "@/lib/constants";
 import { pointerWorld, tileAt, wallLiftAt } from "@/lib/game/draw";
+import { camToFit } from "@/lib/game/iso";
 import { HotelPixi } from "@/lib/game/pixi/HotelPixi";
 import { astar, canPlaceFurn, furnAt, wallAutoRot } from "@/lib/game/path";
-import { iso } from "@/lib/game/iso";
 import { face, motAt, setPath, tickMot, type Mot } from "@/lib/game/motion";
 import { loadAvatars, loadLookSprites } from "@/lib/game/avatar";
 import { loadSprites, spriteCache } from "@/lib/game/sprites";
@@ -424,12 +424,11 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
               lay: !!(resting && seatDef?.layable),
             };
           });
-          const you = vis.find((o) => o.userId === meState.id);
-          if (you) {
-            const p = iso(you.x + 0.5, you.y + 0.5);
-            cam.current.x += (w / 2 - p.sx - cam.current.x) * 0.2;
-            cam.current.y += (h / 2 - p.sy - cam.current.y) * 0.2;
-          }
+          const layoutFit = layoutById(s.room.layoutId);
+          const fit = camToFit(layoutFit, w, h);
+          cam.current.x = fit.ox;
+          cam.current.y = fit.oy;
+          zoomRef.current = fit.scale;
           const gdef = place ? furn(place.catalogId) : undefined;
           if (engine?.ready) {
             engine.draw({
@@ -450,7 +449,7 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
                     }
                   : undefined,
               view: { w, h },
-              zoom: zoomRef.current,
+              zoom: fit.scale,
               sprites: spritesRef.current,
             });
           }
@@ -471,27 +470,6 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
       layout,
       { w: r.width, h: r.height }
     );
-  }
-
-  function clampZoom(z: number) {
-    return Math.max(0.55, Math.min(2.6, z));
-  }
-
-  function zoomAt(mx: number, my: number, nextZ: number) {
-    const c = canvasRef.current;
-    if (!c) {
-      zoomRef.current = clampZoom(nextZ);
-      return;
-    }
-    const r = c.getBoundingClientRect();
-    const z0 = zoomRef.current;
-    const z1 = clampZoom(nextZ);
-    if (z0 === z1) return;
-    const cx = r.width / 2;
-    const cy = r.height / 2;
-    cam.current.x += (mx - cx) * (1 / z1 - 1 / z0);
-    cam.current.y += (my - cy) * (1 / z1 - 1 / z0);
-    zoomRef.current = z1;
   }
 
   function openFurnMenu(clientX: number, clientY: number) {
@@ -520,7 +498,6 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
     const c = canvasRef.current;
     if (!c) return;
     const HOLD_MS = 2000;
-    const pinchDist = (a: Touch, b: Touch) => Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
     const clearHold = () => {
       if (holdRef.current) {
         window.clearTimeout(holdRef.current.t);
@@ -529,15 +506,12 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
     };
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
-      const r = c.getBoundingClientRect();
-      zoomAt(e.clientX - r.left, e.clientY - r.top, zoomRef.current * Math.exp(-e.deltaY * 0.0016));
     };
     const onTouchStart = (e: TouchEvent) => {
       if (e.touches.length >= 2) {
         e.preventDefault();
         clearHold();
         skipClickRef.current = true;
-        pinchRef.current = { dist: pinchDist(e.touches[0], e.touches[1]), z: zoomRef.current };
         return;
       }
       lastTouchAt.current = Date.now();
@@ -556,14 +530,8 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
       }
     };
     const onTouchMove = (e: TouchEvent) => {
-      if (e.touches.length >= 2 && pinchRef.current) {
+      if (e.touches.length >= 2) {
         e.preventDefault();
-        skipClickRef.current = true;
-        const d = pinchDist(e.touches[0], e.touches[1]);
-        const r = c.getBoundingClientRect();
-        const mx = (e.touches[0].clientX + e.touches[1].clientX) / 2 - r.left;
-        const my = (e.touches[0].clientY + e.touches[1].clientY) / 2 - r.top;
-        zoomAt(mx, my, pinchRef.current.z * (d / Math.max(1, pinchRef.current.dist)));
         return;
       }
       const hold = holdRef.current;
@@ -1448,7 +1416,7 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
                   </a>
                 )}
                 <div className="rounded-2xl bg-white/10 px-4 py-3 text-[12px] leading-relaxed text-white/55">
-                  Scroll or pinch to zoom. Click a tile to walk or sit. Hold ~2s (phone) or right-click (mouse) your furniture. Space to dance.
+                  The room stays locked on screen. Click a tile to walk. Hold ~2s (phone) or right-click (mouse). Space to dance.
                 </div>
                 <button
                   className="mt-2 flex items-center justify-center gap-2 rounded-2xl bg-coral/80 px-4 py-3 font-semibold text-white"

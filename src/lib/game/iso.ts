@@ -77,8 +77,19 @@ export function layoutIsoBounds(layout: { w: number; h: number }, wallH = 7.4) {
 /** Scale + origin so the whole layout sits inside a view with padding. */
 export function camToFit(layout: { w: number; h: number }, viewW: number, viewH: number, pad = 14) {
   const b = layoutIsoBounds(layout);
-  const scale = Math.min((viewW - pad * 2) / b.w, (viewH - pad * 2) / b.h);
+  const padX = 12;
+  const padY = Math.max(pad, 24);
+  let scale = (viewW - padX * 2) / Math.max(8, b.w);
+  const maxH = viewH - padY * 2;
+  if (b.h * scale > maxH) scale = maxH / Math.max(8, b.h);
+  if (!Number.isFinite(scale) || scale <= 0) scale = 1;
   const ox = (viewW - b.w * scale) / 2 - b.minX * scale;
   const oy = (viewH - b.h * scale) / 2 - b.minY * scale;
   return { scale, ox, oy };
+}
+
+/** Locked room camera: screen → iso world. cam.x/y are origin, cam.z is scale. */
+export function screenToWorld(cam: { x: number; y: number; z?: number }, mx: number, my: number) {
+  const z = cam.z && cam.z > 0 ? cam.z : 1;
+  return { sx: (mx - cam.x) / z, sy: (my - cam.y) / z };
 }

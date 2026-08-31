@@ -14,12 +14,10 @@ function snap(n: number) {
 
 export type Cam = { x: number; y: number; z?: number };
 
-export function tileAt(cam: Cam, mx: number, my: number, layout?: Layout, view?: { w: number; h: number }) {
+export function tileAt(cam: Cam, mx: number, my: number, layout?: Layout, _view?: { w: number; h: number }) {
   const z = cam.z && cam.z > 0 ? cam.z : 1;
-  const cx = view?.w ? view.w / 2 : 0;
-  const cy = view?.h ? view.h / 2 : 0;
-  const sx = (mx - cx) / z + cx - cam.x;
-  const sy = (my - cy) / z + cy - cam.y;
+  const sx = (mx - cam.x) / z;
+  const sy = (my - cam.y) / z;
   if (!layout) {
     const x = (sx / (TW / 2) + sy / (TH / 2)) / 2;
     const y = (sy / (TH / 2) - sx / (TW / 2)) / 2;
@@ -146,14 +144,9 @@ function wallRunW(ctx: CanvasRenderingContext2D, x: number, y0: number, y1: numb
   poly(ctx, [iso(x, y0, z + 0.38), iso(x, y1 + 1, z + 0.38), iso(x, y1 + 1, z), iso(x, y0, z)], shade(theme.base, -14), false);
 }
 
-export function pointerWorld(cam: Cam, mx: number, my: number, view?: { w: number; h: number }) {
+export function pointerWorld(cam: Cam, mx: number, my: number, _view?: { w: number; h: number }) {
   const z = cam.z && cam.z > 0 ? cam.z : 1;
-  const cx = view?.w ? view.w / 2 : 0;
-  const cy = view?.h ? view.h / 2 : 0;
-  return {
-    sx: (mx - cx) / z + cx - cam.x,
-    sy: (my - cy) / z + cy - cam.y,
-  };
+  return { sx: (mx - cam.x) / z, sy: (my - cam.y) / z };
 }
 
 /** Map cursor height on a wall to one of four hang rows. */

@@ -39,6 +39,7 @@ function parse(
       }
     }
   }
+  if (extra.indoor !== false) placeDoorWestOrNorth(rows, w, h, spawn);
   return {
     id,
     name,
@@ -56,7 +57,39 @@ function parse(
   };
 }
 
-const ROOM = { paper: "#e6d7bc", floorA: "#c9a36e", floorB: "#b8925c" };
+function placeDoorWestOrNorth(rows: Cell[][], w: number, h: number, spawn: { x: number; y: number }) {
+  for (const row of rows) if (row.includes("e")) return;
+  const west: number[] = [];
+  for (let y = 0; y < h; y++) {
+    const c = rows[y][0];
+    if (c === "." || c === "d" || c === "o" || c === "1" || c === "2" || c === "r") west.push(y);
+  }
+  if (west.length) {
+    const pick = west[Math.floor(west.length / 2)];
+    if (!(spawn.x === 0 && spawn.y === pick)) {
+      rows[pick][0] = "e";
+      return;
+    }
+    const alt = west.find((y) => y !== pick);
+    if (alt != null) rows[alt][0] = "e";
+    return;
+  }
+  const north: number[] = [];
+  for (let x = 0; x < w; x++) {
+    const c = rows[0][x];
+    if (c === "." || c === "d" || c === "o" || c === "1" || c === "2" || c === "r") north.push(x);
+  }
+  if (north.length) {
+    const pick = north[Math.floor(north.length / 2)];
+    if (!(spawn.y === 0 && spawn.x === pick)) rows[0][pick] = "e";
+    else {
+      const alt = north.find((x) => x !== pick);
+      if (alt != null) rows[0][alt] = "e";
+    }
+  }
+}
+
+const ROOM = { paper: "#e8d9c4", floorA: "#d4b48a", floorB: "#c19a6e" };
 
 export const LAYOUTS: Layout[] = [
   parse(
@@ -71,7 +104,7 @@ export const LAYOUTS: Layout[] = [
 ....s.....
 ..........
 ..........
-....e.....
+..........
 `,
     ROOM
   ),

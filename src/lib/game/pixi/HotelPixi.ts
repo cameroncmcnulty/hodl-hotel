@@ -7,7 +7,7 @@ import type { Occupant, Room } from "../../types";
 import { seatZ } from "../furnDraw";
 import { shade } from "../avatar";
 import { getOgCanvas, ogScale } from "../ogLook";
-import { iso, plantFurn, TW } from "../iso";
+import { camToFit, iso, plantFurn, TW } from "../iso";
 import { furnAt } from "../path";
 import { Application, Container, Graphics, Sprite, Text, Texture, TextureStyle } from "pixi.js";
 import { isoBox, isoDiamond } from "./pixiArt";
@@ -93,10 +93,11 @@ export class HotelPixi {
 
   draw(frame: PixiFrame) {
     if (!this.app || !this.ready) return;
-    const { room, occupants, cam, view, zoom } = frame;
+    const { room, view } = frame;
     const layout = layoutById(room.layoutId);
-    this.world.scale.set(zoom);
-    this.world.position.set(cam.x * zoom + (view.w / 2) * (1 - zoom), cam.y * zoom + (view.h / 2) * (1 - zoom));
+    const fit = camToFit(layout, view.w, view.h);
+    this.world.scale.set(fit.scale);
+    this.world.position.set(fit.ox, fit.oy);
 
     this.paintFloor(layout, room, frame.t);
     this.clearFurniture();
@@ -107,17 +108,24 @@ export class HotelPixi {
 
   private paintFloor(layout: Layout, room: Room, t: number) {
     const paper = wallPaper(layout, room.paper);
-    const floorA = room.floorA || layout.floorA || "#c9a36e";
-    const floorB = room.floorB || layout.floorB || "#b8925c";
+    const floorA = room.floorA || layout.floorA || "#d4b48a";
+    const floorB = room.floorB || layout.floorB || "#c19a6e";
     const key = `${layout.id}:${paper}:${floorA}:${floorB}:${Math.floor(t * 2)}`;
     if (key === this.floorKey) return;
     this.floorKey = key;
     const g = this.floor;
     g.clear();
+    const ink = 0x1a120c;
+    const doorInk = 0x07060a;
+    const capZ = layout.indoor === false ? 4.2 : layout.id === "shill_club" ? 7.9 : 7.4;
+    const doorH = 3.55;
+    const EDGE = 10;
+    const isFloor = (x: number, y: number) => walkable(layout, x, y) || isWater(layout, x, y);
+
     const tiles: { x: number; y: number; z: number; fill: string }[] = [];
     for (let y = 0; y < layout.h; y++) {
       for (let x = 0; x < layout.w; x++) {
-        if (!walkable(layout, x, y) && !isWater(layout, x, y)) continue;
+        if (!isFloor(x, y)) continue;
         let fill = (x + y) % 2 === 0 ? floorA : floorB;
         if (isDance(layout, x, y)) {
           const flash = Math.floor(t * 2 + x + y) % 3;
@@ -127,75 +135,116 @@ export class HotelPixi {
         tiles.push({ x, y, z: tileH(layout, x, y), fill });
       }
     }
-    for (const tile of tiles) {
-      if (tile.z > 0.05 && !isStair(layout, tile.x, tile.y)) {
-        isoBox(g, tile.x, tile.y, 0, 1, 1, tile.z, shade(tile.fill, -18), shade(tile.fill, -40), shade(tile.fill, -28));
-      }
-      isoDiamond(g, tile.x, tile.y, tile.z, tile.fill);
-    }
-    let backY = Infinity;
-    let backX = Infinity;
-    for (const tile of tiles) {
-      if (tile.y < backY) backY = tile.y;
-      if (tile.x < backX) backX = tile.x;
-    }
-    const cap = layout.id === "shill_club" ? 7.9 : 7.4;
-    if (Number.isFinite(backY)) {
-      let x = 0;
-      while (x < layout.w) {
-        const here = walkable(layout, x, backY) || isWater(layout, x, backY);
-        if (!here) {
-          x++;
-          continue;
+
+    const fillQuad = (pts: { sx: number; sy: number }[], color: number) => {
+      const flat: number[] = [];
+      for (const p of pts) flat.push(Math.round(p.sx), Math.round(p.sy));
+      g.poly(flat);
+      g.fill({ color });
+    };
+    const strokeQuad = (pts: { sx: number; sy: number }[], color: number, width = 1) => {
+      const flat: number[] = [];
+      for (const p of pts) flat.push(Math.round(p.sx), Math.round(p.sy));
+      g.poly(flat);
+      g.stroke({ width, color, join: "round" });
+    };
+    const line = (a: { sx: number; sy: number }, b: { sx: number; sy: number }, color: number) => {
+      g.moveTo(Math.round(a.sx), Math.round(a.sy));
+      g.lineTo(Math.round(b.sx), Math.round(b.sy));
+      g.stroke({ width: 1, color });
+    };
+
+    const northWall = (x: number, y: number) => isFloor(x, y) && !isFloor(x, y - 1);
+    const westWall = (x: number, y: number) => isFloor(x, y) && !isFloor(x - 1, y);
+
+    for (let y = 0; y < layout.h; y++) {
+      for (let x = 0; x < layout.w; x++) {
+        if (!westWall(x, y)) continue;
+        const z = tileH(layout, x, y);
+        const door = isDoor(layout, x, y);
+        const col = hexNum(shade(paper, -26));
+        const cap = hexNum(shade(paper, -8));
+        const A = iso(x, y, capZ);
+        const B = iso(x, y + 1, capZ);
+        const C = iso(x, y + 1, z);
+        const D = iso(x, y, z);
+        fillQuad([A, B, C, D], col);
+        fillQuad([A, B, iso(x, y + 1, capZ - 0.28), iso(x, y, capZ - 0.28)], cap);
+        strokeQuad([A, B, C, D], ink, 1);
+        if (door) {
+          const ht = z + doorH;
+          const i0 = iso(x, y + 0.08, z);
+          const i1 = iso(x, y + 0.92, z);
+          const i2 = iso(x, y + 0.92, ht);
+          const i3 = iso(x, y + 0.08, ht);
+          fillQuad([i0, i1, i2, i3], doorInk);
+          strokeQuad([i0, i1, i2, i3], 0x000000, 2);
+          fillQuad(
+            [iso(x, y + 0.16, z + 0.06), iso(x, y + 0.84, z + 0.06), iso(x, y + 0.84, ht - 0.12), iso(x, y + 0.16, ht - 0.12)],
+            0x000000
+          );
         }
-        const z = tileH(layout, x, backY);
-        let x1 = x;
-        while (x1 + 1 < layout.w && (walkable(layout, x1 + 1, backY) || isWater(layout, x1 + 1, backY))) x1++;
-        this.wallN(g, x, x1, backY, z, cap, paper);
-        x = x1 + 1;
-      }
-    }
-    if (Number.isFinite(backX)) {
-      let y = 0;
-      while (y < layout.h) {
-        const here = walkable(layout, backX, y) || isWater(layout, backX, y);
-        if (!here) {
-          y++;
-          continue;
-        }
-        const z = tileH(layout, backX, y);
-        let y1 = y;
-        while (y1 + 1 < layout.h && (walkable(layout, backX, y1 + 1) || isWater(layout, backX, y1 + 1))) y1++;
-        this.wallW(g, backX, y, y1, z, cap, paper);
-        y = y1 + 1;
       }
     }
     for (let y = 0; y < layout.h; y++) {
       for (let x = 0; x < layout.w; x++) {
-        if (!isDoor(layout, x, y)) continue;
+        if (!northWall(x, y)) continue;
         const z = tileH(layout, x, y);
-        isoBox(g, x + 0.12, y + 0.55, z, 0.18, 0.18, 2.2, "#c9a227", "#8a6a00", "#e0c068");
-        isoBox(g, x + 0.7, y + 0.55, z, 0.18, 0.18, 2.2, "#c9a227", "#8a6a00", "#e0c068");
+        const door = isDoor(layout, x, y) && !westWall(x, y);
+        const col = hexNum(paper);
+        const cap = hexNum(shade(paper, 14));
+        const A = iso(x, y, capZ);
+        const B = iso(x + 1, y, capZ);
+        const C = iso(x + 1, y, z);
+        const D = iso(x, y, z);
+        fillQuad([A, B, C, D], col);
+        fillQuad([A, B, iso(x + 1, y, capZ - 0.28), iso(x, y, capZ - 0.28)], cap);
+        strokeQuad([A, B, C, D], ink, 1);
+        if (door) {
+          const ht = z + doorH;
+          const i0 = iso(x + 0.08, y, z);
+          const i1 = iso(x + 0.92, y, z);
+          const i2 = iso(x + 0.92, y, ht);
+          const i3 = iso(x + 0.08, y, ht);
+          fillQuad([i0, i1, i2, i3], doorInk);
+          strokeQuad([i0, i1, i2, i3], 0x000000, 2);
+          fillQuad(
+            [iso(x + 0.16, y, z + 0.06), iso(x + 0.84, y, z + 0.06), iso(x + 0.84, y, ht - 0.12), iso(x + 0.16, y, ht - 0.12)],
+            0x000000
+          );
+        }
       }
     }
-  }
 
-  private wallN(g: Graphics, x0: number, x1: number, y: number, z: number, top: number, paper: string) {
-    const a = iso(x0, y, top);
-    const b = iso(x1 + 1, y, top);
-    const c = iso(x1 + 1, y, z);
-    const d = iso(x0, y, z);
-    g.poly([a.sx, a.sy, b.sx, b.sy, c.sx, c.sy, d.sx, d.sy]);
-    g.fill({ color: hexNum(paper) });
-  }
-
-  private wallW(g: Graphics, x: number, y0: number, y1: number, z: number, top: number, paper: string) {
-    const a = iso(x, y0, top);
-    const b = iso(x, y1 + 1, top);
-    const c = iso(x, y1 + 1, z);
-    const d = iso(x, y0, z);
-    g.poly([a.sx, a.sy, b.sx, b.sy, c.sx, c.sy, d.sx, d.sy]);
-    g.fill({ color: hexNum(shade(paper, -22)) });
+    for (const tile of tiles) {
+      if (tile.z > 0.05 && !isStair(layout, tile.x, tile.y)) {
+        isoBox(g, tile.x, tile.y, 0, 1, 1, tile.z, shade(tile.fill, -18), shade(tile.fill, -40), shade(tile.fill, -28));
+      }
+      const east = !isFloor(tile.x + 1, tile.y);
+      const south = !isFloor(tile.x, tile.y + 1);
+      const r = iso(tile.x + 1, tile.y, tile.z);
+      const b = iso(tile.x + 1, tile.y + 1, tile.z);
+      const l = iso(tile.x, tile.y + 1, tile.z);
+      if (east) fillQuad([r, b, { sx: b.sx, sy: b.sy + EDGE }, { sx: r.sx, sy: r.sy + EDGE }], hexNum(shade(tile.fill, -42)));
+      if (south) fillQuad([l, b, { sx: b.sx, sy: b.sy + EDGE }, { sx: l.sx, sy: l.sy + EDGE }], hexNum(shade(tile.fill, -28)));
+    }
+    for (const tile of tiles) {
+      const A = iso(tile.x, tile.y, tile.z);
+      const B = iso(tile.x + 1, tile.y, tile.z);
+      const C = iso(tile.x + 1, tile.y + 1, tile.z);
+      const D = iso(tile.x, tile.y + 1, tile.z);
+      fillQuad([A, B, C, D], hexNum(tile.fill));
+    }
+    for (const tile of tiles) {
+      const A = iso(tile.x, tile.y, tile.z);
+      const B = iso(tile.x + 1, tile.y, tile.z);
+      const C = iso(tile.x + 1, tile.y + 1, tile.z);
+      const D = iso(tile.x, tile.y + 1, tile.z);
+      if (!isFloor(tile.x, tile.y - 1) || tileH(layout, tile.x, tile.y - 1) !== tile.z) line(A, B, ink);
+      if (!isFloor(tile.x + 1, tile.y) || tileH(layout, tile.x + 1, tile.y) !== tile.z) line(B, C, ink);
+      if (!isFloor(tile.x, tile.y + 1) || tileH(layout, tile.x, tile.y + 1) !== tile.z) line(C, D, ink);
+      if (!isFloor(tile.x - 1, tile.y) || tileH(layout, tile.x - 1, tile.y) !== tile.z) line(D, A, ink);
+    }
   }
 
   private textureFor(id: string, canvas: HTMLCanvasElement) {
