@@ -5,8 +5,8 @@ import { furn, footprint, visualFill } from "../../catalog";
 import { isDance, isDoor, isOutdoor, isStair, isWater, layoutById, tileH, walkable, type Layout } from "../../layouts";
 import type { Occupant, Room } from "../../types";
 import { seatZ } from "../furnDraw";
-import { shade } from "../avatar";
-import { getOgCanvas, ogScale } from "../ogLook";
+import { getLookCanvas, shade } from "../avatar";
+import { FOOT_Y, LOOK_H } from "../lookDraw";
 import { camToFit, iso, plantFurn, TW } from "../iso";
 import { furnAt } from "../path";
 import { Application, Container, Graphics, Sprite, Text, Texture, TextureStyle } from "pixi.js";
@@ -101,7 +101,7 @@ export class HotelPixi {
 
     this.paintFloor(layout, room, frame.t);
     this.clearFurniture();
-    this.clearAvatars();
+    this.paintAvatars(room, frame.occupants, layout);
     this.paintGhost(frame, layout);
     this.objects.sortChildren();
   }
@@ -366,23 +366,15 @@ export class HotelPixi {
       const seat = sitting || laying ? furnAt(room.furniture, Math.round(o.x), Math.round(o.y)) : undefined;
       const seatDef = seat ? furn(seat.catalogId) : undefined;
       const walk: 0 | 1 = o.moving ? 1 : 0;
-      const look = getOgCanvas(o.figure, { dir: o.dir, sit: sitting, lay: laying, walk });
-      const pose = laying ? "lay" : sitting ? "sit" : "stand";
-      const key = `og:${pose}:${look ? look.width : 0}:${JSON.stringify(o.figure)}:${o.dir}`;
+      const key = `${JSON.stringify(o.figure)}:${o.dir}:${sitting ? 1 : 0}:${laying ? 1 : 0}:${walk}`;
       let body = this.avG.get(o.userId);
-      if (!look) {
-        if (body) body.visible = false;
-        seen.add(o.userId);
-        continue;
-      }
       if (!body || this.avKey.get(o.userId) !== key) {
         body?.destroy({ children: true });
         body = new Container();
-        const spr = new Sprite(this.textureFor(key, look));
-        spr.anchor.set(0.5, 1);
+        const look = getLookCanvas(o.figure, { view: o.dir, sit: sitting, lay: laying, walk });
+        const spr = new Sprite(this.textureFor(`av:${key}`, look));
+        spr.anchor.set(0.5, FOOT_Y / LOOK_H);
         spr.roundPixels = true;
-        const s = ogScale(look, laying);
-        spr.scale.set(s);
         body.addChild(spr);
         this.objects.addChild(body);
         this.avG.set(o.userId, body);
@@ -409,9 +401,8 @@ export class HotelPixi {
         this.objects.addChild(label);
         this.names.set(o.userId, label);
       } else if (label.text !== o.username) label.text = o.username;
-      const bodyH = body.children[0] ? Math.abs((body.children[0] as Sprite).height) : 62;
       label.x = Math.round(p.sx - label.width / 2);
-      label.y = Math.round(p.sy - bodyH - 12);
+      label.y = Math.round(p.sy - FOOT_Y - 12);
       label.zIndex = body.zIndex + 1;
     }
     for (const [id, spr] of this.avG) {

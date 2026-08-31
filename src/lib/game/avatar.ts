@@ -128,7 +128,7 @@ export async function loadLookSprites(_fig: Figure, _dir: 0 | 1 | 2 | 3 = 1) {
 }
 
 export function loadAvatars() {
-  return import("./ogLook").then((m) => m.loadOgPack());
+  return Promise.resolve();
 }
 
 export function lookReady(_fig?: Figure, _dir: 0 | 1 | 2 | 3 = 1) {

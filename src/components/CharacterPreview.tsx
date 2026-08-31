@@ -6,7 +6,9 @@ import {
   botColors,
   botsFor,
   clampFigure,
+  drawLookThumb,
   DYE,
+  getLookCanvas,
   hairColors,
   hairsFor,
   ITEM_LABEL,
@@ -19,7 +21,7 @@ import {
   topsFor,
   type ThumbZone,
 } from "@/lib/game/avatar";
-import { getOgCanvas, loadOgPack, ogScale } from "@/lib/game/ogLook";
+import { FOOT_Y, LOOK_H, LOOK_W } from "@/lib/game/lookDraw";
 
 function SlotThumb({
   figure,
@@ -44,27 +46,12 @@ function SlotThumb({
   useEffect(() => {
     const c = ref.current;
     if (!c) return;
-    let dead = false;
-    const paint = () => {
-      if (dead) return;
-      const ctx = c.getContext("2d");
-      if (!ctx) return;
-      ctx.imageSmoothingEnabled = false;
-      ctx.fillStyle = "#24303c";
-      ctx.fillRect(0, 0, w, h);
-      const look = getOgCanvas(f, {});
-      if (!look) return;
-      const zx = zone === "head" ? 0 : zone === "chest" ? 0.12 : 0.08;
-      const zy = zone === "head" ? 0 : zone === "chest" ? 0.38 : zone === "legs" ? 0.58 : 0;
-      const zw = 1 - zx * 2;
-      const zh = zone === "head" ? 0.48 : zone === "chest" ? 0.32 : zone === "legs" ? 0.42 : 1;
-      ctx.drawImage(look, look.width * zx, look.height * zy, look.width * zw, look.height * zh, 0, 0, w, h);
-    };
-    loadOgPack().then(paint);
-    paint();
-    return () => {
-      dead = true;
-    };
+    const ctx = c.getContext("2d");
+    if (!ctx) return;
+    ctx.imageSmoothingEnabled = false;
+    ctx.fillStyle = "#24303c";
+    ctx.fillRect(0, 0, w, h);
+    drawLookThumb(ctx, f, zone, 0, 0, scale);
   }, [key, zone, w, h]);
   return (
     <button
@@ -97,7 +84,13 @@ function Swatches({ colors, on, onPick }: { colors: string[]; on: number; onPick
   );
 }
 
-export function CharacterPreview(_props: {
+export function CharacterPreview({
+  figure,
+  scale = 2,
+  dir = 1,
+  sit = false,
+  lay = false,
+}: {
   figure: Figure;
   size?: number;
   scale?: number;
@@ -105,7 +98,32 @@ export function CharacterPreview(_props: {
   sit?: boolean;
   lay?: boolean;
 }) {
-  return <div className="mx-auto block h-[220px] w-full bg-[#1a1428]" />;
+  const f = clampFigure(figure);
+  const key = lookKey(f, { view: dir, sit, lay });
+  const ref = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    const canvas = ref.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    ctx.imageSmoothingEnabled = false;
+    ctx.fillStyle = "#5c6b78";
+    ctx.fillRect(0, 0, 200, 220);
+    const look = getLookCanvas(f, { view: dir, sit, lay });
+    const s = Math.max(1, Math.round(scale));
+    const dw = LOOK_W * s;
+    const dh = LOOK_H * s;
+    ctx.drawImage(look, Math.round(100 - dw / 2), Math.round(190 - (FOOT_Y / LOOK_H) * dh), dw, dh);
+  }, [key, dir, sit, lay, scale]);
+  return (
+    <canvas
+      ref={ref}
+      width={200}
+      height={220}
+      className="mx-auto block h-[220px] w-full"
+      style={{ imageRendering: "pixelated" }}
+    />
+  );
 }
 
 const TABS: { id: "skin" | "hair" | "ch" | "lg" | "sh"; label: string; zone: ThumbZone }[] = [
