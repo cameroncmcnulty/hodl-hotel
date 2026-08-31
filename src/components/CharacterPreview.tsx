@@ -97,13 +97,7 @@ function Swatches({ colors, on, onPick }: { colors: string[]; on: number; onPick
   );
 }
 
-export function CharacterPreview({
-  figure,
-  scale = 2,
-  dir = 1,
-  sit = false,
-  lay = false,
-}: {
+export function CharacterPreview(_props: {
   figure: Figure;
   size?: number;
   scale?: number;
@@ -111,42 +105,7 @@ export function CharacterPreview({
   sit?: boolean;
   lay?: boolean;
 }) {
-  const f = clampFigure(figure);
-  const key = lookKey(f, { view: dir, sit, lay });
-  const ref = useRef<HTMLCanvasElement>(null);
-  useEffect(() => {
-    const canvas = ref.current;
-    if (!canvas) return;
-    let dead = false;
-    const paint = () => {
-      if (dead) return;
-      const ctx = canvas.getContext("2d");
-      if (!ctx) return;
-      ctx.imageSmoothingEnabled = false;
-      ctx.fillStyle = "#5c6b78";
-      ctx.fillRect(0, 0, 200, 220);
-      const look = getOgCanvas(f, { dir, sit, lay });
-      if (!look) return;
-      const s = ogScale(look, lay) * 2.4;
-      const dw = look.width * s;
-      const dh = look.height * s;
-      ctx.drawImage(look, Math.round(100 - dw / 2), Math.round(200 - dh), dw, dh);
-    };
-    loadOgPack().then(paint);
-    paint();
-    return () => {
-      dead = true;
-    };
-  }, [key, dir, sit, lay]);
-  return (
-    <canvas
-      ref={ref}
-      width={200}
-      height={220}
-      className="mx-auto block h-[220px] w-full"
-      style={{ imageRendering: "pixelated" }}
-    />
-  );
+  return <div className="mx-auto block h-[220px] w-full bg-[#1a1428]" />;
 }
 
 const TABS: { id: "skin" | "hair" | "ch" | "lg" | "sh"; label: string; zone: ThumbZone }[] = [

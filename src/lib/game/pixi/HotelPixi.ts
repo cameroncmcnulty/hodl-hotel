@@ -99,8 +99,8 @@ export class HotelPixi {
     this.world.position.set(cam.x * zoom + (view.w / 2) * (1 - zoom), cam.y * zoom + (view.h / 2) * (1 - zoom));
 
     this.paintFloor(layout, room, frame.t);
-    this.paintFurniture(room, layout, frame.sprites);
-    this.paintAvatars(room, occupants, layout);
+    this.clearFurniture();
+    this.clearAvatars();
     this.paintGhost(frame, layout);
     this.objects.sortChildren();
   }
@@ -238,6 +238,21 @@ export class HotelPixi {
     node.position.set(planted.x + planted.destW / 2, planted.y + planted.destH);
   }
 
+  private clearFurniture() {
+    for (const [, node] of this.furnN) node.destroy({ children: true });
+    this.furnN.clear();
+    this.furnKind.clear();
+    this.ghostSpr.visible = false;
+  }
+
+  private clearAvatars() {
+    for (const [, spr] of this.avG) spr.destroy({ children: true });
+    this.avG.clear();
+    this.avKey.clear();
+    for (const [, label] of this.names) label.destroy();
+    this.names.clear();
+  }
+
   private paintFurniture(room: Room, layout: Layout, sprites?: Record<string, HTMLCanvasElement>) {
     const seen = new Set<string>();
     for (const p of room.furniture) {
@@ -348,34 +363,7 @@ export class HotelPixi {
     const g = this.ghost;
     g.clear();
     this.ghostSpr.visible = false;
-    if (frame.ghost) {
-      const { w, d } = footprint(frame.ghost.def, frame.ghost.rot);
-      for (let dy = 0; dy < d; dy++) {
-        for (let dx = 0; dx < w; dx++) {
-          const z = tileH(layout, frame.ghost.x + dx, frame.ghost.y + dy);
-          isoDiamond(g, frame.ghost.x + dx, frame.ghost.y + dy, z, frame.ghost.ok ? "#14F195" : "#ff5050");
-        }
-      }
-      g.alpha = 0.45;
-      const canvas = frame.sprites?.[frame.ghost.def.id];
-      if (canvas) {
-        this.ghostSpr.texture = this.textureFor(frame.ghost.def.id, canvas);
-        this.ghostSpr.alpha = 0.55;
-        this.ghostSpr.visible = true;
-        const z = tileH(layout, frame.ghost.x, frame.ghost.y);
-        this.plantSprite(
-          this.ghostSpr,
-          this.ghostSpr,
-          canvas,
-          frame.ghost.def,
-          frame.ghost.x,
-          frame.ghost.y,
-          z,
-          frame.ghost.rot,
-          frame.ghost.wallLift ?? 1
-        );
-      }
-    } else if (frame.hover && walkable(layout, frame.hover.x, frame.hover.y)) {
+    if (frame.hover && walkable(layout, frame.hover.x, frame.hover.y)) {
       isoDiamond(g, frame.hover.x, frame.hover.y, tileH(layout, frame.hover.x, frame.hover.y), "#14F195");
       g.alpha = 0.35;
     }
