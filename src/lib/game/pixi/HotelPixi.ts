@@ -157,62 +157,78 @@ export class HotelPixi {
     const northWall = (x: number, y: number) => isFloor(x, y) && !isFloor(x, y - 1);
     const westWall = (x: number, y: number) => isFloor(x, y) && !isFloor(x - 1, y);
 
-    for (let y = 0; y < layout.h; y++) {
-      for (let x = 0; x < layout.w; x++) {
-        if (!westWall(x, y)) continue;
+    const punchDoorW = (x: number, y: number, z: number) => {
+      const ht = z + doorH;
+      const i0 = iso(x, y + 0.08, z);
+      const i1 = iso(x, y + 0.92, z);
+      const i2 = iso(x, y + 0.92, ht);
+      const i3 = iso(x, y + 0.08, ht);
+      fillQuad([i0, i1, i2, i3], doorInk);
+      strokeQuad([i0, i1, i2, i3], 0x000000, 2);
+      fillQuad(
+        [iso(x, y + 0.18, z + 0.04), iso(x, y + 0.82, z + 0.04), iso(x, y + 0.82, ht - 0.1), iso(x, y + 0.18, ht - 0.1)],
+        0x000000
+      );
+    };
+    const punchDoorN = (x: number, y: number, z: number) => {
+      const ht = z + doorH;
+      const i0 = iso(x + 0.08, y, z);
+      const i1 = iso(x + 0.92, y, z);
+      const i2 = iso(x + 0.92, y, ht);
+      const i3 = iso(x + 0.08, y, ht);
+      fillQuad([i0, i1, i2, i3], doorInk);
+      strokeQuad([i0, i1, i2, i3], 0x000000, 2);
+      fillQuad(
+        [iso(x + 0.18, y, z + 0.04), iso(x + 0.82, y, z + 0.04), iso(x + 0.82, y, ht - 0.1), iso(x + 0.18, y, ht - 0.1)],
+        0x000000
+      );
+    };
+
+    for (let x = 0; x < layout.w; x++) {
+      let y = 0;
+      while (y < layout.h) {
+        if (!westWall(x, y)) {
+          y++;
+          continue;
+        }
         const z = tileH(layout, x, y);
-        const door = isDoor(layout, x, y);
+        let y1 = y;
+        while (y1 + 1 < layout.h && westWall(x, y1 + 1) && tileH(layout, x, y1 + 1) === z) y1++;
         const col = hexNum(shade(paper, -26));
-        const cap = hexNum(shade(paper, -8));
+        const capCol = hexNum(shade(paper, -8));
         const A = iso(x, y, capZ);
-        const B = iso(x, y + 1, capZ);
-        const C = iso(x, y + 1, z);
+        const B = iso(x, y1 + 1, capZ);
+        const C = iso(x, y1 + 1, z);
         const D = iso(x, y, z);
         fillQuad([A, B, C, D], col);
-        fillQuad([A, B, iso(x, y + 1, capZ - 0.28), iso(x, y, capZ - 0.28)], cap);
+        fillQuad([A, B, iso(x, y1 + 1, capZ - 0.28), iso(x, y, capZ - 0.28)], capCol);
         strokeQuad([A, B, C, D], ink, 1);
-        if (door) {
-          const ht = z + doorH;
-          const i0 = iso(x, y + 0.08, z);
-          const i1 = iso(x, y + 0.92, z);
-          const i2 = iso(x, y + 0.92, ht);
-          const i3 = iso(x, y + 0.08, ht);
-          fillQuad([i0, i1, i2, i3], doorInk);
-          strokeQuad([i0, i1, i2, i3], 0x000000, 2);
-          fillQuad(
-            [iso(x, y + 0.16, z + 0.06), iso(x, y + 0.84, z + 0.06), iso(x, y + 0.84, ht - 0.12), iso(x, y + 0.16, ht - 0.12)],
-            0x000000
-          );
-        }
+        for (let yy = y; yy <= y1; yy++) if (isDoor(layout, x, yy)) punchDoorW(x, yy, z);
+        y = y1 + 1;
       }
     }
+
     for (let y = 0; y < layout.h; y++) {
-      for (let x = 0; x < layout.w; x++) {
-        if (!northWall(x, y)) continue;
+      let x = 0;
+      while (x < layout.w) {
+        if (!northWall(x, y)) {
+          x++;
+          continue;
+        }
         const z = tileH(layout, x, y);
-        const door = isDoor(layout, x, y) && !westWall(x, y);
+        let x1 = x;
+        while (x1 + 1 < layout.w && northWall(x1 + 1, y) && tileH(layout, x1 + 1, y) === z) x1++;
         const col = hexNum(paper);
-        const cap = hexNum(shade(paper, 14));
+        const capCol = hexNum(shade(paper, 14));
         const A = iso(x, y, capZ);
-        const B = iso(x + 1, y, capZ);
-        const C = iso(x + 1, y, z);
+        const B = iso(x1 + 1, y, capZ);
+        const C = iso(x1 + 1, y, z);
         const D = iso(x, y, z);
         fillQuad([A, B, C, D], col);
-        fillQuad([A, B, iso(x + 1, y, capZ - 0.28), iso(x, y, capZ - 0.28)], cap);
+        fillQuad([A, B, iso(x1 + 1, y, capZ - 0.28), iso(x, y, capZ - 0.28)], capCol);
         strokeQuad([A, B, C, D], ink, 1);
-        if (door) {
-          const ht = z + doorH;
-          const i0 = iso(x + 0.08, y, z);
-          const i1 = iso(x + 0.92, y, z);
-          const i2 = iso(x + 0.92, y, ht);
-          const i3 = iso(x + 0.08, y, ht);
-          fillQuad([i0, i1, i2, i3], doorInk);
-          strokeQuad([i0, i1, i2, i3], 0x000000, 2);
-          fillQuad(
-            [iso(x + 0.16, y, z + 0.06), iso(x + 0.84, y, z + 0.06), iso(x + 0.84, y, ht - 0.12), iso(x + 0.16, y, ht - 0.12)],
-            0x000000
-          );
-        }
+        for (let xx = x; xx <= x1; xx++) if (isDoor(layout, xx, y) && !westWall(xx, y)) punchDoorN(xx, y, z);
+        x = x1 + 1;
       }
     }
 

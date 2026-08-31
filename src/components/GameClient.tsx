@@ -257,7 +257,7 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
         act({ type: "walk", x: tx, y: ty });
         return;
       }
-      if (isDoor(layoutById(s.room.layoutId), tx, ty) && s.room.ownerId) {
+      if (isDoor(layoutById(s.room.layoutId), tx, ty)) {
         act({ type: "leave" });
         return;
       }

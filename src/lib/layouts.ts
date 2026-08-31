@@ -39,7 +39,9 @@ function parse(
       }
     }
   }
-  if (extra.indoor !== false) placeDoorWestOrNorth(rows, w, h, spawn);
+  if (extra.indoor !== false) placeDoorWestOrNorth(rows, w, h);
+  const door = findDoor(rows);
+  if (door) spawn = { x: door.x, y: door.y };
   return {
     id,
     name,
@@ -57,21 +59,24 @@ function parse(
   };
 }
 
-function placeDoorWestOrNorth(rows: Cell[][], w: number, h: number, spawn: { x: number; y: number }) {
-  for (const row of rows) if (row.includes("e")) return;
+function findDoor(rows: Cell[][]) {
+  for (let y = 0; y < rows.length; y++) {
+    for (let x = 0; x < (rows[y]?.length || 0); x++) {
+      if (rows[y][x] === "e") return { x, y };
+    }
+  }
+  return null;
+}
+
+function placeDoorWestOrNorth(rows: Cell[][], w: number, h: number) {
+  if (findDoor(rows)) return;
   const west: number[] = [];
   for (let y = 0; y < h; y++) {
     const c = rows[y][0];
     if (c === "." || c === "d" || c === "o" || c === "1" || c === "2" || c === "r") west.push(y);
   }
   if (west.length) {
-    const pick = west[Math.floor(west.length / 2)];
-    if (!(spawn.x === 0 && spawn.y === pick)) {
-      rows[pick][0] = "e";
-      return;
-    }
-    const alt = west.find((y) => y !== pick);
-    if (alt != null) rows[alt][0] = "e";
+    rows[west[Math.floor(west.length / 2)]][0] = "e";
     return;
   }
   const north: number[] = [];
@@ -79,14 +84,7 @@ function placeDoorWestOrNorth(rows: Cell[][], w: number, h: number, spawn: { x: 
     const c = rows[0][x];
     if (c === "." || c === "d" || c === "o" || c === "1" || c === "2" || c === "r") north.push(x);
   }
-  if (north.length) {
-    const pick = north[Math.floor(north.length / 2)];
-    if (!(spawn.y === 0 && spawn.x === pick)) rows[0][pick] = "e";
-    else {
-      const alt = north.find((x) => x !== pick);
-      if (alt != null) rows[0][alt] = "e";
-    }
-  }
+  if (north.length) rows[0][north[Math.floor(north.length / 2)]] = "e";
 }
 
 const ROOM = { paper: "#e8d9c4", floorA: "#d4b48a", floorB: "#c19a6e" };

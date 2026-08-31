@@ -262,7 +262,7 @@ export function applyAction(userId: string, action: Action) {
     const seat = furnAt(room.furniture, action.x, action.y);
     const seatDef = seat ? furn(seat.catalogId) : undefined;
     const sittingThere = !!(seatDef && (seatDef.sittable || seatDef.layable));
-    if (isDoor(layout, action.x, action.y) && room.ownerId) {
+    if (isDoor(layout, action.x, action.y)) {
       live.occupants = live.occupants.filter((o) => o.userId !== userId);
       saveDB(db);
       return { ok: true, lobby: true };
