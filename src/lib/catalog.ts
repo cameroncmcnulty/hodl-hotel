@@ -24,7 +24,24 @@ export type FurnDef = {
   colors: { top: string; left: string; right: string; accent?: string };
 };
 
-export const CATALOG: FurnDef[] = [];
+export const CATALOG: FurnDef[] = [
+  {
+    id: "stool_mint",
+    name: "Mint stool",
+    desc: "Artist test seat. 1 tile. Sit on it.",
+    category: "seating",
+    price: 0,
+    w: 1,
+    d: 1,
+    h: 1.2,
+    rot4: false,
+    rarity: "common",
+    slot: "floor",
+    sittable: true,
+    shape: "stool",
+    colors: { top: "#b5efc9", left: "#80bd9b", right: "#609780" },
+  },
+];
 export const HOTEL_FURN: FurnDef[] = [];
 
 export const RARITY_TONE: Record<Rarity, string> = {
@@ -40,8 +57,13 @@ export type HotelSpot = { id: string; x: number; y: number; rot?: 0 | 1 | 2 | 3 
 
 export const HOTEL_SPOTS: Record<string, HotelSpot[]> = {};
 
-export function hotelFurniture(_layoutId: string) {
-  return [] as { uid: string; catalogId: string; x: number; y: number; rot: 0 | 1 | 2 | 3; ownerId: string }[];
+export function hotelFurniture(layoutId: string) {
+  if (layoutId !== "grand_lobby") return [] as { uid: string; catalogId: string; x: number; y: number; rot: 0 | 1 | 2 | 3; ownerId: string }[];
+  return [
+    { uid: "test-stool-a", catalogId: "stool_mint", x: 6, y: 8, rot: 0 as const, ownerId: "hotel" },
+    { uid: "test-stool-b", catalogId: "stool_mint", x: 8, y: 8, rot: 0 as const, ownerId: "hotel" },
+    { uid: "test-stool-c", catalogId: "stool_mint", x: 10, y: 8, rot: 0 as const, ownerId: "hotel" },
+  ];
 }
 
 export const CATS = [

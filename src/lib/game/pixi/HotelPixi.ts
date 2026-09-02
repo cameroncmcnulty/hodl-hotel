@@ -1,13 +1,13 @@
 "use client";
 
 import type { FurnDef } from "../../catalog";
-import { furn, footprint, visualFill } from "../../catalog";
+import { furn, footprint } from "../../catalog";
 import { isDance, isDoor, isOutdoor, isStair, isWater, layoutById, tileH, walkable, type Layout } from "../../layouts";
 import type { Occupant, Room } from "../../types";
 import { seatZ } from "../furnDraw";
 import { getLookCanvas, shade } from "../avatar";
 import { FOOT_Y, LOOK_H } from "../lookDraw";
-import { camToFit, iso, plantFurn, TW } from "../iso";
+import { camToFit, iso, TW } from "../iso";
 import { furnAt } from "../path";
 import { Application, Container, Graphics, Sprite, Text, Texture, TextureStyle } from "pixi.js";
 import { isoBox, isoDiamond } from "./pixiArt";
@@ -100,7 +100,7 @@ export class HotelPixi {
     this.world.position.set(fit.ox, fit.oy);
 
     this.paintFloor(layout, room, frame.t);
-    this.clearFurniture();
+    this.paintFurniture(room, layout, frame.sprites);
     this.paintAvatars(room, frame.occupants, layout);
     this.paintGhost(frame, layout);
     this.objects.sortChildren();
@@ -296,11 +296,10 @@ export class HotelPixi {
       node.position.set(Math.round((a.sx + b.sx) / 2), Math.round((a.sy + b.sy) / 2));
       return;
     }
-    const planted = plantFurn(x, y, z, w, d, def.h, canvas.width, canvas.height, visualFill(def));
-    const s = planted.destW / Math.max(1, canvas.width);
+    const mid = iso(x + w / 2, y + d / 2, z);
     spr.anchor.set(0.5, 1);
-    spr.scale.set(s);
-    node.position.set(planted.x + planted.destW / 2, planted.y + planted.destH);
+    spr.scale.set(1);
+    node.position.set(Math.round(mid.sx), Math.round(mid.sy));
   }
 
   private clearFurniture() {
@@ -419,7 +418,34 @@ export class HotelPixi {
     const g = this.ghost;
     g.clear();
     this.ghostSpr.visible = false;
-    if (frame.hover && walkable(layout, frame.hover.x, frame.hover.y)) {
+    if (frame.ghost) {
+      const { w, d } = footprint(frame.ghost.def, frame.ghost.rot);
+      for (let dy = 0; dy < d; dy++) {
+        for (let dx = 0; dx < w; dx++) {
+          const z = tileH(layout, frame.ghost.x + dx, frame.ghost.y + dy);
+          isoDiamond(g, frame.ghost.x + dx, frame.ghost.y + dy, z, frame.ghost.ok ? "#14F195" : "#ff5050");
+        }
+      }
+      g.alpha = 0.45;
+      const canvas = frame.sprites?.[frame.ghost.def.id];
+      if (canvas) {
+        this.ghostSpr.texture = this.textureFor(frame.ghost.def.id, canvas);
+        this.ghostSpr.alpha = 0.55;
+        this.ghostSpr.visible = true;
+        const z = tileH(layout, frame.ghost.x, frame.ghost.y);
+        this.plantSprite(
+          this.ghostSpr,
+          this.ghostSpr,
+          canvas,
+          frame.ghost.def,
+          frame.ghost.x,
+          frame.ghost.y,
+          z,
+          frame.ghost.rot,
+          frame.ghost.wallLift ?? 1
+        );
+      }
+    } else if (frame.hover && walkable(layout, frame.hover.x, frame.hover.y)) {
       isoDiamond(g, frame.hover.x, frame.hover.y, tileH(layout, frame.hover.x, frame.hover.y), "#14F195");
       g.alpha = 0.35;
     }

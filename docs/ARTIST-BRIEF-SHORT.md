@@ -19,9 +19,12 @@
 
 ## Floor grid
 - 1 tile = **64 × 32 px** diamond
+- Slope: **2 px across, 1 px down**
 - Height step = **16 px**
+- Next tile is **32 px across and 16 px down**, not 64 across. Diamonds **share edges** (no gaps). A 64×32 box around one tile **overlaps** its neighbours — do not lay diamonds in a non-overlapping 64×32 rectangle grid
 - Pieces occupy **whole tiles** only (1×1, 2×1, 2×2…). **No L-shapes** that cut a tile corner
 - PNG **bottom-centre = feet**. We plant that on the centre of the occupied tiles
+- Guide only: never bake the floor diamond into a furniture PNG
 
 **How big to draw (visual, not the collision box)**
 - 1×1 **stool / bean / pad** — small, ~28–36 px wide, **centred** (does not fill the tile)
