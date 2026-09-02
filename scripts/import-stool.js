@@ -67,7 +67,53 @@ for (let y = 0; y < ch; y++) {
   }
 }
 
+function lum(r, g, b) {
+  return r * 0.3 + g * 0.54 + b * 0.16;
+}
+function pix(buf, w, h, x, y) {
+  if (x < 0 || y < 0 || x >= w || y >= h) return [0, 0, 0, 0];
+  const i = (y * w + x) << 2;
+  return [buf[i], buf[i + 1], buf[i + 2], buf[i + 3]];
+}
+
+const tw = Math.floor(cw / 2);
+const th = Math.floor((ch + 1) / 2);
+const half = new PNG({ width: tw, height: th });
+for (let y = 0; y < th; y++) {
+  for (let x = 0; x < tw; x++) {
+    const cells = [
+      pix(out.data, cw, ch, x * 2, y * 2),
+      pix(out.data, cw, ch, x * 2 + 1, y * 2),
+      pix(out.data, cw, ch, x * 2, y * 2 + 1),
+      pix(out.data, cw, ch, x * 2 + 1, y * 2 + 1),
+    ];
+    const ink = cells.filter((c) => c[3] > 80 && lum(c[0], c[1], c[2]) < 50);
+    const solid = cells.filter((c) => c[3] > 80);
+    const di = (y * tw + x) << 2;
+    if (ink.length) {
+      const p = ink.reduce((d, c) => (lum(c[0], c[1], c[2]) < lum(d[0], d[1], d[2]) ? c : d));
+      half.data[di] = p[0];
+      half.data[di + 1] = p[1];
+      half.data[di + 2] = p[2];
+      half.data[di + 3] = 255;
+    } else if (solid.length) {
+      let r = 0,
+        g = 0,
+        b = 0;
+      for (const c of solid) {
+        r += c[0];
+        g += c[1];
+        b += c[2];
+      }
+      half.data[di] = Math.round(r / solid.length);
+      half.data[di + 1] = Math.round(g / solid.length);
+      half.data[di + 2] = Math.round(b / solid.length);
+      half.data[di + 3] = 255;
+    }
+  }
+}
+
 const dest = path.join(__dirname, "..", "public", "art", "furn", "stool_mint.png");
 fs.mkdirSync(path.dirname(dest), { recursive: true });
-fs.writeFileSync(dest, PNG.sync.write(out));
-console.log("wrote", dest, cw + "x" + ch, "from", nw + "x" + nh, "crop", minX, minY, maxX, maxY);
+fs.writeFileSync(dest, PNG.sync.write(half));
+console.log("wrote", dest, tw + "x" + th, "(stool ~half a tile, 1:1 plant)");
