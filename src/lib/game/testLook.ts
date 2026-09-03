@@ -15,7 +15,7 @@ export function loadTestBody() {
   if (typeof Image === "undefined") return Promise.resolve();
   if (pack) return pack;
   pack = (async () => {
-    const img = await loadImage("/art/avatars/test-body.png?v=2");
+    const img = await loadImage("/art/avatars/test-body.png?v=3");
     if (!img) return;
     const c = document.createElement("canvas");
     c.width = img.width;

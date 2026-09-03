@@ -297,10 +297,16 @@ export class HotelPixi {
       node.position.set(Math.round((a.sx + b.sx) / 2), Math.round((a.sy + b.sy) / 2));
       return;
     }
-    const mid = iso(x + w / 2, y + d / 2, z);
     spr.anchor.set(0.5, 1);
     spr.scale.set(1);
-    node.position.set(Math.round(mid.sx), Math.round(mid.sy));
+    const authoredW = (w + d) * (TW / 2);
+    if (Math.abs(canvas.width - authoredW) <= 8) {
+      const south = iso(x + w, y + d, z);
+      node.position.set(Math.round(south.sx), Math.round(south.sy));
+    } else {
+      const mid = iso(x + w / 2, y + d / 2, z);
+      node.position.set(Math.round(mid.sx), Math.round(mid.sy));
+    }
   }
 
   private clearFurniture() {

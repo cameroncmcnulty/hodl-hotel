@@ -145,8 +145,8 @@ export function loadSprite(id: string) {
   if (cache[id]) return Promise.resolve(cache[id]);
   if (id in inflight) return inflight[id];
   inflight[id] = (async () => {
-    const png = await loadImage(`/art/furn/${id}.png?v=26`);
-    const img = png || (await loadImage(`/art/furn/${id}.jpg?v=26`));
+    const png = await loadImage(`/art/furn/${id}.png?v=27`);
+    const img = png || (await loadImage(`/art/furn/${id}.jpg?v=27`));
     if (!img) {
       const def = furn(id);
       if (!def) return null;
@@ -154,9 +154,15 @@ export function loadSprite(id: string) {
       if (baked.width > 4) cache[id] = baked;
       return baked.width > 4 ? baked : null;
     }
-    const canvas = keyAndTrim(img);
-    if (canvas.width > 4) cache[id] = canvas;
-    return canvas.width > 4 ? canvas : null;
+    const canvas = document.createElement("canvas");
+    canvas.width = img.width;
+    canvas.height = img.height;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return null;
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(img, 0, 0);
+    cache[id] = canvas;
+    return canvas;
   })();
   return inflight[id];
 }
