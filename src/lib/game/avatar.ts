@@ -128,7 +128,7 @@ export async function loadLookSprites(_fig: Figure, _dir: 0 | 1 | 2 | 3 = 1) {
 }
 
 export function loadAvatars() {
-  return Promise.resolve();
+  return import("./testLook").then((m) => m.loadTestBody());
 }
 
 export function lookReady(_fig?: Figure, _dir: 0 | 1 | 2 | 3 = 1) {

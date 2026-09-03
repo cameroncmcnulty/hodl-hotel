@@ -7,6 +7,7 @@ import type { Occupant, Room } from "../../types";
 import { seatZ } from "../furnDraw";
 import { getLookCanvas, shade } from "../avatar";
 import { FOOT_Y, LOOK_H } from "../lookDraw";
+import { getTestBody } from "../testLook";
 import { camToFit, iso, TW } from "../iso";
 import { furnAt } from "../path";
 import { Application, Container, Graphics, Sprite, Text, Texture, TextureStyle } from "pixi.js";
@@ -365,14 +366,17 @@ export class HotelPixi {
       const seat = sitting || laying ? furnAt(room.furniture, Math.round(o.x), Math.round(o.y)) : undefined;
       const seatDef = seat ? furn(seat.catalogId) : undefined;
       const walk: 0 | 1 = o.moving ? 1 : 0;
-      const key = `${JSON.stringify(o.figure)}:${o.dir}:${sitting ? 1 : 0}:${laying ? 1 : 0}:${walk}`;
+      const test = getTestBody();
+      const key = test
+        ? `test:${test.width}x${test.height}`
+        : `${JSON.stringify(o.figure)}:${o.dir}:${sitting ? 1 : 0}:${laying ? 1 : 0}:${walk}`;
       let body = this.avG.get(o.userId);
       if (!body || this.avKey.get(o.userId) !== key) {
         body?.destroy({ children: true });
         body = new Container();
-        const look = getLookCanvas(o.figure, { view: o.dir, sit: sitting, lay: laying, walk });
+        const look = test || getLookCanvas(o.figure, { view: o.dir, sit: sitting, lay: laying, walk });
         const spr = new Sprite(this.textureFor(`av:${key}`, look));
-        spr.anchor.set(0.5, FOOT_Y / LOOK_H);
+        spr.anchor.set(0.5, test ? 1 : FOOT_Y / LOOK_H);
         spr.roundPixels = true;
         body.addChild(spr);
         this.objects.addChild(body);
@@ -383,7 +387,7 @@ export class HotelPixi {
       const restH = (sitting || laying) && seatDef ? seatZ(seatDef) : 0;
       const p = iso(o.x + 0.5, o.y + 0.5, tileH(layout, Math.round(o.x), Math.round(o.y)) + restH);
       body.x = Math.round(p.sx);
-      body.y = Math.round(p.sy);
+      body.y = Math.round(p.sy + (walk && test ? -1 : 0));
       const fp = seatDef && seat ? footprint(seatDef, seat.rot) : { w: 1, d: 1 };
       body.zIndex =
         (sitting || laying) && seatDef && seat
@@ -400,8 +404,9 @@ export class HotelPixi {
         this.objects.addChild(label);
         this.names.set(o.userId, label);
       } else if (label.text !== o.username) label.text = o.username;
+      const headLift = test ? test.height : FOOT_Y;
       label.x = Math.round(p.sx - label.width / 2);
-      label.y = Math.round(p.sy - FOOT_Y - 12);
+      label.y = Math.round(p.sy - headLift - 12);
       label.zIndex = body.zIndex + 1;
     }
     for (const [id, spr] of this.avG) {

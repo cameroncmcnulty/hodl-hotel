@@ -21,7 +21,8 @@ import {
   topsFor,
   type ThumbZone,
 } from "@/lib/game/avatar";
-import { FOOT_Y, LOOK_H, LOOK_W } from "@/lib/game/lookDraw";
+import { FOOT_Y, LOOK_H } from "@/lib/game/lookDraw";
+import { getTestBody, loadTestBody } from "@/lib/game/testLook";
 
 function SlotThumb({
   figure,
@@ -101,6 +102,16 @@ export function CharacterPreview({
   const f = clampFigure(figure);
   const key = lookKey(f, { view: dir, sit, lay });
   const ref = useRef<HTMLCanvasElement>(null);
+  const [testReady, setTestReady] = useState(false);
+  useEffect(() => {
+    let dead = false;
+    loadTestBody().then(() => {
+      if (!dead) setTestReady(!!getTestBody());
+    });
+    return () => {
+      dead = true;
+    };
+  }, []);
   useEffect(() => {
     const canvas = ref.current;
     if (!canvas) return;
@@ -109,12 +120,14 @@ export function CharacterPreview({
     ctx.imageSmoothingEnabled = false;
     ctx.fillStyle = "#5c6b78";
     ctx.fillRect(0, 0, 200, 220);
-    const look = getLookCanvas(f, { view: dir, sit, lay });
-    const s = Math.max(1, Math.round(scale));
-    const dw = LOOK_W * s;
-    const dh = LOOK_H * s;
-    ctx.drawImage(look, Math.round(100 - dw / 2), Math.round(190 - (FOOT_Y / LOOK_H) * dh), dw, dh);
-  }, [key, dir, sit, lay, scale]);
+    const test = getTestBody();
+    const look = test || getLookCanvas(f, { view: dir, sit, lay });
+    const s = test ? 2 : Math.max(1, Math.round(scale));
+    const dw = look.width * s;
+    const dh = look.height * s;
+    const foot = test ? dh : (FOOT_Y / LOOK_H) * dh;
+    ctx.drawImage(look, Math.round(100 - dw / 2), Math.round(190 - foot), dw, dh);
+  }, [key, dir, sit, lay, scale, testReady]);
   return (
     <canvas
       ref={ref}
