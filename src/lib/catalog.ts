@@ -41,6 +41,22 @@ export const CATALOG: FurnDef[] = [
     shape: "stool",
     colors: { top: "#b5efc9", left: "#80bd9b", right: "#609780" },
   },
+  {
+    id: "chair_coral",
+    name: "Coral chair",
+    desc: "Artist test chair. 1 tile. Sit on it.",
+    category: "seating",
+    price: 0,
+    w: 1,
+    d: 1,
+    h: 1.4,
+    rot4: false,
+    rarity: "common",
+    slot: "floor",
+    sittable: true,
+    shape: "chair",
+    colors: { top: "#f1694f", left: "#9f4835", right: "#73331a" },
+  },
 ];
 export const HOTEL_FURN: FurnDef[] = [];
 
@@ -63,6 +79,9 @@ export function hotelFurniture(layoutId: string) {
     { uid: "test-stool-a", catalogId: "stool_mint", x: 6, y: 8, rot: 0 as const, ownerId: "hotel" },
     { uid: "test-stool-b", catalogId: "stool_mint", x: 8, y: 8, rot: 0 as const, ownerId: "hotel" },
     { uid: "test-stool-c", catalogId: "stool_mint", x: 10, y: 8, rot: 0 as const, ownerId: "hotel" },
+    { uid: "test-chair-a", catalogId: "chair_coral", x: 6, y: 10, rot: 0 as const, ownerId: "hotel" },
+    { uid: "test-chair-b", catalogId: "chair_coral", x: 8, y: 10, rot: 0 as const, ownerId: "hotel" },
+    { uid: "test-chair-c", catalogId: "chair_coral", x: 10, y: 10, rot: 0 as const, ownerId: "hotel" },
   ];
 }
 
