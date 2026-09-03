@@ -1,6 +1,4 @@
 /** Artist body PNG for in-room size tests. Stand pose only. */
-import { keyAndTrim } from "./sprites";
-
 let canvas: HTMLCanvasElement | null = null;
 let pack: Promise<void> | null = null;
 
@@ -17,9 +15,16 @@ export function loadTestBody() {
   if (typeof Image === "undefined") return Promise.resolve();
   if (pack) return pack;
   pack = (async () => {
-    const img = await loadImage("/art/avatars/test-body.png?v=1");
+    const img = await loadImage("/art/avatars/test-body.png?v=2");
     if (!img) return;
-    canvas = keyAndTrim(img);
+    const c = document.createElement("canvas");
+    c.width = img.width;
+    c.height = img.height;
+    const ctx = c.getContext("2d");
+    if (!ctx) return;
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(img, 0, 0);
+    canvas = c;
   })();
   return pack;
 }
