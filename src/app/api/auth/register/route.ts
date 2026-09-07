@@ -4,6 +4,20 @@ import { BACKPACK_SLOTS, MIN_AGE, passwordIssues, RESERVED_NAMES, USERNAME_RE } 
 import { clampFigure, DEFAULT_FIGURE } from "@/lib/game/avatar";
 import { FREE_LAYOUT_IDS, USER_LAYOUTS } from "@/lib/layouts";
 import { ageYears } from "@/lib/moderate";
+import {
+  attachPendingReferral,
+  clientIp,
+  clientUa,
+  deviceCookie,
+  deviceFromReq,
+  hashSecret,
+  isDisposableEmail,
+  newDeviceId,
+  newVerifyToken,
+  normalizeEmail,
+  sendVerifyEmail,
+  tokenHash,
+} from "@/lib/referrals";
 import { sessionJson } from "@/lib/session";
 import { loadDB, log, publicUser, saveDB } from "@/lib/store";
 
@@ -23,8 +37,10 @@ export async function POST(req: Request) {
   const visibility = body.visibility === "locked" ? "locked" : "public";
   const roomPass = String(body.roomPassword || "");
   const layoutId = String(body.layoutId || "cozy_studio");
+  const referralCode = String(body.referral || body.ref || "").trim();
 
   if (!email.includes("@") || email.length > 80) return NextResponse.json({ error: "Need a valid email" }, { status: 400 });
+  if (isDisposableEmail(email)) return NextResponse.json({ error: "Use a lasting email — throwaway inboxes are blocked" }, { status: 400 });
   const pw = passwordIssues(password);
   if (pw.length) return NextResponse.json({ error: `Password needs: ${pw.join(", ")}` }, { status: 400 });
   if (!body.tos || !body.privacy || !body.guidelines || !body.virtualGoods || !body.ageConfirm) {
@@ -44,36 +60,51 @@ export async function POST(req: Request) {
   if (visibility === "locked" && roomPass.length < 3) {
     return NextResponse.json({ error: "Locked rooms need a password (3+ chars)" }, { status: 400 });
   }
-  if (db.users.some((u) => u.email === email)) return NextResponse.json({ error: "Email already in use" }, { status: 409 });
+  const emailNorm = normalizeEmail(email);
+  if (db.users.some((u) => u.email === email || u.emailNormalized === emailNorm)) {
+    return NextResponse.json({ error: "Email already in use" }, { status: 409 });
+  }
   if (db.users.some((u) => u.username.toLowerCase() === username.toLowerCase())) {
     return NextResponse.json({ error: "Username taken" }, { status: 409 });
   }
 
   const id = crypto.randomUUID();
   const roomId = crypto.randomUUID();
+  const ip = clientIp(req);
+  const ua = clientUa(req);
+  const deviceId = deviceFromReq(req) || newDeviceId();
+  const rawToken = newVerifyToken();
+  const now = new Date();
   const user = {
     id,
     email,
     username,
     passwordHash: bcrypt.hashSync(password, 10),
     birthday,
-    createdAt: new Date().toISOString(),
+    createdAt: now.toISOString(),
     role: "user" as const,
-    coins: db.settings.starterCoins,
+    coins: 0,
     figure: clampFigure(body.figure || DEFAULT_FIGURE),
     friends: [] as string[],
     friendIn: [] as string[],
     friendOut: [] as string[],
-    roomHistory: [{ roomId, at: new Date().toISOString() }],
+    roomHistory: [{ roomId, at: now.toISOString() }],
     backpack: Array.from({ length: BACKPACK_SLOTS }, () => null),
     ownedRoomIds: [roomId],
     ownedLayoutIds: [...FREE_LAYOUT_IDS],
     quests: {},
-    tosAcceptedAt: new Date().toISOString(),
-    privacyAcceptedAt: new Date().toISOString(),
-    guidelinesAcceptedAt: new Date().toISOString(),
-    virtualGoodsAcceptedAt: new Date().toISOString(),
-    ageConfirmedAt: new Date().toISOString(),
+    tosAcceptedAt: now.toISOString(),
+    privacyAcceptedAt: now.toISOString(),
+    guidelinesAcceptedAt: now.toISOString(),
+    virtualGoodsAcceptedAt: now.toISOString(),
+    ageConfirmedAt: now.toISOString(),
+    emailNormalized: emailNorm,
+    emailVerifyToken: tokenHash(rawToken),
+    emailVerifyExpires: new Date(now.getTime() + 48 * 3600 * 1000).toISOString(),
+    signupIpHash: hashSecret(ip || `none:${id}`),
+    lastIpHash: hashSecret(ip || `none:${id}`),
+    signupUaHash: hashSecret(ua || "none"),
+    deviceId,
   };
   db.users.push(user);
   db.rooms.push({
@@ -85,10 +116,24 @@ export async function POST(req: Request) {
     password: visibility === "locked" ? roomPass : undefined,
     furniture: [],
     maxUsers: 25,
-    createdAt: new Date().toISOString(),
-    lastActiveAt: new Date().toISOString(),
+    createdAt: now.toISOString(),
+    lastActiveAt: now.toISOString(),
   });
+  if (referralCode) attachPendingReferral(db, user, referralCode, req, deviceId);
+  const mail = await sendVerifyEmail(user, rawToken);
   log(db, "signup", `${username} checked in`);
   saveDB(db);
-  return sessionJson({ user: publicUser(user), homeRoomId: roomId }, id);
+  const res = sessionJson(
+    {
+      user: publicUser(user),
+      homeRoomId: roomId,
+      verifyEmail: true,
+      verifySent: mail.sent,
+      ...(process.env.NODE_ENV !== "production" ? { verifyUrl: mail.url } : {}),
+    },
+    id
+  );
+  const did = deviceCookie(deviceId);
+  res.cookies.set(did.name, did.value, did.opts);
+  return res;
 }

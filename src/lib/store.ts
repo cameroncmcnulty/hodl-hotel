@@ -45,6 +45,7 @@ function empty(): DB {
     },
     logs: [],
     agentJobs: [],
+    referrals: [],
   };
 }
 
@@ -118,8 +119,12 @@ function bootstrap(db: DB) {
   seedPublicRooms(db);
   if (!db.agentJobs) db.agentJobs = [];
   if (!db.invoices) db.invoices = [];
+  if (!db.referrals) db.referrals = [];
+  db.settings.starterCoins = 0;
   for (const u of db.users) {
     if (!u.ownedLayoutIds?.length) u.ownedLayoutIds = [...FREE_LAYOUT_IDS];
+    if (!u.emailVerifiedAt) u.emailVerifiedAt = u.createdAt;
+    if (!u.emailNormalized) u.emailNormalized = u.email.toLowerCase();
   }
   const email = (process.env.ADMIN_EMAIL || "admin@hodlhotel.local").toLowerCase();
   const pass = process.env.ADMIN_PASSWORD || "change-me";
@@ -182,7 +187,17 @@ export function log(db: DB, kind: string, text: string) {
 }
 
 export function publicUser(u: User) {
-  const { passwordHash, ...rest } = u;
+  const {
+    passwordHash,
+    emailVerifyToken,
+    emailVerifyExpires,
+    signupIpHash,
+    lastIpHash,
+    signupUaHash,
+    deviceId,
+    emailNormalized,
+    ...rest
+  } = u;
   return rest;
 }
 

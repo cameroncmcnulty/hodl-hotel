@@ -6,7 +6,7 @@ import { LayoutPreview } from "@/components/LayoutPreview";
 import { AppIcon, PhoneApp, PhoneClock, PhoneShell } from "@/components/PhoneShell";
 import { CATALOG, CATS, furn, RARITY_LABEL, RARITY_TONE, type Rarity } from "@/lib/catalog";
 import { FREE_LAYOUT_IDS, isDoor, layoutById, PREMIUM_LAYOUTS, USER_LAYOUTS, walkable } from "@/lib/layouts";
-import { COIN_PACKS } from "@/lib/constants";
+import { COIN_PACKS, REFERRAL_COINS } from "@/lib/constants";
 import { pointerWorld, tileAt, wallLiftAt } from "@/lib/game/draw";
 import { camToFit } from "@/lib/game/iso";
 import { HotelPixi } from "@/lib/game/pixi/HotelPixi";
@@ -104,6 +104,7 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
   const [nav, setNav] = useState<{ popular: Room[]; publicAreas: Room[]; history: Room[]; events: { title: string; roomId: string; desc: string }[] } | null>(null);
   const [social, setSocial] = useState<any>(null);
   const [shopCat, setShopCat] = useState("seating");
+  const [invite, setInvite] = useState<{ url: string; code: string; reward: number; paid: number; coinsEarned: number } | null>(null);
   const [dmText, setDmText] = useState("");
   const [dmUser, setDmUser] = useState<string | null>(null);
   const [lockPass, setLockPass] = useState("");
@@ -151,6 +152,15 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
   useEffect(() => {
     loadAvatars();
   }, []);
+
+  useEffect(() => {
+    if (phone !== "shop" && phone !== "coins") return;
+    api("/api/referrals")
+      .then(({ j }) => {
+        if (j?.url) setInvite(j);
+      })
+      .catch(() => {});
+  }, [phone]);
 
   useEffect(() => {
     const host = canvasRef.current;
@@ -722,6 +732,33 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
   const unread = (social?.threads || []).reduce((n: number, t: any) => n + (Number(t.unread) || 0), 0);
   const goHome = () => setPhone("home");
 
+  function InviteCard() {
+    if (!invite) {
+      return (
+        <div className="mb-3 rounded-2xl border border-[#14F195]/25 bg-[#14F195]/10 p-3 text-[12px] leading-relaxed text-white/80">
+          Invite a friend with your username. When they confirm email, you get <b className="text-mint">{REFERRAL_COINS} coins</b>.
+        </div>
+      );
+    }
+    return (
+      <div className="mb-3 rounded-2xl border border-[#14F195]/30 bg-gradient-to-r from-[#14F195]/15 to-[#9945FF]/15 p-3">
+        <p className="text-[12px] font-semibold text-mint">Earn {invite.reward}c per friend</p>
+        <p className="mt-1 text-[11px] leading-relaxed text-white/65">
+          Share your link. They sign up with your username, confirm email, and you get coins. One reward per unique person (IP / device).
+        </p>
+        <p className="mt-1 font-mono text-[11px] text-white/80">{invite.url}</p>
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <button type="button" className="inline-flex items-center gap-1 rounded-full bg-mint px-3 py-1 text-[11px] font-bold text-black" onClick={() => copyText(invite.url, "Invite link")}>
+            <Copy size={12} /> Copy invite link
+          </button>
+          <span className="text-[10px] text-white/45">
+            Code: {invite.code} · {invite.paid} verified · {invite.coinsEarned.toLocaleString()}c earned
+          </span>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="relative h-[100dvh] overflow-hidden bg-[#050508]" style={{ overscrollBehavior: "none" }}>
       {snap?.room === undefined && (
@@ -1045,6 +1082,7 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
 
           {phone === "shop" && (
             <PhoneApp title="Shop" extra={<span className="pr-2 text-[11px] text-mint">{meState.coins.toLocaleString()}c</span>} onBack={goHome}>
+              <InviteCard />
               <div className="mb-2 flex flex-wrap gap-1">
                 {[...CATS, "plans"].map((c) => (
                   <button key={c} className={`rounded-full px-2.5 py-1 text-[11px] capitalize ${shopCat === c ? "bg-mint text-ink" : "bg-white/10 text-white/80"}`} onClick={() => setShopCat(c)}>
@@ -1200,7 +1238,8 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
                       <p className="text-[11px] text-white/55">Hotel coins · 18+ Solana checkout</p>
                     </div>
                   </div>
-                  <p className="mb-2 text-[11px] leading-relaxed text-white/45">Pick a pack, then tap Buy. SOL goes to a one-time desk wallet and is forwarded to the treasury.</p>
+                  <InviteCard />
+                  <p className="mb-2 text-[11px] leading-relaxed text-white/45">Pick a pack, then tap Buy. SOL goes to a one-time desk wallet and is forwarded to the treasury. Or invite friends — {REFERRAL_COINS}c each when they confirm email.</p>
                   {typeof window !== "undefined" && window.location.hostname === "localhost" ? (
                     <button
                       type="button"

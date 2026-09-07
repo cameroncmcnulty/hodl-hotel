@@ -296,7 +296,7 @@ export function AdminCommand() {
                   chatEnabled: f.get("chatEnabled") === "on",
                   signupEnabled: f.get("signupEnabled") === "on",
                   maintenance: f.get("maintenance") === "on",
-                  starterCoins: Number(f.get("starterCoins") || 400),
+                  starterCoins: Number(f.get("starterCoins") || 0),
                 },
               });
             }}

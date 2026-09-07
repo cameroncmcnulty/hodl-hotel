@@ -5,14 +5,14 @@ import { FigureEditor } from "@/components/CharacterPreview";
 import { HotelBackdrop } from "@/components/HotelBackdrop";
 import { LayoutPreview } from "@/components/LayoutPreview";
 import { Wordmark } from "@/components/Wordmark";
-import { passwordIssues, STARTER_COINS } from "@/lib/constants";
+import { passwordIssues, REFERRAL_COINS } from "@/lib/constants";
 import { DEFAULT_FIGURE } from "@/lib/game/avatar";
 import { USER_LAYOUTS } from "@/lib/layouts";
 import { ageYears } from "@/lib/moderate";
 import type { Figure } from "@/lib/types";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 export default function JoinPage() {
   const r = useRouter();
@@ -28,6 +28,7 @@ export default function JoinPage() {
   const [guardian, setGuardian] = useState(false);
   const [showPw, setShowPw] = useState(false);
   const [username, setUsername] = useState("");
+  const [referral, setReferral] = useState("");
   const [figure, setFigure] = useState<Figure>(DEFAULT_FIGURE);
   const [layoutId, setLayoutId] = useState(USER_LAYOUTS[0].id);
   const [roomName, setRoomName] = useState("");
@@ -37,6 +38,11 @@ export default function JoinPage() {
   const [busy, setBusy] = useState(false);
   const [tried, setTried] = useState(false);
   const pwNeeds = useMemo(() => passwordIssues(password), [password]);
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search);
+    const code = (q.get("ref") || q.get("r") || "").trim();
+    if (code) setReferral(code);
+  }, []);
   const years = birthday ? ageYears(birthday) : 0;
   const teen = years >= 13 && years < 18;
   const canAccount =
@@ -74,6 +80,7 @@ export default function JoinPage() {
         virtualGoods,
         ageConfirm,
         guardian,
+        referral,
       }),
     });
     const j = await res.json();
@@ -216,6 +223,19 @@ export default function JoinPage() {
             onChange={(e) => { setUsername(e.target.value); setErr(""); }}
           />
           <p className="text-xs text-white/50">Letters, numbers, underscore. This is how people find you.</p>
+          <label className="text-sm text-white/70">
+            Invite code (optional)
+            <input
+              className="field mt-1"
+              placeholder="Friend’s username"
+              value={referral}
+              onChange={(e) => setReferral(e.target.value)}
+              autoComplete="off"
+            />
+          </label>
+          <p className="text-xs text-white/45">
+            If someone sent you a link, their username is already filled in. After you confirm your email they earn {REFERRAL_COINS} coins.
+          </p>
           {err && <p className="text-sm text-coral">{err}</p>}
           <div className="flex gap-2">
             <button className="btn-ink" onClick={() => setStep(0)}>
@@ -256,8 +276,7 @@ export default function JoinPage() {
       {step === 3 && (
         <div className="panel mt-6 grid gap-4 bg-[#24143d]/92 p-5 text-white">
           <p className="text-sm text-white/70">
-            You start with <b className="text-gold">{STARTER_COINS} coins</b> and one of six free floor plans.
-            Gold plans (the other shapes) are in the shop after you land.
+            You get a free floor plan. Coins come from friends you invite ({REFERRAL_COINS}c each after they confirm email) or from the wallet (18+).
           </p>
           <div className="grid gap-3 sm:grid-cols-2">
             {USER_LAYOUTS.map((l) => (

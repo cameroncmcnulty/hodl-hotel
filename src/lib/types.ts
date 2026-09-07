@@ -53,6 +53,30 @@ export type User = {
   guidelinesAcceptedAt?: string;
   virtualGoodsAcceptedAt?: string;
   ageConfirmedAt?: string;
+  emailVerifiedAt?: string;
+  emailVerifyToken?: string;
+  emailVerifyExpires?: string;
+  emailNormalized?: string;
+  referredByUserId?: string;
+  signupIpHash?: string;
+  lastIpHash?: string;
+  signupUaHash?: string;
+  deviceId?: string;
+};
+
+export type Referral = {
+  id: string;
+  referrerId: string;
+  refereeId: string;
+  code: string;
+  ipHash: string;
+  uaHash: string;
+  deviceId: string;
+  emailNorm: string;
+  status: "pending" | "paid" | "rejected";
+  reason?: string;
+  createdAt: string;
+  paidAt?: string;
 };
 
 export type PublicUser = Omit<User, "passwordHash" | "email"> & { email?: string };
@@ -277,4 +301,5 @@ export type DB = {
   settings: Settings;
   logs: Log[];
   agentJobs?: AgentJob[];
+  referrals?: Referral[];
 };

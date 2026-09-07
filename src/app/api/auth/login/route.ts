@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
+import { clientIp, hashSecret } from "@/lib/referrals";
 import { sessionJson } from "@/lib/session";
-import { loadDB, publicUser, reloadDB } from "@/lib/store";
+import { loadDB, publicUser, reloadDB, saveDB } from "@/lib/store";
 
 export const dynamic = "force-dynamic";
 
@@ -22,6 +23,11 @@ export async function POST(req: Request) {
   }
   if (user.bannedUntil && new Date(user.bannedUntil) > new Date()) {
     return NextResponse.json({ error: user.banReason || "This account is suspended" }, { status: 403 });
+  }
+  const ip = clientIp(req);
+  if (ip) {
+    user.lastIpHash = hashSecret(ip);
+    saveDB(db);
   }
   return sessionJson({ user: publicUser(user), homeRoomId: user.ownedRoomIds[0] }, user.id);
 }

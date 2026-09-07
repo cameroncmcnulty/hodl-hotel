@@ -3,11 +3,11 @@ import { Legal } from "@/components/Legal";
 export default function Page() {
   return (
     <Legal title="Privacy Policy">
-      <p>Last updated: 24 August 2026. We collect the account data you give us (email, username, full birthday for age gates, password hash), records of your consent to these policies, a session cookie, in-game chat and room activity, optional wallet addresses, and Solana transaction signatures you submit so we can credit coins. We do not sell personal information. We aim to follow PIPEDA and substantially similar Canadian provincial privacy laws.</p>
+      <p>Last updated: 6 September 2026. We collect the account data you give us (email, username, full birthday for age gates, password hash), records of your consent to these policies, a session cookie, a device cookie used only to stop fake referral rewards, hashed IP and browser signals for fraud checks, in-game chat and room activity, optional wallet addresses, and Solana transaction signatures you submit so we can credit coins. We do not sell personal information. We aim to follow PIPEDA and substantially similar Canadian provincial privacy laws.</p>
       <h2>Why</h2>
       <p>To run the hotel, keep it safe, process virtual-good purchases, debug, and meet legal duties. Birthday is used only for age gates (13+ play, 18+ payments).</p>
       <h2>Cookies</h2>
-      <p>An httpOnly session cookie keeps you signed in. See Cookies. Analytics, if added later, will be optional.</p>
+      <p>An httpOnly session cookie keeps you signed in. A separate device cookie helps us refuse duplicate referral payouts from the same browser. See Cookies. Analytics, if added later, will be optional.</p>
       <h2>Retention</h2>
       <p>Accounts stay until you ask deletion (we may keep ban records and payment receipts as required by law). Chat in public rooms is transient operational data.</p>
       <h2>Your rights</h2>

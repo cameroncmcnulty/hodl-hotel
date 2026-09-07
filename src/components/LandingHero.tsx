@@ -20,8 +20,8 @@ export function LandingHero() {
         </div>
         <p className="glow-sol mt-2 font-display text-3xl font-semibold md:text-4xl">Powered by Solana</p>
         <p className="mt-3 max-w-md text-sm text-white/70">
-          Check in, dress a guest, claim a room, and spend starter coins on furniture. Chat, trade, roll dice, teleport,
-          and rent a board in SHILL ZONE.
+          Check in, dress a guest, claim a room. Invite friends for coins, or buy packs with Solana (18+). Chat, trade,
+          dance in SHILL ZONE.
         </p>
         <div className="mt-6 flex gap-3">
           <Link href="/join" className="btn-sol px-6 py-3 text-base">
