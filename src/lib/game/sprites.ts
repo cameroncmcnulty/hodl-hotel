@@ -150,7 +150,7 @@ export function loadSprite(id: string) {
     const png = await loadImage(`/art/furn/${id}.png?v=27`);
     const img = png || (await loadImage(`/art/furn/${id}.jpg?v=27`));
     if (!img) {
-      if (!def) return null;
+      if (!def || def.hotelOnly) return null;
       const baked = paintFurn(def, 0);
       if (baked.width > 4) cache[id] = baked;
       return baked.width > 4 ? baked : null;

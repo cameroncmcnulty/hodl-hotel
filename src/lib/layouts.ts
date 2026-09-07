@@ -374,22 +374,9 @@ oooooooooooooooooo
 ...dddddd...
 ............
 ............
-.........e..
+.....e......
 `,
-    {
-      paper: "#1a0a28",
-      floorA: "#2a2038",
-      floorB: "#22182e",
-      backdrop: {
-        src: "/art/shill-zone-room.png",
-        imgW: 1168,
-        imgH: 784,
-        scale: 384 / 506,
-        ox: 0 - 592.5 * (384 / 506),
-        oy: 192 - 465 * (384 / 506),
-      },
-      guestScale: 0.5,
-    }
+    { paper: "#4a1d73", floorA: "#2a2038", floorB: "#1e1730" }
   ),
   parse(
     "cook_lab",

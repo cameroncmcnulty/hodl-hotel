@@ -11,7 +11,7 @@ import { getTestBody } from "../testLook";
 import { camToFit, iso, TW } from "../iso";
 import { furnAt } from "../path";
 import { Application, Container, Graphics, Sprite, Text, Texture, TextureStyle } from "pixi.js";
-import { isoBox, isoDiamond } from "./pixiArt";
+import { drawFurni, isoBox, isoDiamond } from "./pixiArt";
 
 export type PixiFrame = {
   room: Room;
@@ -47,9 +47,11 @@ export class HotelPixi {
   floor = new Graphics();
   objects = new Container({ sortableChildren: true });
   ghost = new Graphics();
+  fx = new Graphics();
   private ghostSpr = new Sprite();
   private backSpr = new Sprite();
   private backKey = "";
+  private neon = new Map<string, Text>();
   private furnN = new Map<string, Container>();
   private furnKind = new Map<string, string>();
   private tex = new Map<string, { tex: Texture; w: number; h: number }>();
@@ -84,11 +86,13 @@ export class HotelPixi {
     this.backSpr.visible = false;
     this.backSpr.zIndex = -1000;
     this.floor.zIndex = 0;
-    this.objects.zIndex = 1;
-    this.ghost.zIndex = 2;
-    this.ghostSpr.zIndex = 3;
+    this.fx.zIndex = 1;
+    this.objects.zIndex = 2;
+    this.ghost.zIndex = 3;
+    this.ghostSpr.zIndex = 4;
     this.world.addChild(this.backSpr);
     this.world.addChild(this.floor);
+    this.world.addChild(this.fx);
     this.world.addChild(this.objects);
     this.world.addChild(this.ghost);
     this.world.addChild(this.ghostSpr);
@@ -109,16 +113,12 @@ export class HotelPixi {
     this.world.scale.set(fit.scale);
     this.world.position.set(fit.ox, fit.oy);
     const canvas = this.app.canvas as HTMLCanvasElement;
-    canvas.style.imageRendering = layout.backdrop ? "auto" : "pixelated";
+    canvas.style.imageRendering = "pixelated";
 
     this.paintBackdrop(layout);
-    if (layout.backdrop) {
-      this.floor.clear();
-      this.floorKey = `back:${layout.id}`;
-    } else {
-      this.paintFloor(layout, room, frame.t);
-    }
-    this.paintFurniture(room, layout, frame.sprites);
+    this.paintFloor(layout, room, frame.t);
+    this.paintShillFx(layout, frame.t);
+    this.paintFurniture(room, layout, frame.sprites, frame.t);
     this.paintAvatars(room, frame.occupants, layout);
     this.paintGhost(frame, layout);
     this.objects.sortChildren();
@@ -150,7 +150,8 @@ export class HotelPixi {
     const paper = wallPaper(layout, room.paper);
     const floorA = room.floorA || layout.floorA || "#d4b48a";
     const floorB = room.floorB || layout.floorB || "#c19a6e";
-    const key = `${layout.id}:${paper}:${floorA}:${floorB}:${Math.floor(t * 2)}`;
+    const strobe = layout.id === "shill_club" ? Math.floor(t * 10) : Math.floor(t * 2);
+    const key = `${layout.id}:${paper}:${floorA}:${floorB}:${strobe}`;
     if (key === this.floorKey) return;
     this.floorKey = key;
     const g = this.floor;
@@ -168,8 +169,10 @@ export class HotelPixi {
         if (!isFloor(x, y)) continue;
         let fill = (x + y) % 2 === 0 ? floorA : floorB;
         if (isDance(layout, x, y)) {
-          const flash = Math.floor(t * 2 + x + y) % 3;
-          fill = flash === 0 ? "#ff6bd6" : flash === 1 ? "#4fc3ff" : "#c084fc";
+          const beat = Math.floor(t * 6);
+          const a = (x + y + beat) % 2 === 0;
+          const strobe = Math.sin(t * 14 + x * 0.7) > 0.72;
+          fill = strobe ? "#fff7ff" : a ? "#ff4fd8" : "#3d5bff";
         } else if (isWater(layout, x, y)) fill = (x + y + Math.floor(t * 3)) % 2 === 0 ? "#5ee4f5" : "#2eb8d4";
         else if (isOutdoor(layout, x, y)) fill = (x + y) % 2 === 0 ? "#cfe88a" : "#b5d46a";
         tiles.push({ x, y, z: tileH(layout, x, y), fill });
@@ -303,6 +306,76 @@ export class HotelPixi {
     }
   }
 
+  private neonText(id: string, label: string, x: number, y: number, color: number, t: number) {
+    let txt = this.neon.get(id);
+    if (!txt) {
+      txt = new Text({
+        text: label,
+        style: {
+          fontFamily: "Tahoma, sans-serif",
+          fontSize: 13,
+          fontWeight: "900",
+          fill: color,
+          stroke: { color: 0x110018, width: 4 },
+        },
+      });
+      this.world.addChild(txt);
+      this.neon.set(id, txt);
+    }
+    const pulse = 0.65 + 0.35 * Math.abs(Math.sin(t * 3 + x));
+    txt.alpha = pulse;
+    txt.zIndex = 5;
+    txt.x = Math.round(x - txt.width / 2);
+    txt.y = Math.round(y - 8);
+    txt.visible = true;
+  }
+
+  private paintShillNeon(t: number) {
+    const chill = iso(0.05, 5.5, 5.4);
+    this.neonText("chill", "CHILL VIBES", chill.sx - 36, chill.sy, 0xff6bd6, t);
+    const shill = iso(6.5, 0.05, 5.6);
+    this.neonText("shill", "SHILL ZONE", shill.sx, shill.sy, 0x45f0ff, t + 0.4);
+    const dance = iso(10.6, 4.5, 4.8);
+    this.neonText("dance", "DANCE FLOOR →", dance.sx, dance.sy, 0x14f195, t + 0.8);
+  }
+
+  private paintShillFx(layout: Layout, t: number) {
+    const g = this.fx;
+    g.clear();
+    if (layout.id !== "shill_club") {
+      for (const [, n] of this.neon) n.visible = false;
+      return;
+    }
+    this.paintShillNeon(t);
+    const lasers: { x: number; y: number; z: number; color: number; spd: number; phase: number }[] = [
+      { x: 1.2, y: 0.2, z: 6.4, color: 0xff4fd8, spd: 1.35, phase: 0 },
+      { x: 10.6, y: 0.3, z: 5.8, color: 0x45f0ff, spd: 1.1, phase: 1.7 },
+      { x: 0.4, y: 8.2, z: 6.1, color: 0xc084fc, spd: 0.9, phase: 3.1 },
+    ];
+    for (const L of lasers) {
+      const ang = t * L.spd + L.phase;
+      const tx = 6 + Math.sin(ang) * 2.6;
+      const ty = 6 + Math.cos(ang * 0.82) * 2.4;
+      const a = iso(L.x, L.y, L.z);
+      const b = iso(tx, ty, 0.04);
+      g.moveTo(a.sx, a.sy);
+      g.lineTo(b.sx, b.sy);
+      g.stroke({ width: 6, color: L.color, alpha: 0.18 });
+      g.moveTo(a.sx, a.sy);
+      g.lineTo(b.sx, b.sy);
+      g.stroke({ width: 2, color: L.color, alpha: 0.85 });
+    }
+    for (let y = 3; y <= 8; y++) {
+      for (let x = 3; x <= 8; x++) {
+        const spark = Math.sin(t * 9 + x * 2.1 + y * 1.4);
+        if (spark < 0.55) continue;
+        const p = iso(x + 0.5, y + 0.5, 0.08);
+        g.circle(p.sx, p.sy - 4, 1.4);
+        g.fill({ color: 0xffffff, alpha: 0.55 });
+      }
+    }
+  }
+
   private textureFor(id: string, canvas: HTMLCanvasElement) {
     const hit = this.tex.get(id);
     if (hit && hit.w === canvas.width && hit.h === canvas.height) return hit.tex;
@@ -363,7 +436,7 @@ export class HotelPixi {
     this.names.clear();
   }
 
-  private paintFurniture(room: Room, layout: Layout, sprites?: Record<string, HTMLCanvasElement>) {
+  private paintFurniture(room: Room, layout: Layout, sprites?: Record<string, HTMLCanvasElement>, t = 0) {
     const seen = new Set<string>();
     for (const p of room.furniture) {
       const def = furn(p.catalogId);
@@ -384,7 +457,26 @@ export class HotelPixi {
         this.furnN.set(p.uid, node);
       }
       if (!canvas) {
-        node.visible = false;
+        node.position.set(0, 0);
+        node.visible = true;
+        let g = node.children[0] as Graphics | undefined;
+        if (!(g instanceof Graphics)) {
+          node.removeChildren();
+          g = new Graphics();
+          node.addChild(g);
+          this.furnKind.set(p.uid, "g");
+        }
+        g.clear();
+        drawFurni(g, def, p.x, p.y, z, p.rot);
+        if (def.shape === "lamp") {
+          const pulse = 0.35 + 0.35 * (0.5 + 0.5 * Math.sin(t * 5 + p.x));
+          const c = iso(p.x + 0.5, p.y + 0.5, z + 1.45);
+          g.circle(c.sx, c.sy, 18);
+          g.fill({ color: 0xff9ae8, alpha: pulse });
+          g.circle(c.sx, c.sy, 8);
+          g.fill({ color: 0xffe6ff, alpha: pulse + 0.15 });
+        }
+        node.zIndex = (p.x + w / 2 + p.y + d / 2) * 1000 + def.h;
         seen.add(p.uid);
         continue;
       }
