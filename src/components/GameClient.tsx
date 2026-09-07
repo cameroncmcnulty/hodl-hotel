@@ -979,21 +979,23 @@ export function GameClient({ me, homeRoomId }: { me: Me; homeRoomId: string }) {
                   <Plus size={26} />
                 </AppIcon>
               </div>
-              <div className="mt-auto mb-1 grid grid-cols-4 justify-items-center gap-2 rounded-[22px] bg-white/12 p-2.5 backdrop-blur-md">
+              <div className="mt-auto mb-1 grid grid-cols-4 justify-items-center gap-2 rounded-[22px] bg-white/12 px-2 pb-2 pt-2.5 backdrop-blur-md">
                 {[
-                  { tint: "from-[#38bdf8] to-[#1d4ed8]", Icon: Map, fn: openNav, label: "Navigator" },
-                  { tint: "from-[#fbbf24] to-[#ea580c]", Icon: Backpack, fn: () => setPhone("pack"), label: "Bag" },
+                  { tint: "from-[#38bdf8] to-[#1d4ed8]", Icon: Map, fn: openNav, label: "Nav" },
+                  { tint: "from-[#fbbf24] to-[#ea580c]", Icon: Backpack, fn: () => setPhone("pack"), label: "Backpack" },
                   { tint: "from-[#14F195] to-[#0f766e]", Icon: ShoppingBag, fn: () => setPhone("shop"), label: "Shop" },
                   { tint: "from-[#c084fc] to-[#7c3aed]", Icon: Users, fn: openSocial, label: "Friends" },
                 ].map(({ tint, Icon, fn, label }) => (
                   <button
                     key={label}
                     type="button"
-                    aria-label={label}
                     onClick={fn}
-                    className={`grid h-[52px] w-[52px] place-items-center rounded-[15px] bg-gradient-to-br text-white shadow-[0_8px_18px_rgba(0,0,0,0.3)] transition active:scale-95 ${tint}`}
+                    className="flex flex-col items-center gap-1"
                   >
-                    <Icon size={24} />
+                    <span className={`grid h-[52px] w-[52px] place-items-center rounded-[15px] bg-gradient-to-br text-white shadow-[0_8px_18px_rgba(0,0,0,0.3)] transition active:scale-95 ${tint}`}>
+                      <Icon size={24} />
+                    </span>
+                    <span className="max-w-[72px] truncate text-[10px] font-medium text-white/80">{label}</span>
                   </button>
                 ))}
               </div>
