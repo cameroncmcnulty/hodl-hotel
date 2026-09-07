@@ -48,6 +48,8 @@ export class HotelPixi {
   objects = new Container({ sortableChildren: true });
   ghost = new Graphics();
   private ghostSpr = new Sprite();
+  private backSpr = new Sprite();
+  private backKey = "";
   private furnN = new Map<string, Container>();
   private furnKind = new Map<string, string>();
   private tex = new Map<string, { tex: Texture; w: number; h: number }>();
@@ -79,6 +81,8 @@ export class HotelPixi {
     this.ghostSpr.anchor.set(0.5, 1);
     this.ghostSpr.roundPixels = true;
     this.ghostSpr.visible = false;
+    this.backSpr.visible = false;
+    this.world.addChild(this.backSpr);
     this.world.addChild(this.floor);
     this.world.addChild(this.objects);
     this.world.addChild(this.ghost);
@@ -100,11 +104,35 @@ export class HotelPixi {
     this.world.scale.set(fit.scale);
     this.world.position.set(fit.ox, fit.oy);
 
-    this.paintFloor(layout, room, frame.t);
+    this.paintBackdrop(layout);
+    if (layout.backdrop) {
+      this.floor.clear();
+      this.floorKey = `back:${layout.id}`;
+    } else {
+      this.paintFloor(layout, room, frame.t);
+    }
     this.paintFurniture(room, layout, frame.sprites);
     this.paintAvatars(room, frame.occupants, layout);
     this.paintGhost(frame, layout);
     this.objects.sortChildren();
+  }
+
+  private paintBackdrop(layout: Layout) {
+    const art = layout.backdrop;
+    if (!art) {
+      this.backSpr.visible = false;
+      return;
+    }
+    if (this.backKey !== art.src) {
+      this.backKey = art.src;
+      const tex = Texture.from(art.src);
+      tex.source.scaleMode = "linear";
+      this.backSpr.texture = tex;
+    }
+    this.backSpr.visible = true;
+    this.backSpr.anchor.set(0, 0);
+    this.backSpr.scale.set(art.scale);
+    this.backSpr.position.set(art.ox, art.oy);
   }
 
   private paintFloor(layout: Layout, room: Room, t: number) {
@@ -373,16 +401,19 @@ export class HotelPixi {
       const seatDef = seat ? furn(seat.catalogId) : undefined;
       const walk: 0 | 1 = o.moving ? 1 : 0;
       const test = getTestBody();
+      const look = test || getLookCanvas(o.figure, { view: o.dir, sit: sitting, lay: laying, walk });
+      const srcH = test ? look.height : FOOT_Y;
+      const gs = 52 / Math.max(1, srcH);
       const key = test
-        ? `test:${test.width}x${test.height}`
-        : `${JSON.stringify(o.figure)}:${o.dir}:${sitting ? 1 : 0}:${laying ? 1 : 0}:${walk}`;
+        ? `test:${look.width}x${look.height}:${gs}`
+        : `${JSON.stringify(o.figure)}:${o.dir}:${sitting ? 1 : 0}:${laying ? 1 : 0}:${walk}:${gs}`;
       let body = this.avG.get(o.userId);
       if (!body || this.avKey.get(o.userId) !== key) {
         body?.destroy({ children: true });
         body = new Container();
-        const look = test || getLookCanvas(o.figure, { view: o.dir, sit: sitting, lay: laying, walk });
         const spr = new Sprite(this.textureFor(`av:${key}`, look));
         spr.anchor.set(0.5, test ? 1 : FOOT_Y / LOOK_H);
+        spr.scale.set(gs);
         spr.roundPixels = true;
         body.addChild(spr);
         this.objects.addChild(body);
@@ -410,9 +441,9 @@ export class HotelPixi {
         this.objects.addChild(label);
         this.names.set(o.userId, label);
       } else if (label.text !== o.username) label.text = o.username;
-      const headLift = test ? test.height : FOOT_Y;
+      const headLift = srcH * gs;
       label.x = Math.round(p.sx - label.width / 2);
-      label.y = Math.round(p.sy - headLift - 12);
+      label.y = Math.round(p.sy - headLift - 8);
       label.zIndex = body.zIndex + 1;
     }
     for (const [id, spr] of this.avG) {

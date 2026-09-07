@@ -57,6 +57,55 @@ export const CATALOG: FurnDef[] = [
     shape: "chair",
     colors: { top: "#f1694f", left: "#9f4835", right: "#73331a" },
   },
+  {
+    id: "hz_seat",
+    name: "Club sofa",
+    desc: "Sittable club couch.",
+    category: "seating",
+    price: 0,
+    w: 1,
+    d: 1,
+    h: 1.15,
+    rot4: false,
+    rarity: "common",
+    slot: "floor",
+    sittable: true,
+    hotelOnly: true,
+    shape: "sofa",
+    colors: { top: "#7c4dff", left: "#4a2a78", right: "#2e1854" },
+  },
+  {
+    id: "hz_block",
+    name: "Club prop",
+    desc: "Blocks a tile.",
+    category: "decor",
+    price: 0,
+    w: 1,
+    d: 1,
+    h: 1.4,
+    rot4: false,
+    rarity: "common",
+    slot: "floor",
+    hotelOnly: true,
+    shape: "block",
+    colors: { top: "#2a2038", left: "#1a1428", right: "#120e1c" },
+  },
+  {
+    id: "hz_booth",
+    name: "DJ booth",
+    desc: "Blocks the booth.",
+    category: "electronics",
+    price: 0,
+    w: 3,
+    d: 2,
+    h: 2.2,
+    rot4: false,
+    rarity: "common",
+    slot: "floor",
+    hotelOnly: true,
+    shape: "block",
+    colors: { top: "#3b1860", left: "#1a0a28", right: "#120818" },
+  },
 ];
 export const HOTEL_FURN: FurnDef[] = [];
 
@@ -73,16 +122,49 @@ export type HotelSpot = { id: string; x: number; y: number; rot?: 0 | 1 | 2 | 3 
 
 export const HOTEL_SPOTS: Record<string, HotelSpot[]> = {};
 
+function spot(uid: string, catalogId: string, x: number, y: number, rot: 0 | 1 | 2 | 3 = 0) {
+  return { uid, catalogId, x, y, rot, ownerId: "hotel" };
+}
+
 export function hotelFurniture(layoutId: string) {
-  if (layoutId !== "grand_lobby") return [] as { uid: string; catalogId: string; x: number; y: number; rot: 0 | 1 | 2 | 3; ownerId: string }[];
-  return [
-    { uid: "test-stool-a", catalogId: "stool_mint", x: 6, y: 8, rot: 0 as const, ownerId: "hotel" },
-    { uid: "test-stool-b", catalogId: "stool_mint", x: 8, y: 8, rot: 0 as const, ownerId: "hotel" },
-    { uid: "test-stool-c", catalogId: "stool_mint", x: 10, y: 8, rot: 0 as const, ownerId: "hotel" },
-    { uid: "test-chair-a", catalogId: "chair_coral", x: 6, y: 10, rot: 0 as const, ownerId: "hotel" },
-    { uid: "test-chair-b", catalogId: "chair_coral", x: 8, y: 10, rot: 0 as const, ownerId: "hotel" },
-    { uid: "test-chair-c", catalogId: "chair_coral", x: 10, y: 10, rot: 0 as const, ownerId: "hotel" },
-  ];
+  if (layoutId === "grand_lobby") {
+    return [
+      spot("test-stool-a", "stool_mint", 6, 8),
+      spot("test-stool-b", "stool_mint", 8, 8),
+      spot("test-stool-c", "stool_mint", 10, 8),
+      spot("test-chair-a", "chair_coral", 6, 10),
+      spot("test-chair-b", "chair_coral", 8, 10),
+      spot("test-chair-c", "chair_coral", 10, 10),
+    ];
+  }
+  if (layoutId === "shill_club") {
+    return [
+      spot("hz-booth", "hz_booth", 4, 1),
+      spot("hz-seat-l0", "hz_seat", 1, 5, 1),
+      spot("hz-seat-l1", "hz_seat", 1, 6, 1),
+      spot("hz-seat-l2", "hz_seat", 1, 7, 1),
+      spot("hz-tbl-l0", "hz_block", 2, 5),
+      spot("hz-tbl-l1", "hz_block", 2, 6),
+      spot("hz-lamp-l", "hz_block", 1, 4),
+      spot("hz-plant-l0", "hz_block", 2, 8),
+      spot("hz-plant-l1", "hz_block", 0, 6),
+      spot("hz-seat-r0", "hz_seat", 7, 1, 0),
+      spot("hz-seat-r1", "hz_seat", 8, 1, 0),
+      spot("hz-seat-r2", "hz_seat", 9, 1, 0),
+      spot("hz-tbl-r0", "hz_block", 7, 2),
+      spot("hz-tbl-r1", "hz_block", 8, 2),
+      spot("hz-spk-0", "hz_block", 10, 1),
+      spot("hz-spk-1", "hz_block", 10, 2),
+      spot("hz-spk-2", "hz_block", 11, 2),
+      spot("hz-plant-r0", "hz_block", 11, 4),
+      spot("hz-plant-r1", "hz_block", 9, 3),
+      spot("hz-plant-f0", "hz_block", 3, 10),
+      spot("hz-plant-f1", "hz_block", 5, 10),
+      spot("hz-lamp-f", "hz_block", 7, 9),
+      spot("hz-plant-e0", "hz_block", 8, 11),
+    ];
+  }
+  return [] as { uid: string; catalogId: string; x: number; y: number; rot: 0 | 1 | 2 | 3; ownerId: string }[];
 }
 
 export const CATS = [

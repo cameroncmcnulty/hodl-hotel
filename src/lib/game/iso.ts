@@ -75,8 +75,20 @@ export function layoutIsoBounds(layout: { w: number; h: number }, wallH = 7.4) {
 }
 
 /** Scale + origin so the whole layout sits inside a view with padding. */
-export function camToFit(layout: { w: number; h: number }, viewW: number, viewH: number, pad = 14) {
-  const b = layoutIsoBounds(layout);
+export function camToFit(
+  layout: { w: number; h: number; backdrop?: { imgW: number; imgH: number; scale: number; ox: number; oy: number } },
+  viewW: number,
+  viewH: number,
+  pad = 14
+) {
+  const b = layout.backdrop
+    ? {
+        minX: layout.backdrop.ox,
+        minY: layout.backdrop.oy,
+        w: layout.backdrop.imgW * layout.backdrop.scale,
+        h: layout.backdrop.imgH * layout.backdrop.scale,
+      }
+    : layoutIsoBounds(layout);
   const padX = 12;
   const padY = Math.max(pad, 24);
   let scale = (viewW - padX * 2) / Math.max(8, b.w);
