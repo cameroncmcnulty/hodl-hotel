@@ -145,10 +145,11 @@ export function loadSprite(id: string) {
   if (cache[id]) return Promise.resolve(cache[id]);
   if (id in inflight) return inflight[id];
   inflight[id] = (async () => {
+    const def = furn(id);
+    if (def?.hidden) return null;
     const png = await loadImage(`/art/furn/${id}.png?v=27`);
     const img = png || (await loadImage(`/art/furn/${id}.jpg?v=27`));
     if (!img) {
-      const def = furn(id);
       if (!def) return null;
       const baked = paintFurn(def, 0);
       if (baked.width > 4) cache[id] = baked;

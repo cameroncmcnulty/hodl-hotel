@@ -17,6 +17,8 @@ export type FurnDef = {
   walkable?: boolean;
   sittable?: boolean;
   hotelOnly?: boolean;
+  /** Occupancy only — baked into a room painting, never drawn. */
+  hidden?: boolean;
   use?: FurnUse;
   layable?: boolean;
   finish?: "paper" | "floor";
@@ -71,6 +73,7 @@ export const CATALOG: FurnDef[] = [
     slot: "floor",
     sittable: true,
     hotelOnly: true,
+    hidden: true,
     shape: "sofa",
     colors: { top: "#7c4dff", left: "#4a2a78", right: "#2e1854" },
   },
@@ -87,6 +90,7 @@ export const CATALOG: FurnDef[] = [
     rarity: "common",
     slot: "floor",
     hotelOnly: true,
+    hidden: true,
     shape: "block",
     colors: { top: "#2a2038", left: "#1a1428", right: "#120e1c" },
   },
@@ -103,6 +107,7 @@ export const CATALOG: FurnDef[] = [
     rarity: "common",
     slot: "floor",
     hotelOnly: true,
+    hidden: true,
     shape: "block",
     colors: { top: "#3b1860", left: "#1a0a28", right: "#120818" },
   },

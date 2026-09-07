@@ -25,6 +25,8 @@ export type Layout = {
   floorB?: string;
   /** Painted room. Engine floor/walls are skipped; this sprite is the room. */
   backdrop?: RoomBackdrop;
+  /** Sprite scale for guests in this room. Omit for native 1:1. */
+  guestScale?: number;
 };
 
 function parse(
@@ -68,6 +70,7 @@ function parse(
     floorA: extra.floorA,
     floorB: extra.floorB,
     backdrop: extra.backdrop,
+    guestScale: extra.guestScale,
   };
 }
 
@@ -385,6 +388,7 @@ oooooooooooooooooo
         ox: 0 - 592.5 * (384 / 506),
         oy: 192 - 465 * (384 / 506),
       },
+      guestScale: 0.5,
     }
   ),
   parse(

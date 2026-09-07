@@ -82,6 +82,11 @@ export class HotelPixi {
     this.ghostSpr.roundPixels = true;
     this.ghostSpr.visible = false;
     this.backSpr.visible = false;
+    this.backSpr.zIndex = -1000;
+    this.floor.zIndex = 0;
+    this.objects.zIndex = 1;
+    this.ghost.zIndex = 2;
+    this.ghostSpr.zIndex = 3;
     this.world.addChild(this.backSpr);
     this.world.addChild(this.floor);
     this.world.addChild(this.objects);
@@ -103,6 +108,8 @@ export class HotelPixi {
     const fit = camToFit(layout, view.w, view.h);
     this.world.scale.set(fit.scale);
     this.world.position.set(fit.ox, fit.oy);
+    const canvas = this.app.canvas as HTMLCanvasElement;
+    canvas.style.imageRendering = layout.backdrop ? "auto" : "pixelated";
 
     this.paintBackdrop(layout);
     if (layout.backdrop) {
@@ -125,9 +132,13 @@ export class HotelPixi {
     }
     if (this.backKey !== art.src) {
       this.backKey = art.src;
-      const tex = Texture.from(art.src);
-      tex.source.scaleMode = "linear";
-      this.backSpr.texture = tex;
+      const img = new Image();
+      img.onload = () => {
+        const tex = Texture.from(img);
+        tex.source.scaleMode = "linear";
+        this.backSpr.texture = tex;
+      };
+      img.src = art.src;
     }
     this.backSpr.visible = true;
     this.backSpr.anchor.set(0, 0);
@@ -359,6 +370,12 @@ export class HotelPixi {
       if (!def) continue;
       const { w, d } = footprint(def, p.rot);
       const z = tileH(layout, p.x, p.y);
+      if (def.hidden) {
+        const node = this.furnN.get(p.uid);
+        if (node) node.visible = false;
+        seen.add(p.uid);
+        continue;
+      }
       const canvas = sprites?.[def.id];
       let node = this.furnN.get(p.uid);
       if (!node) {
@@ -403,7 +420,7 @@ export class HotelPixi {
       const test = getTestBody();
       const look = test || getLookCanvas(o.figure, { view: o.dir, sit: sitting, lay: laying, walk });
       const srcH = test ? look.height : FOOT_Y;
-      const gs = 52 / Math.max(1, srcH);
+      const gs = layout.guestScale ?? 1;
       const key = test
         ? `test:${look.width}x${look.height}:${gs}`
         : `${JSON.stringify(o.figure)}:${o.dir}:${sitting ? 1 : 0}:${laying ? 1 : 0}:${walk}:${gs}`;
